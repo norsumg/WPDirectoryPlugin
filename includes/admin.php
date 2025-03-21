@@ -30,6 +30,15 @@ function lbd_add_admin_menu() {
         'lbd-csv-import',
         'lbd_csv_import_page'
     );
+
+    add_submenu_page(
+        'local-business-directory',
+        'Reviews Manager',
+        'Reviews',
+        'manage_options',
+        'lbd-reviews',
+        'lbd_reviews_page'
+    );
 }
 add_action('admin_menu', 'lbd_add_admin_menu');
 
@@ -97,7 +106,10 @@ function lbd_export_businesses_to_csv() {
         'business_address',
         'business_website',
         'business_premium',
-        'business_image_url'
+        'business_image_url',
+        'business_black_owned',
+        'business_women_owned',
+        'business_lgbtq_friendly'
     ));
     
     // Query all businesses
@@ -138,7 +150,10 @@ function lbd_export_businesses_to_csv() {
             $address,
             $website,
             $premium,
-            $image_url
+            $image_url,
+            get_post_meta($business->ID, 'lbd_black_owned', true),
+            get_post_meta($business->ID, 'lbd_women_owned', true),
+            get_post_meta($business->ID, 'lbd_lgbtq_friendly', true)
         ));
     }
     
@@ -220,6 +235,9 @@ function lbd_csv_import_page() {
                     <li><strong>business_website</strong> - Website URL</li>
                     <li><strong>business_premium</strong> - Set to "yes" for premium listings</li>
                     <li><strong>business_image_url</strong> - URL to a featured image</li>
+                    <li><strong>business_black_owned</strong> - Set to "yes" if business is Black owned</li>
+                    <li><strong>business_women_owned</strong> - Set to "yes" if business is Women owned</li>
+                    <li><strong>business_lgbtq_friendly</strong> - Set to "yes" if business is LGBTQ+ friendly</li>
                 </ul>
                 
                 <p class="submit">
@@ -240,9 +258,9 @@ function lbd_csv_import_page() {
     document.getElementById('lbd-sample-csv').addEventListener('click', function(e) {
         e.preventDefault();
         
-        const headers = 'business_name,business_description,business_excerpt,business_area,business_category,business_phone,business_address,business_website,business_premium,business_image_url\n';
-        const sampleRow1 = 'ACME Web Design,"We create beautiful websites for small businesses. Our team has over 10 years of experience designing responsive websites that convert visitors into customers.",Web design experts in Ashford area,Ashford,Web Design,01234 567890,"123 Main St, Ashford",https://example.com,yes,https://example.com/sample-image1.jpg\n';
-        const sampleRow2 = 'Smith & Co Accountants,"Professional accounting services for small businesses and individuals. We provide tax preparation, bookkeeping, and financial planning.",Trusted local accountants serving Canterbury since 2005,Canterbury,Accountants,01234 123456,"45 High Street, Canterbury",https://example-accountants.com,no,https://example.com/sample-image2.jpg\n';
+        const headers = 'business_name,business_description,business_excerpt,business_area,business_category,business_phone,business_address,business_website,business_premium,business_image_url,business_black_owned,business_women_owned,business_lgbtq_friendly\n';
+        const sampleRow1 = 'ACME Web Design,"We create beautiful websites for small businesses. Our team has over 10 years of experience designing responsive websites that convert visitors into customers.",Web design experts in Ashford area,Ashford,Web Design,01234 567890,"123 Main St, Ashford",https://example.com,yes,https://example.com/sample-image1.jpg,yes,no,yes\n';
+        const sampleRow2 = 'Smith & Co Accountants,"Professional accounting services for small businesses and individuals. We provide tax preparation, bookkeeping, and financial planning.",Trusted local accountants serving Canterbury since 2005,Canterbury,Accountants,01234 123456,"45 High Street, Canterbury",https://example-accountants.com,no,https://example.com/sample-image2.jpg,no,yes,no\n';
         
         const csvContent = headers + sampleRow1 + sampleRow2;
         const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -436,6 +454,19 @@ function lbd_create_business_from_csv($data) {
     if (isset($data['business_premium']) && strtolower($data['business_premium']) === 'yes') {
         update_post_meta($post_id, 'lbd_premium', '1');
     }
+
+    // Set business attributes
+    if (isset($data['business_black_owned']) && strtolower($data['business_black_owned']) === 'yes') {
+        update_post_meta($post_id, 'lbd_black_owned', '1');
+    }
+
+    if (isset($data['business_women_owned']) && strtolower($data['business_women_owned']) === 'yes') {
+        update_post_meta($post_id, 'lbd_women_owned', '1');
+    }
+
+    if (isset($data['business_lgbtq_friendly']) && strtolower($data['business_lgbtq_friendly']) === 'yes') {
+        update_post_meta($post_id, 'lbd_lgbtq_friendly', '1');
+    }
     
     // Set featured image if URL is provided
     if (!empty($data['business_image_url'])) {
@@ -517,4 +548,410 @@ function lbd_set_featured_image_from_url($image_url, $post_id, $title = '') {
     set_post_thumbnail($post_id, $attach_id);
     
     return $attach_id;
+}
+
+/**
+ * Reviews Manager admin page callback
+ */
+function lbd_reviews_page() {
+    global $wpdb;
+    
+    $action = isset($_GET['action']) ? $_GET['action'] : '';
+    
+    // Handle review actions (approval, deletion, etc.)
+    if ($action === 'approve' && isset($_GET['review_id']) && current_user_can('manage_options')) {
+        $review_id = intval($_GET['review_id']);
+        $table_name = $wpdb->prefix . 'lbd_reviews';
+        
+        $wpdb->update(
+            $table_name,
+            array('approved' => 1),
+            array('id' => $review_id),
+            array('%d'),
+            array('%d')
+        );
+        
+        // Redirect to remove action from URL
+        wp_redirect(admin_url('admin.php?page=lbd-reviews&approved=1'));
+        exit;
+    }
+    
+    if ($action === 'unapprove' && isset($_GET['review_id']) && current_user_can('manage_options')) {
+        $review_id = intval($_GET['review_id']);
+        $table_name = $wpdb->prefix . 'lbd_reviews';
+        
+        $wpdb->update(
+            $table_name,
+            array('approved' => 0),
+            array('id' => $review_id),
+            array('%d'),
+            array('%d')
+        );
+        
+        // Redirect to remove action from URL
+        wp_redirect(admin_url('admin.php?page=lbd-reviews&unapproved=1'));
+        exit;
+    }
+    
+    if ($action === 'delete' && isset($_GET['review_id']) && current_user_can('manage_options')) {
+        $review_id = intval($_GET['review_id']);
+        $table_name = $wpdb->prefix . 'lbd_reviews';
+        
+        $wpdb->delete(
+            $table_name,
+            array('id' => $review_id),
+            array('%d')
+        );
+        
+        // Redirect to remove action from URL
+        wp_redirect(admin_url('admin.php?page=lbd-reviews&deleted=1'));
+        exit;
+    }
+    
+    // Handle CSV import of reviews
+    if (isset($_POST['lbd_import_reviews_submit']) && isset($_FILES['lbd_reviews_file'])) {
+        lbd_handle_reviews_import();
+    }
+    
+    // Handle manual review addition
+    if (isset($_POST['lbd_add_review_submit'])) {
+        lbd_handle_add_review();
+    }
+    
+    // Show success messages
+    if (isset($_GET['approved'])) {
+        echo '<div class="notice notice-success"><p>Review approved successfully.</p></div>';
+    }
+    
+    if (isset($_GET['unapproved'])) {
+        echo '<div class="notice notice-success"><p>Review unapproved successfully.</p></div>';
+    }
+    
+    if (isset($_GET['deleted'])) {
+        echo '<div class="notice notice-success"><p>Review deleted successfully.</p></div>';
+    }
+    
+    if (isset($_GET['added'])) {
+        echo '<div class="notice notice-success"><p>Review added successfully.</p></div>';
+    }
+    
+    if (isset($_GET['imported'])) {
+        echo '<div class="notice notice-success"><p>' . intval($_GET['imported']) . ' reviews imported successfully.</p></div>';
+    }
+    
+    ?>
+    <div class="wrap">
+        <h1>Reviews Manager</h1>
+        
+        <div class="card">
+            <h2>Import Reviews from CSV</h2>
+            <p>Upload a CSV file containing Google reviews to import.</p>
+            
+            <form method="post" enctype="multipart/form-data">
+                <?php wp_nonce_field('lbd_import_reviews_action', 'lbd_import_reviews_nonce'); ?>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><label for="lbd_reviews_file">CSV File</label></th>
+                        <td>
+                            <input type="file" name="lbd_reviews_file" id="lbd_reviews_file" accept=".csv" required>
+                            <p class="description">File must be a CSV with headers: business_id, reviewer_name, review_text, rating, review_date, source_id</p>
+                        </td>
+                    </tr>
+                </table>
+                
+                <p class="submit">
+                    <input type="submit" name="lbd_import_reviews_submit" class="button button-primary" value="Import Reviews">
+                </p>
+            </form>
+        </div>
+        
+        <div class="card">
+            <h2>Add Review Manually</h2>
+            
+            <form method="post">
+                <?php wp_nonce_field('lbd_add_review_action', 'lbd_add_review_nonce'); ?>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><label for="lbd_business_id">Business</label></th>
+                        <td>
+                            <select name="lbd_business_id" id="lbd_business_id" required>
+                                <option value="">Select a Business</option>
+                                <?php
+                                $businesses = get_posts(array(
+                                    'post_type' => 'business',
+                                    'posts_per_page' => -1,
+                                    'orderby' => 'title',
+                                    'order' => 'ASC',
+                                ));
+                                
+                                foreach ($businesses as $business) {
+                                    echo '<option value="' . esc_attr($business->ID) . '">' . esc_html($business->post_title) . '</option>';
+                                }
+                                ?>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="lbd_reviewer_name">Reviewer Name</label></th>
+                        <td>
+                            <input type="text" name="lbd_reviewer_name" id="lbd_reviewer_name" class="regular-text" required>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="lbd_review_text">Review Text</label></th>
+                        <td>
+                            <textarea name="lbd_review_text" id="lbd_review_text" rows="5" class="large-text" required></textarea>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="lbd_rating">Rating (1-5)</label></th>
+                        <td>
+                            <select name="lbd_rating" id="lbd_rating" required>
+                                <option value="5">5 Stars</option>
+                                <option value="4">4 Stars</option>
+                                <option value="3">3 Stars</option>
+                                <option value="2">2 Stars</option>
+                                <option value="1">1 Star</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="lbd_source">Source</label></th>
+                        <td>
+                            <select name="lbd_source" id="lbd_source">
+                                <option value="google">Google</option>
+                                <option value="manual">Manual</option>
+                                <option value="imported">Imported</option>
+                            </select>
+                        </td>
+                    </tr>
+                </table>
+                
+                <p class="submit">
+                    <input type="submit" name="lbd_add_review_submit" class="button button-primary" value="Add Review">
+                </p>
+            </form>
+        </div>
+        
+        <div class="card">
+            <h2>Manage Reviews</h2>
+            <?php
+            $table_name = $wpdb->prefix . 'lbd_reviews';
+            $reviews = $wpdb->get_results("SELECT r.*, p.post_title AS business_name FROM {$table_name} r JOIN {$wpdb->posts} p ON r.business_id = p.ID ORDER BY r.review_date DESC");
+            
+            if ($reviews) {
+                echo '<table class="wp-list-table widefat fixed striped">';
+                echo '<thead>';
+                echo '<tr>';
+                echo '<th>Business</th>';
+                echo '<th>Reviewer</th>';
+                echo '<th>Review</th>';
+                echo '<th>Rating</th>';
+                echo '<th>Date</th>';
+                echo '<th>Source</th>';
+                echo '<th>Status</th>';
+                echo '<th>Actions</th>';
+                echo '</tr>';
+                echo '</thead>';
+                echo '<tbody>';
+                
+                foreach ($reviews as $review) {
+                    echo '<tr>';
+                    echo '<td>' . esc_html($review->business_name) . '</td>';
+                    echo '<td>' . esc_html($review->reviewer_name) . '</td>';
+                    echo '<td>' . esc_html(wp_trim_words($review->review_text, 15)) . '</td>';
+                    echo '<td>' . esc_html($review->rating) . ' / 5</td>';
+                    echo '<td>' . esc_html(date('M j, Y', strtotime($review->review_date))) . '</td>';
+                    echo '<td>' . esc_html(ucfirst($review->source)) . '</td>';
+                    echo '<td>' . ($review->approved ? '<span style="color:green">Approved</span>' : '<span style="color:red">Pending</span>') . '</td>';
+                    echo '<td>';
+                    
+                    // Approval/unapproval link
+                    if ($review->approved) {
+                        echo '<a href="' . admin_url('admin.php?page=lbd-reviews&action=unapprove&review_id=' . $review->id) . '" class="button button-small">Unapprove</a> ';
+                    } else {
+                        echo '<a href="' . admin_url('admin.php?page=lbd-reviews&action=approve&review_id=' . $review->id) . '" class="button button-small button-primary">Approve</a> ';
+                    }
+                    
+                    // Delete link
+                    echo '<a href="' . admin_url('admin.php?page=lbd-reviews&action=delete&review_id=' . $review->id) . '" class="button button-small" onclick="return confirm(\'Are you sure you want to delete this review?\')">Delete</a>';
+                    
+                    echo '</td>';
+                    echo '</tr>';
+                }
+                
+                echo '</tbody>';
+                echo '</table>';
+            } else {
+                echo '<p>No reviews found. Add reviews manually or import from CSV.</p>';
+            }
+            ?>
+        </div>
+    </div>
+    <?php
+}
+
+/**
+ * Handle manual review addition
+ */
+function lbd_handle_add_review() {
+    // Check nonce for security
+    if (!isset($_POST['lbd_add_review_nonce']) || !wp_verify_nonce($_POST['lbd_add_review_nonce'], 'lbd_add_review_action')) {
+        echo '<div class="notice notice-error"><p>Security check failed. Please try again.</p></div>';
+        return;
+    }
+    
+    // Get form data
+    $business_id = isset($_POST['lbd_business_id']) ? intval($_POST['lbd_business_id']) : 0;
+    $reviewer_name = isset($_POST['lbd_reviewer_name']) ? sanitize_text_field($_POST['lbd_reviewer_name']) : '';
+    $review_text = isset($_POST['lbd_review_text']) ? sanitize_textarea_field($_POST['lbd_review_text']) : '';
+    $rating = isset($_POST['lbd_rating']) ? intval($_POST['lbd_rating']) : 5;
+    $source = isset($_POST['lbd_source']) ? sanitize_text_field($_POST['lbd_source']) : 'manual';
+    
+    // Validate
+    if (!$business_id || !$reviewer_name || !$review_text || $rating < 1 || $rating > 5) {
+        echo '<div class="notice notice-error"><p>Please fill in all required fields correctly.</p></div>';
+        return;
+    }
+    
+    // Add the review
+    $result = lbd_add_review($business_id, $reviewer_name, $review_text, $rating, $source);
+    
+    if ($result) {
+        // Redirect to avoid form resubmission
+        wp_redirect(admin_url('admin.php?page=lbd-reviews&added=1'));
+        exit;
+    } else {
+        echo '<div class="notice notice-error"><p>Error adding review. Please try again.</p></div>';
+    }
+}
+
+/**
+ * Handle reviews CSV import
+ */
+function lbd_handle_reviews_import() {
+    // Check nonce for security
+    if (!isset($_POST['lbd_import_reviews_nonce']) || !wp_verify_nonce($_POST['lbd_import_reviews_nonce'], 'lbd_import_reviews_action')) {
+        echo '<div class="notice notice-error"><p>Security check failed. Please try again.</p></div>';
+        return;
+    }
+    
+    // Get the uploaded file
+    $file = $_FILES['lbd_reviews_file'];
+    
+    // Check for errors
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        echo '<div class="notice notice-error"><p>Error uploading file. Please try again.</p></div>';
+        return;
+    }
+    
+    // Check file type
+    $file_type = wp_check_filetype(basename($file['name']));
+    if ($file_type['ext'] !== 'csv') {
+        echo '<div class="notice notice-error"><p>Please upload a valid CSV file.</p></div>';
+        return;
+    }
+    
+    // Open the file
+    $handle = fopen($file['tmp_name'], 'r');
+    if (!$handle) {
+        echo '<div class="notice notice-error"><p>Error opening file. Please try again.</p></div>';
+        return;
+    }
+    
+    // Get headers
+    $headers = fgetcsv($handle);
+    if (!$headers) {
+        fclose($handle);
+        echo '<div class="notice notice-error"><p>Error reading CSV headers.</p></div>';
+        return;
+    }
+    
+    // Required fields
+    $required_fields = array('business_id', 'reviewer_name', 'review_text', 'rating');
+    $missing_fields = array();
+    
+    // Check for required fields
+    foreach ($required_fields as $field) {
+        if (!in_array($field, $headers)) {
+            $missing_fields[] = $field;
+        }
+    }
+    
+    if (!empty($missing_fields)) {
+        fclose($handle);
+        echo '<div class="notice notice-error"><p>Missing required fields: ' . implode(', ', $missing_fields) . '</p></div>';
+        return;
+    }
+    
+    // Start import
+    $imported = 0;
+    $skipped = 0;
+    
+    // Process rows
+    while (($row = fgetcsv($handle)) !== false) {
+        // Skip empty rows
+        if (count($row) <= 1 && empty($row[0])) {
+            continue;
+        }
+        
+        // Create associative array from row
+        $data = array();
+        foreach ($headers as $index => $header) {
+            $data[$header] = isset($row[$index]) ? trim($row[$index]) : '';
+        }
+        
+        // Skip if missing required fields
+        if (empty($data['business_id']) || empty($data['reviewer_name']) || 
+            empty($data['review_text']) || empty($data['rating'])) {
+            $skipped++;
+            continue;
+        }
+        
+        // Add the review
+        $business_id = intval($data['business_id']);
+        $reviewer_name = sanitize_text_field($data['reviewer_name']);
+        $review_text = sanitize_textarea_field($data['review_text']);
+        $rating = intval($data['rating']);
+        $source = !empty($data['source']) ? sanitize_text_field($data['source']) : 'google';
+        $source_id = !empty($data['source_id']) ? sanitize_text_field($data['source_id']) : '';
+        
+        // If review_date is provided, use it
+        $review_date = !empty($data['review_date']) ? $data['review_date'] : null;
+        
+        // Validate the business exists
+        $business = get_post($business_id);
+        if (!$business || $business->post_type !== 'business') {
+            $skipped++;
+            continue;
+        }
+        
+        // Add the review using our function from activation.php
+        $result = lbd_add_review($business_id, $reviewer_name, $review_text, $rating, $source, $source_id);
+        
+        if ($result) {
+            // If review date was provided, update it directly in the database
+            if ($review_date) {
+                global $wpdb;
+                $table_name = $wpdb->prefix . 'lbd_reviews';
+                $wpdb->update(
+                    $table_name,
+                    array('review_date' => $review_date),
+                    array('id' => $result),
+                    array('%s'),
+                    array('%d')
+                );
+            }
+            
+            $imported++;
+        } else {
+            $skipped++;
+        }
+    }
+    
+    fclose($handle);
+    
+    // Redirect with results
+    wp_redirect(admin_url('admin.php?page=lbd-reviews&imported=' . $imported . ($skipped > 0 ? '&skipped=' . $skipped : '')));
+    exit;
 } 

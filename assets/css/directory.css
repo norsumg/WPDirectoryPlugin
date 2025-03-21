@@ -99,6 +99,23 @@
     padding: 20px;
 }
 
+/* Taxonomy breadcrumb */
+.taxonomy-breadcrumb {
+    margin-bottom: 20px;
+    padding: 10px 0;
+    font-size: 14px;
+    border-bottom: 1px solid #eee;
+}
+
+.taxonomy-breadcrumb a {
+    text-decoration: none;
+    color: #0073aa;
+}
+
+.taxonomy-breadcrumb a:hover {
+    text-decoration: underline;
+}
+
 .no-businesses {
     padding: 30px;
     background: #f9f9f9;
@@ -158,10 +175,193 @@
 }
 
 .visit-website {
+    display: inline-block;
+    padding: 5px 10px;
+    margin-top: 10px;
+    text-decoration: none;
     background-color: #0073aa;
     color: white;
 }
 
 .visit-website:hover {
     background-color: #005177;
+}
+
+/* Business Attributes Styles */
+.business-attributes {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f5f5f5;
+    border-radius: 5px;
+}
+
+.business-attributes h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 16px;
+    color: #333;
+}
+
+.attributes-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.attribute {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff;
+}
+
+.attribute-icon {
+    margin-right: 6px;
+    font-size: 12px;
+}
+
+/* Small badges for listings */
+.business-attributes-small {
+    margin: 10px 0;
+    display: flex;
+    gap: 5px;
+}
+
+.attribute-badge {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+    text-align: center;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+    cursor: help;
+}
+
+.black-owned {
+    background-color: #333;
+}
+
+.women-owned {
+    background-color: #e91e63;
+}
+
+.lgbtq-friendly {
+    background: linear-gradient(90deg, #ff0018, #ffa52c, #ffff41, #008018, #0000f9, #86007d);
+}
+
+/* Small screens */
+@media (max-width: 768px) {
+    .attributes-list {
+        flex-direction: column;
+        gap: 5px;
+    }
+}
+
+/* Reviews Styles */
+.review-summary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+}
+
+.average-rating {
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+}
+
+.rating-stars {
+    display: flex;
+}
+
+.star {
+    font-size: 20px;
+    margin-right: 2px;
+}
+
+.full-star {
+    color: #ffb400;
+}
+
+.half-star {
+    color: #ffb400;
+    position: relative;
+}
+
+.half-star:after {
+    content: '☆';
+    color: #ffb400;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 50%;
+    overflow: hidden;
+}
+
+.empty-star {
+    color: #ccc;
+}
+
+.review-count {
+    color: #777;
+    font-size: 14px;
+}
+
+.reviews-list {
+    margin-top: 20px;
+}
+
+.review-item {
+    padding: 15px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.review-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.reviewer-name {
+    font-weight: bold;
+    color: #333;
+}
+
+.review-date {
+    color: #777;
+    font-size: 14px;
+}
+
+.review-rating {
+    margin-bottom: 10px;
+}
+
+.review-rating .star {
+    font-size: 16px;
+}
+
+.review-text {
+    margin-bottom: 10px;
+    line-height: 1.5;
+}
+
+.review-source {
+    font-size: 12px;
+    color: #777;
+    font-style: italic;
 } 

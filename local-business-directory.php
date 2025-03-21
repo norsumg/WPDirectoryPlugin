@@ -27,6 +27,7 @@ lbd_include_file('includes/metaboxes.php');
 lbd_include_file('includes/shortcodes.php');
 lbd_include_file('includes/templates.php');
 lbd_include_file('includes/admin.php');
+lbd_include_file('includes/activation.php');
 
 // Enqueue basic styles
 function lbd_enqueue_styles() {
@@ -56,6 +57,9 @@ function lbd_activation() {
         }
         flush_rewrite_rules();
     }
+    
+    // Create custom database tables
+    do_action('lbd_activation');
 }
 register_activation_hook( __FILE__, 'lbd_activation' );
 

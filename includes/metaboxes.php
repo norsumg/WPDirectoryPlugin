@@ -43,5 +43,31 @@ function lbd_metaboxes() {
         'type' => 'checkbox',
         'desc' => 'Check to mark this business as premium (appears first in search results)',
     ) );
+
+    // Business Attributes Section
+    $cmb->add_field( array(
+        'name' => 'Business Attributes',
+        'desc' => 'Special characteristics of this business',
+        'id'   => 'lbd_attributes_title',
+        'type' => 'title',
+    ) );
+
+    $cmb->add_field( array(
+        'name' => 'Black Owned',
+        'id' => 'lbd_black_owned',
+        'type' => 'checkbox',
+    ) );
+
+    $cmb->add_field( array(
+        'name' => 'Women Owned',
+        'id' => 'lbd_women_owned',
+        'type' => 'checkbox',
+    ) );
+
+    $cmb->add_field( array(
+        'name' => 'LGBTQ+ Friendly',
+        'id' => 'lbd_lgbtq_friendly',
+        'type' => 'checkbox',
+    ) );
 }
 add_action( 'cmb2_admin_init', 'lbd_metaboxes' ); 
