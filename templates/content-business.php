@@ -32,15 +32,15 @@
     if ($black_owned || $women_owned || $lgbtq_friendly) : ?>
         <div class="business-attributes-small">
             <?php if ($black_owned) : ?>
-                <span class="attribute-badge black-owned" title="Black Owned">B</span>
+                <span class="attribute-badge black-owned" title="Black Owned">✓</span>
             <?php endif; ?>
             
             <?php if ($women_owned) : ?>
-                <span class="attribute-badge women-owned" title="Women Owned">W</span>
+                <span class="attribute-badge women-owned" title="Women Owned">✓</span>
             <?php endif; ?>
             
             <?php if ($lgbtq_friendly) : ?>
-                <span class="attribute-badge lgbtq-friendly" title="LGBTQ+ Friendly">L</span>
+                <span class="attribute-badge lgbtq-friendly" title="LGBTQ+ Friendly">✓</span>
             <?php endif; ?>
         </div>
     <?php endif; ?>

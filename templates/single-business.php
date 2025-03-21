@@ -53,22 +53,19 @@
             
             if ($black_owned || $women_owned || $lgbtq_friendly) {
                 echo '<div class="business-attributes">';
-                echo '<h4>Business Attributes</h4>';
-                echo '<ul class="attributes-list">';
                 
                 if ($black_owned) {
-                    echo '<li class="attribute black-owned"><span class="attribute-icon">●</span> Black Owned</li>';
+                    echo '<div class="attribute-item black-owned"><span class="attribute-icon">✓</span> Black Owned</div>';
                 }
                 
                 if ($women_owned) {
-                    echo '<li class="attribute women-owned"><span class="attribute-icon">●</span> Women Owned</li>';
+                    echo '<div class="attribute-item women-owned"><span class="attribute-icon">✓</span> Women Owned</div>';
                 }
                 
                 if ($lgbtq_friendly) {
-                    echo '<li class="attribute lgbtq-friendly"><span class="attribute-icon">●</span> LGBTQ+ Friendly</li>';
+                    echo '<div class="attribute-item lgbtq-friendly"><span class="attribute-icon">✓</span> LGBTQ+ Friendly</div>';
                 }
                 
-                echo '</ul>';
                 echo '</div>';
             }
             ?>
