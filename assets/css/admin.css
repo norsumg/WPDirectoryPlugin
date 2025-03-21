@@ -1,0 +1,42 @@
+/**
+ * Admin styles for Local Business Directory
+ */
+
+.wrap .card {
+    max-width: 100%;
+    margin-top: 20px;
+    padding: 20px;
+}
+
+.form-table th {
+    width: 150px;
+}
+
+ul.csv-instructions {
+    list-style: disc outside;
+    margin-left: 2em;
+}
+
+.csv-result-summary {
+    margin: 15px 0;
+    padding: 15px;
+    background: #f8f8f8;
+    border-left: 4px solid #46b450;
+}
+
+.csv-error-list {
+    background: #fff8f8;
+    border-left: 4px solid #dc3232;
+    padding: 10px 15px;
+    margin: 15px 0;
+}
+
+.csv-error-list ul {
+    list-style: disc outside;
+    margin-left: 2em;
+}
+
+/* Sample CSV button */
+.button#lbd-sample-csv {
+    margin-bottom: 15px;
+} 

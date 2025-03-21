@@ -26,6 +26,7 @@ lbd_include_file('includes/post-type.php');
 lbd_include_file('includes/metaboxes.php');
 lbd_include_file('includes/shortcodes.php');
 lbd_include_file('includes/templates.php');
+lbd_include_file('includes/admin.php');
 
 // Enqueue basic styles
 function lbd_enqueue_styles() {
