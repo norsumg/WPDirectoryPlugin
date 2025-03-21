@@ -1,0 +1,69 @@
+.business-categories, .business-list {
+    list-style: none;
+    padding: 0;
+}
+.business-categories li, .business-list li {
+    margin-bottom: 10px;
+}
+.business-search-form {
+    margin: 20px 0;
+}
+.business-search-form input, .business-search-form select, .business-search-form button {
+    padding: 5px;
+    margin-right: 10px;
+}
+.business-item {
+    border-bottom: 1px solid #eee;
+    padding: 10px 0;
+}
+.premium-label {
+    background: gold;
+    padding: 2px 5px;
+    font-size: 12px;
+}
+
+/* Business profile styles */
+.business-profile {
+    max-width: 800px;
+    margin: 0 auto;
+}
+.business-details {
+    margin: 20px 0;
+    padding: 15px;
+    background: #f9f9f9;
+    border: 1px solid #eee;
+}
+.business-description {
+    margin: 20px 0;
+}
+.business-reviews {
+    margin-top: 30px;
+    border-top: 1px solid #eee;
+    padding-top: 20px;
+}
+
+/* Area and category styles */
+.business-taxonomy-links {
+    margin: 10px 0 20px;
+    font-size: 14px;
+}
+.business-area-link {
+    margin-right: 15px;
+}
+.business-featured-image {
+    margin-bottom: 20px;
+}
+.business-area {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+.area-categories {
+    margin: 20px 0;
+    padding: 15px;
+    background: #f9f9f9;
+    border: 1px solid #eee;
+}
+.term-description {
+    margin-bottom: 20px;
+    font-style: italic;
+} 
