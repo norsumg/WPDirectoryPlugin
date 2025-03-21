@@ -33,10 +33,23 @@
     
     <div class="business-listing">
         <h2>All Businesses in <?php single_term_title(); ?></h2>
-        <?php if ( have_posts() ) : while ( have_posts() ) : the_post(); ?>
-            <?php lbd_get_template_part( 'content', 'business' ); ?>
-        <?php endwhile; else: ?>
-            <p>No businesses found in this area.</p>
+        <?php if ( have_posts() ) : ?>
+            <div class="business-grid">
+                <?php while ( have_posts() ) : the_post(); ?>
+                    <?php lbd_get_template_part( 'content', 'business' ); ?>
+                <?php endwhile; ?>
+            </div>
+            
+            <?php if ( function_exists('wp_pagenavi') ) : ?>
+                <?php wp_pagenavi(); ?>
+            <?php else : ?>
+                <div class="pagination">
+                    <?php echo paginate_links(); ?>
+                </div>
+            <?php endif; ?>
+            
+        <?php else : ?>
+            <p class="no-businesses">No businesses found in this area. Check back soon or <a href="<?php echo home_url(); ?>">browse other areas</a>.</p>
         <?php endif; ?>
     </div>
 </div>

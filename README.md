@@ -10,7 +10,7 @@ A WordPress plugin that creates a comprehensive business directory with categori
 - Premium listings designation
 - Shortcodes for displaying categories and search functionality
 - Customizable templates
-- SEO-friendly URL structure: `/area/category/business-name/`
+- SEO-friendly URL structure: `/area-name/category-name/business-name/`
 
 ## Installation
 
@@ -34,6 +34,8 @@ A WordPress plugin that creates a comprehensive business directory with categori
 ### Business Areas
 
 Business areas represent geographic locations (e.g., neighborhoods, cities, regions). Each business must be assigned to an area for proper URL structure.
+
+Area pages will be available directly at the root level (e.g., `/ashford/`).
 
 ### Setting Up Front-End Pages
 
@@ -98,7 +100,7 @@ Businesses marked as "Premium" will appear first in search results and category 
 ## Troubleshooting
 
 ### Permalink Issues
-If business pages return 404 errors:
+If business pages or area pages return 404 errors:
 1. Go to Settings > Permalinks in your WordPress admin
 2. Do not change anything, just click "Save Changes" 
 3. This will flush the permalink rules and should resolve the issue
@@ -108,4 +110,12 @@ Remember that every business needs:
 1. A title
 2. At least one business area assigned
 3. At least one business category assigned
-to function properly with the URL structure 
+to function properly with the URL structure
+
+### URL Structure
+The plugin creates the following URL structure:
+- Business listings: `/area-name/category-name/business-name/`
+- Business areas: `/area-name/`
+- Business categories: `/directory/category-name/`
+
+This structure helps with SEO and user navigation. 

@@ -31,10 +31,25 @@ function lbd_register_taxonomy() {
             'name' => 'Business Areas',
             'singular_name' => 'Business Area',
         ),
-        'rewrite' => array( 'slug' => '', 'with_front' => false ),
+        'rewrite' => array( 'slug' => 'area', 'with_front' => false ),
+        'query_var' => true,
     ) );
 }
 add_action( 'init', 'lbd_register_taxonomy' );
+
+// Add custom rewrite rules for business areas
+function lbd_add_rewrite_rules() {
+    // Rewrite for area pages - make them accessible directly at the root
+    add_rewrite_rule(
+        '^([^/]+)/?$',
+        'index.php?business_area=$matches[1]',
+        'top'
+    );
+    
+    // Make sure this rule doesn't interfere with other pages
+    add_rewrite_tag('%business_area%', '([^/]+)');
+}
+add_action('init', 'lbd_add_rewrite_rules');
 
 // Filter to modify permalinks to include area and category
 function lbd_business_permalink( $permalink, $post, $leavename ) {
@@ -63,4 +78,15 @@ function lbd_business_permalink( $permalink, $post, $leavename ) {
     
     return $permalink;
 }
-add_filter( 'post_type_link', 'lbd_business_permalink', 10, 3 ); 
+add_filter( 'post_type_link', 'lbd_business_permalink', 10, 3 );
+
+// Custom permalink for business areas
+function lbd_business_area_permalink($permalink, $term, $taxonomy) {
+    if ($taxonomy !== 'business_area') {
+        return $permalink;
+    }
+    
+    // Replace /area/term-slug/ with just /term-slug/
+    return home_url('/' . $term->slug . '/');
+}
+add_filter('term_link', 'lbd_business_area_permalink', 10, 3); 

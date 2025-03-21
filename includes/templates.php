@@ -30,6 +30,44 @@ function lbd_taxonomy_template( $template ) {
 }
 add_filter( 'taxonomy_template', 'lbd_taxonomy_template' );
 
+// Pre-get posts filter to handle both business areas and categories
+function lbd_pre_get_posts( $query ) {
+    // Only target the main query & not admin
+    if ( !$query->is_main_query() || is_admin() ) {
+        return;
+    }
+    
+    // Handle category taxonomy pages
+    if ( $query->is_tax( 'business_category' ) ) {
+        $query->set( 'post_type', 'business' );
+        return;
+    }
+    
+    // Handle area taxonomy with custom permalink structure
+    if ( !is_admin() && $query->is_main_query() && isset( $query->query['pagename'] ) ) {
+        $slug = $query->query['pagename'];
+        
+        // Check if this matches a business area term
+        $term = get_term_by( 'slug', $slug, 'business_area' );
+        
+        if ( $term ) {
+            // Set the query to show the business area archive
+            $query->is_home = false;
+            $query->is_tax = true;
+            $query->is_archive = true;
+            $query->is_page = false;
+            $query->set( 'business_area', $slug );
+            $query->set( 'post_type', 'business' );
+            $query->set( 'pagename', '' );
+            
+            // Set queried object to the term
+            $query->queried_object = $term;
+            $query->queried_object_id = $term->term_id;
+        }
+    }
+}
+add_action( 'pre_get_posts', 'lbd_pre_get_posts' );
+
 function lbd_get_template_part( $slug, $name = null ) {
     $template = '';
     $base = $slug . ( $name ? '-' . $name : '' ) . '.php';
