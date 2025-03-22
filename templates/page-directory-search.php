@@ -13,7 +13,7 @@ get_header(); ?>
             <div class="directory-search-container">
                 <div class="directory-search-form">
                     <h2>Find Local Businesses</h2>
-                    <?php echo do_shortcode('[business_search]'); ?>
+                    <?php echo do_shortcode('[business_search_form layout="horizontal"]'); ?>
                 </div>
                 
                 <div class="directory-search-results">

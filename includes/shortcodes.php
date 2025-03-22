@@ -205,9 +205,15 @@ function lbd_search_results_shortcode($atts) {
     // Debug info in HTML comments
     $output .= "<!-- Search parameters: term='$search_term', area='$area', category='$category' -->\n";
     
+    // Early exit with instructions if no search params
+    if (empty($search_term) && empty($area) && empty($category)) {
+        return '<div class="business-search-instructions">
+            <p>Please use the search form above to find businesses.</p>
+        </div>';
+    }
+    
     // Build search query
     global $wpdb;
-    $found_posts = array();
     
     // Start with empty array for found post IDs
     $post_ids = array();
@@ -240,13 +246,16 @@ function lbd_search_results_shortcode($atts) {
         
         // Filter to only include business post type
         if (!empty($meta_ids)) {
-            $meta_post_type_query = "SELECT ID FROM {$wpdb->posts} 
-                WHERE ID IN (" . implode(',', array_map('intval', $meta_ids)) . ") 
-                AND post_type = 'business' 
-                AND post_status = 'publish'";
-            
-            $filtered_meta_ids = $wpdb->get_col($meta_post_type_query);
-            $post_ids = array_merge($post_ids, $filtered_meta_ids);
+            $meta_ids_str = implode(',', array_map('intval', $meta_ids));
+            if (!empty($meta_ids_str)) {
+                $meta_post_type_query = "SELECT ID FROM {$wpdb->posts} 
+                    WHERE ID IN ($meta_ids_str) 
+                    AND post_type = 'business' 
+                    AND post_status = 'publish'";
+                
+                $filtered_meta_ids = $wpdb->get_col($meta_post_type_query);
+                $post_ids = array_merge($post_ids, $filtered_meta_ids);
+            }
         }
         
         // Remove duplicates
@@ -255,6 +264,10 @@ function lbd_search_results_shortcode($atts) {
     
     // Debug info
     $output .= "<!-- Direct SQL search found " . count($post_ids) . " matching posts -->\n";
+    
+    if (!empty($post_ids)) {
+        $output .= "<!-- Matching post IDs: " . implode(', ', $post_ids) . " -->\n";
+    }
     
     // Create a query for the search results
     $args = array(
@@ -266,6 +279,7 @@ function lbd_search_results_shortcode($atts) {
     // Add post IDs if we have them from direct search
     if (!empty($post_ids)) {
         $args['post__in'] = $post_ids;
+        $args['orderby'] = 'post__in';
     } elseif (!empty($search_term)) {
         // If direct search found nothing but we have a search term,
         // let WordPress try its built-in search as a fallback
@@ -273,7 +287,7 @@ function lbd_search_results_shortcode($atts) {
     }
     
     // Add taxonomy queries if specified
-    $tax_query = array('relation' => 'AND');
+    $tax_query = array();
     
     if (!empty($area)) {
         $tax_query[] = array(
@@ -291,9 +305,15 @@ function lbd_search_results_shortcode($atts) {
         );
     }
     
-    if (count($tax_query) > 1) {
+    if (count($tax_query) > 0) {
         $args['tax_query'] = $tax_query;
+        if (count($tax_query) > 1) {
+            $args['tax_query']['relation'] = 'AND';
+        }
     }
+    
+    // Debug the final query args
+    $output .= "<!-- Final WP_Query args: " . json_encode($args) . " -->\n";
     
     // Run the query
     $businesses_query = new WP_Query($args);
@@ -336,7 +356,19 @@ function lbd_search_results_shortcode($atts) {
             
             // Use the existing business single view template
             ob_start();
-            include(LBD_PLUGIN_DIR . 'templates/business-' . $atts['info_layout'] . '-item.php');
+            $template_file = LBD_PLUGIN_DIR . 'templates/business-' . $atts['info_layout'] . '-item.php';
+            
+            if (file_exists($template_file)) {
+                include($template_file);
+            } else {
+                // Fallback to basic display if template doesn't exist
+                ?>
+                <div class="business-item">
+                    <h3><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h3>
+                    <?php the_excerpt(); ?>
+                </div>
+                <?php
+            }
             $output .= ob_get_clean();
         }
         

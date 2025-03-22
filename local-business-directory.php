@@ -190,4 +190,71 @@ function lbd_plugin_loaded() {
         add_option('lbd_flush_rewrite_rules', 'true');
     }
 }
-add_action('plugins_loaded', 'lbd_plugin_loaded'); 
+add_action('plugins_loaded', 'lbd_plugin_loaded');
+
+/**
+ * Redirect searches with 's' parameter to the directory search page
+ */
+function lbd_redirect_searches() {
+    // Only redirect if it's a search and we have a search term
+    if (isset($_GET['s']) && !is_admin()) {
+        // Get the search term
+        $search_term = sanitize_text_field($_GET['s']);
+        
+        // Get directory search page ID from options, or create one if it doesn't exist
+        $search_page_id = get_option('lbd_search_page_id');
+        
+        if (!$search_page_id) {
+            // Create a search page if it doesn't exist
+            $search_page_id = wp_insert_post(array(
+                'post_title' => 'Directory Search',
+                'post_content' => '[business_search_form layout="horizontal"][lbd_search_results per_page="10" info_layout="list"]',
+                'post_status' => 'publish',
+                'post_type' => 'page',
+            ));
+            
+            if (!is_wp_error($search_page_id)) {
+                update_option('lbd_search_page_id', $search_page_id);
+            }
+        }
+        
+        if ($search_page_id && !is_wp_error($search_page_id)) {
+            // Build redirect URL
+            $redirect_url = add_query_arg('s', $search_term, get_permalink($search_page_id));
+            
+            // Add any additional query params (area, category)
+            if (isset($_GET['area']) && !empty($_GET['area'])) {
+                $redirect_url = add_query_arg('area', sanitize_text_field($_GET['area']), $redirect_url);
+            }
+            
+            if (isset($_GET['category']) && !empty($_GET['category'])) {
+                $redirect_url = add_query_arg('category', sanitize_text_field($_GET['category']), $redirect_url);
+            }
+            
+            // Redirect
+            wp_redirect($redirect_url);
+            exit;
+        }
+    }
+}
+add_action('template_redirect', 'lbd_redirect_searches');
+
+/**
+ * Add the search page to admin settings
+ */
+function lbd_admin_search_settings($settings) {
+    $settings['search'] = [
+        'title' => 'Search Settings',
+        'fields' => [
+            [
+                'id' => 'lbd_search_page_id',
+                'label' => 'Directory Search Page',
+                'type' => 'page_select',
+                'description' => 'Select the page that will display directory search results.',
+            ],
+        ],
+    ];
+    
+    return $settings;
+}
+add_filter('lbd_admin_settings', 'lbd_admin_search_settings'); 
