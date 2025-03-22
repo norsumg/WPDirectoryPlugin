@@ -236,4 +236,249 @@ function lbd_modify_search_query($query) {
     
     return $query;
 }
-add_action('pre_get_posts', 'lbd_modify_search_query'); 
+add_action('pre_get_posts', 'lbd_modify_search_query');
+
+/**
+ * Customize how businesses appear in search results
+ */
+function lbd_customize_business_search_results($content) {
+    // Only modify on the main search page
+    if (!is_search() || !in_the_loop() || !is_main_query()) {
+        return $content;
+    }
+    
+    // Only modify business post types
+    if (get_post_type() !== 'business') {
+        return $content;
+    }
+    
+    // Get business details
+    $business_id = get_the_ID();
+    $area_terms = get_the_terms($business_id, 'business_area');
+    $category_terms = get_the_terms($business_id, 'business_category');
+    $area_name = $area_terms && !is_wp_error($area_terms) ? $area_terms[0]->name : '';
+    $is_premium = get_post_meta($business_id, 'lbd_premium', true);
+    
+    // Start building the enhanced content
+    $output = '<div class="business-search-result">';
+    
+    // Add a premium badge if applicable
+    if ($is_premium) {
+        $output .= '<span class="premium-badge">Premium</span>';
+    }
+    
+    // Add area and category info
+    $output .= '<div class="business-meta">';
+    if ($area_name) {
+        $output .= '<span class="business-area">Location: ' . esc_html($area_name) . '</span>';
+    }
+    
+    if ($category_terms && !is_wp_error($category_terms)) {
+        $output .= ' <span class="business-categories">Categories: ';
+        $cats = array();
+        foreach ($category_terms as $term) {
+            $cats[] = '<a href="' . get_term_link($term) . '">' . esc_html($term->name) . '</a>';
+        }
+        $output .= implode(', ', $cats);
+        $output .= '</span>';
+    }
+    $output .= '</div>';
+    
+    // Add the content
+    $output .= $content;
+    
+    // Add a view business link
+    $output .= '<div class="search-view-business">';
+    $output .= '<a href="' . get_permalink() . '" class="business-view-link">View Business Details</a>';
+    $output .= '</div>';
+    
+    $output .= '</div>';
+    
+    return $output;
+}
+add_filter('the_content', 'lbd_customize_business_search_results');
+
+/**
+ * Add styles for business search results
+ */
+function lbd_add_search_results_styles() {
+    if (!is_search()) {
+        return;
+    }
+    
+    ?>
+    <style>
+    /* Business search result styling */
+    .business-search-result {
+        border: 1px solid #eee;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        transition: all 0.2s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .business-search-result:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        transform: translateY(-3px);
+    }
+    
+    .premium-badge {
+        position: absolute;
+        top: 0;
+        right: 0;
+        background: #FFD700;
+        color: #333;
+        font-size: 0.8em;
+        padding: 5px 10px;
+        font-weight: bold;
+    }
+    
+    .business-meta {
+        font-size: 0.9em;
+        color: #666;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #f0f0f0;
+        padding-bottom: 10px;
+    }
+    
+    .business-area {
+        margin-right: 15px;
+    }
+    
+    .business-categories a {
+        color: #0073aa;
+        text-decoration: none;
+    }
+    
+    .business-categories a:hover {
+        text-decoration: underline;
+    }
+    
+    .search-view-business {
+        margin-top: 15px;
+    }
+    
+    .business-view-link {
+        display: inline-block;
+        background: #0073aa;
+        color: white;
+        padding: 8px 16px;
+        text-decoration: none;
+        border-radius: 4px;
+        font-size: 0.9em;
+        transition: background 0.2s ease;
+    }
+    
+    .business-view-link:hover {
+        background: #005177;
+        text-decoration: none;
+    }
+    
+    /* Style search results with business post type */
+    .search-results article.business {
+        position: relative;
+    }
+    
+    /* Make the search template notice the specific post type */
+    .search-results .business-type-indicator {
+        font-size: 0.8em;
+        background: #f0f0f0;
+        color: #333;
+        padding: 2px 8px;
+        border-radius: 3px;
+        display: inline-block;
+        margin-bottom: 10px;
+    }
+    </style>
+    <?php
+}
+add_action('wp_head', 'lbd_add_search_results_styles');
+
+/**
+ * Modify search result title to be more specific for business searches
+ */
+function lbd_modify_search_title($title) {
+    // Only change on search pages
+    if (!is_search()) {
+        return $title;
+    }
+    
+    // Check if we're specifically searching for businesses
+    if (isset($_GET['post_type']) && $_GET['post_type'] === 'business') {
+        $search_term = get_search_query();
+        
+        // Build a more descriptive title
+        $title_parts = array();
+        $title_parts[] = 'Business Directory';
+        
+        if (!empty($search_term)) {
+            $title_parts[] = 'Results for "' . esc_html($search_term) . '"';
+        }
+        
+        // Add area if specified
+        if (isset($_GET['area']) && !empty($_GET['area'])) {
+            $area = get_term_by('slug', sanitize_text_field($_GET['area']), 'business_area');
+            if ($area) {
+                $title_parts[] = 'in ' . esc_html($area->name);
+            }
+        }
+        
+        // Add category if specified
+        if (isset($_GET['category']) && !empty($_GET['category'])) {
+            $category = get_term_by('slug', sanitize_text_field($_GET['category']), 'business_category');
+            if ($category) {
+                $title_parts[] = 'in category ' . esc_html($category->name);
+            }
+        }
+        
+        // Create the new title
+        $new_title = implode(' - ', $title_parts);
+        
+        // Replace the title parts
+        $title = str_replace('Search Results for', $new_title, $title);
+    }
+    
+    return $title;
+}
+add_filter('pre_get_document_title', 'lbd_modify_search_title', 15);
+
+/**
+ * Add the search form to the top of search results pages for business searches
+ */
+function lbd_add_search_form_to_search_page($content) {
+    // Only add to search pages
+    if (!is_search() || !in_the_loop() || !is_main_query()) {
+        return $content;
+    }
+    
+    // Only for business searches
+    if (!isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
+        return $content;
+    }
+    
+    // Only add to the first post in search results
+    static $search_form_added = false;
+    if ($search_form_added) {
+        return $content;
+    }
+    
+    // Get the search form
+    ob_start();
+    ?>
+    <div class="business-search-header">
+        <h2>Business Directory Search</h2>
+        <p>Refine your search or browse businesses by area and category.</p>
+        <?php echo do_shortcode('[business_search_form layout="horizontal" button_style="pill" show_filters="yes"]'); ?>
+    </div>
+    <?php
+    $search_form = ob_get_clean();
+    
+    // Mark as added
+    $search_form_added = true;
+    
+    return $search_form . $content;
+}
+add_filter('the_content', 'lbd_add_search_form_to_search_page', 5); 
