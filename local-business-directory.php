@@ -242,6 +242,10 @@ add_action('pre_get_posts', 'lbd_modify_search_query');
  * Customize how businesses appear in search results - optimized version with preloading
  */
 function lbd_customize_business_search_results($content) {
+    // Temporarily return content unmodified to troubleshoot 500 error
+    return $content;
+    
+    /* Original code - commented out temporarily
     // Only modify on the main search page for business post types
     if (!is_search() || !is_main_query() || !in_the_loop() || get_post_type() !== 'business') {
         return $content;
@@ -331,8 +335,10 @@ function lbd_customize_business_search_results($content) {
     $output .= '</div>';
     
     return $output;
+    */
 }
-add_filter('the_content', 'lbd_customize_business_search_results');
+// Temporarily uncomment this hook to disable custom search result display
+// add_filter('the_content', 'lbd_customize_business_search_results', 999);
 
 /**
  * Add styles for business search results
@@ -542,6 +548,10 @@ add_filter('pre_get_document_title', 'lbd_modify_search_title', 15);
  * Add the search form to the top of search results pages for business searches
  */
 function lbd_add_search_form_to_search_page($content) {
+    // Temporarily return content unmodified to troubleshoot 500 error
+    return $content;
+    
+    /* Original code - commented out temporarily
     // Only add to search pages and only if it's a business search
     if (!is_search() || !isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
         return $content;
@@ -617,8 +627,10 @@ function lbd_add_search_form_to_search_page($content) {
     </div>';
     
     return $form_html . $content;
+    */
 }
-add_filter('the_content', 'lbd_add_search_form_to_search_page', 5);
+// Temporarily uncomment this hook to disable the search form at the top of search results
+// add_filter('the_content', 'lbd_add_search_form_to_search_page', 5);
 
 /**
  * Get cached taxonomy terms
