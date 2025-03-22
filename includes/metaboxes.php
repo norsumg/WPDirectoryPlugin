@@ -106,11 +106,38 @@ function lbd_metaboxes() {
     );
 
     foreach ($days as $day_id => $day_name) {
+        // Day Closed Checkbox
         $cmb->add_field( array(
-            'name' => $day_name,
-            'id' => 'lbd_hours_' . $day_id,
-            'type' => 'text',
-            'desc' => 'e.g. "9:00 AM - 5:00 PM" or "Closed"',
+            'name' => $day_name . ' Closed',
+            'id' => 'lbd_hours_' . $day_id . '_closed',
+            'type' => 'checkbox',
+            'desc' => 'Check if business is closed on ' . $day_name,
+        ) );
+        
+        // Open Time
+        $cmb->add_field( array(
+            'name' => $day_name . ' Opening Time',
+            'id' => 'lbd_hours_' . $day_id . '_open',
+            'type' => 'text_time',
+            'time_format' => 'g:i A',
+            'attributes' => array(
+                'data-timepicker' => json_encode(array(
+                    'stepMinute' => 5,
+                )),
+            ),
+        ) );
+        
+        // Close Time
+        $cmb->add_field( array(
+            'name' => $day_name . ' Closing Time',
+            'id' => 'lbd_hours_' . $day_id . '_close',
+            'type' => 'text_time',
+            'time_format' => 'g:i A',
+            'attributes' => array(
+                'data-timepicker' => json_encode(array(
+                    'stepMinute' => 5,
+                )),
+            ),
         ) );
     }
 
@@ -221,6 +248,9 @@ function lbd_metaboxes() {
         'query_args' => array(
             'type' => 'image',
         ),
+        'options' => array(
+            'url' => true, // Store URLs for more reliable retrieval
+        ),
         'desc' => 'Upload or select images. These will appear in the photos tab on your business page.',
     ) );
     
@@ -295,37 +325,107 @@ function lbd_hours_admin_script() {
         function update24HoursFields() {
             var is24Hours = $('#lbd_hours_24').prop('checked');
             
-            // Loop through each day and update the field
+            // Loop through each day and update the fields
             daysOfWeek.forEach(function(day) {
-                var field = $('#lbd_hours_' + day);
+                var closedCheckbox = $('#lbd_hours_' + day + '_closed');
+                var openField = $('#lbd_hours_' + day + '_open');
+                var closeField = $('#lbd_hours_' + day + '_close');
                 
                 if (is24Hours) {
-                    // Store original value as data attribute if not already stored
-                    if (!field.data('original-value')) {
-                        field.data('original-value', field.val());
+                    // Store original values
+                    if (!closedCheckbox.data('original-value')) {
+                        closedCheckbox.data('original-value', closedCheckbox.prop('checked'));
                     }
-                    field.val('24 Hours');
-                    field.prop('readonly', true);
-                    field.css('background-color', '#f0f0f0');
+                    if (!openField.data('original-value')) {
+                        openField.data('original-value', openField.val());
+                    }
+                    if (!closeField.data('original-value')) {
+                        closeField.data('original-value', closeField.val());
+                    }
+                    
+                    // Set to 24 hours and disable fields
+                    closedCheckbox.prop('checked', false).prop('disabled', true);
+                    openField.val('12:00 AM').prop('disabled', true);
+                    closeField.val('11:59 PM').prop('disabled', true);
+                    
+                    // Hide the fields for better UX
+                    closedCheckbox.closest('.cmb-row').css('opacity', '0.5');
+                    openField.closest('.cmb-row').css('opacity', '0.5');
+                    closeField.closest('.cmb-row').css('opacity', '0.5');
                 } else {
-                    // Restore original value if exists
-                    if (field.data('original-value')) {
-                        field.val(field.data('original-value'));
-                    } else {
-                        field.val('');
+                    // Restore original values if they exist
+                    if (closedCheckbox.data('original-value') !== undefined) {
+                        closedCheckbox.prop('checked', closedCheckbox.data('original-value'));
                     }
-                    field.prop('readonly', false);
-                    field.css('background-color', '');
+                    if (openField.data('original-value')) {
+                        openField.val(openField.data('original-value'));
+                    }
+                    if (closeField.data('original-value')) {
+                        closeField.val(closeField.data('original-value'));
+                    }
+                    
+                    // Re-enable fields
+                    closedCheckbox.prop('disabled', false);
+                    openField.prop('disabled', false);
+                    closeField.prop('disabled', false);
+                    
+                    // Restore visibility
+                    closedCheckbox.closest('.cmb-row').css('opacity', '1');
+                    openField.closest('.cmb-row').css('opacity', '1');
+                    closeField.closest('.cmb-row').css('opacity', '1');
                 }
             });
         }
         
-        // Set initial state
+        // Function to handle "Closed" checkbox
+        function handleClosedCheckbox(day) {
+            var closedCheckbox = $('#lbd_hours_' + day + '_closed');
+            var openField = $('#lbd_hours_' + day + '_open');
+            var closeField = $('#lbd_hours_' + day + '_close');
+            
+            if (closedCheckbox.prop('checked')) {
+                // Store values if not already stored
+                if (!openField.data('closed-value')) {
+                    openField.data('closed-value', openField.val());
+                }
+                if (!closeField.data('closed-value')) {
+                    closeField.data('closed-value', closeField.val());
+                }
+                
+                // Disable time fields
+                openField.prop('disabled', true).closest('.cmb-row').css('opacity', '0.5');
+                closeField.prop('disabled', true).closest('.cmb-row').css('opacity', '0.5');
+            } else {
+                // Restore values if they were saved
+                if (openField.data('closed-value')) {
+                    openField.val(openField.data('closed-value'));
+                }
+                if (closeField.data('closed-value')) {
+                    closeField.val(closeField.data('closed-value'));
+                }
+                
+                // Re-enable time fields
+                openField.prop('disabled', false).closest('.cmb-row').css('opacity', '1');
+                closeField.prop('disabled', false).closest('.cmb-row').css('opacity', '1');
+            }
+        }
+        
+        // Set initial state for 24-hour checkbox
         update24HoursFields();
         
-        // Handle checkbox change
+        // Handle 24-hour checkbox change
         $('#lbd_hours_24').on('change', function() {
             update24HoursFields();
+        });
+        
+        // Set initial state for "Closed" checkboxes
+        daysOfWeek.forEach(function(day) {
+            handleClosedCheckbox(day);
+            
+            // Handle "Closed" checkbox change
+            $('#lbd_hours_' + day + '_closed').on('change', function() {
+                handleClosedCheckbox(day);
+            });
         });
     });
     </script>

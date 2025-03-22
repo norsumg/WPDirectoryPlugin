@@ -157,7 +157,10 @@
             );
 
             foreach ($days as $day_id => $day_name) {
-                if (get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id, true)) {
+                // Check if there are hours set or closed status
+                if (get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id . '_open', true) || 
+                    get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id . '_close', true) || 
+                    get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id . '_closed', true)) {
                     $has_hours = true;
                     break;
                 }
@@ -173,14 +176,26 @@
             <?php else : ?>
                 <table class="hours-table">
                     <?php foreach ($days as $day_id => $day_name) : 
-                        $hours = get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id, true);
-                        if (!$hours) {
-                            $hours = 'Closed';
+                        $is_closed = get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id . '_closed', true);
+                        $opening = get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id . '_open', true);
+                        $closing = get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id . '_close', true);
+                        
+                        // Format the hours display
+                        if ($is_closed) {
+                            $hours_display = 'Closed';
+                        } elseif ($opening && $closing) {
+                            $hours_display = esc_html($opening) . ' - ' . esc_html($closing);
+                        } elseif ($opening) {
+                            $hours_display = 'From ' . esc_html($opening);
+                        } elseif ($closing) {
+                            $hours_display = 'Until ' . esc_html($closing);
+                        } else {
+                            $hours_display = 'Hours not specified';
                         }
                     ?>
                         <tr>
                             <th><?php echo esc_html($day_name); ?></th>
-                            <td><?php echo esc_html($hours); ?></td>
+                            <td><?php echo $hours_display; ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </table>
@@ -310,14 +325,19 @@
             
             if (!empty($photos) && is_array($photos)) {
                 echo '<div class="business-photos-gallery">';
-                foreach ($photos as $photo_id) {
-                    $full_img_url = wp_get_attachment_image_url($photo_id, 'full');
-                    $thumb_img_url = wp_get_attachment_image_url($photo_id, 'medium');
-                    $caption = wp_get_attachment_caption($photo_id);
+                foreach ($photos as $attachment_id => $image_url) {
+                    // Get proper image URLs
+                    $full_img_url = wp_get_attachment_image_url($attachment_id, 'full');
+                    if (!$full_img_url) $full_img_url = $image_url; // Fallback to the stored URL if attachment ID doesn't work
+                    
+                    $thumb_img_url = wp_get_attachment_image_url($attachment_id, 'medium');
+                    if (!$thumb_img_url) $thumb_img_url = $image_url; // Fallback to the stored URL
+                    
+                    $caption = wp_get_attachment_caption($attachment_id) ?: '';
                     
                     echo '<div class="gallery-item">';
                     echo '<a href="' . esc_url($full_img_url) . '" class="lightbox-trigger" data-caption="' . esc_attr($caption) . '">';
-                    echo '<img src="' . esc_url($thumb_img_url) . '" alt="' . esc_attr($caption) . '" loading="lazy">';
+                    echo '<img src="' . esc_url($thumb_img_url) . '" alt="' . esc_attr($caption ?: 'Business photo') . '" loading="lazy">';
                     echo '</a>';
                     echo '</div>';
                 }
