@@ -248,12 +248,17 @@ function lbd_review_form_shortcode($atts) {
         } else {
             // Get and sanitize form data
             $reviewer_name = isset($_POST['reviewer_name']) ? sanitize_text_field($_POST['reviewer_name']) : '';
+            $reviewer_email = isset($_POST['reviewer_email']) ? sanitize_email($_POST['reviewer_email']) : '';
             $review_text = isset($_POST['review_text']) ? sanitize_textarea_field($_POST['review_text']) : '';
             $rating = isset($_POST['rating']) ? intval($_POST['rating']) : 0;
             
             // Validate data
             if (empty($reviewer_name)) {
                 $form_errors[] = 'Please enter your name.';
+            }
+            
+            if (empty($reviewer_email) || !is_email($reviewer_email)) {
+                $form_errors[] = 'Please enter a valid email address.';
             }
             
             if (empty($review_text)) {
@@ -282,7 +287,9 @@ function lbd_review_form_shortcode($atts) {
                     $approved // Set to false to require approval
                 );
                 
+                // Save the email as post meta if the review was added successfully
                 if ($result) {
+                    update_post_meta($result, 'reviewer_email', $reviewer_email);
                     $form_success = true;
                 } else {
                     $form_errors[] = 'An error occurred while submitting your review. Please try again.';
@@ -321,12 +328,18 @@ function lbd_review_form_shortcode($atts) {
                     <input type="text" name="reviewer_name" id="reviewer_name" required value="<?php echo isset($_POST['reviewer_name']) ? esc_attr($_POST['reviewer_name']) : ''; ?>">
                 </div>
                 
+                <div class="form-field">
+                    <label for="reviewer_email">Your Email <span class="required">*</span></label>
+                    <input type="email" name="reviewer_email" id="reviewer_email" required value="<?php echo isset($_POST['reviewer_email']) ? esc_attr($_POST['reviewer_email']) : ''; ?>">
+                    <small class="form-note">Your email won't be displayed publicly, but may be used to verify your review.</small>
+                </div>
+                
                 <div class="form-field rating-field">
                     <label>Rating <span class="required">*</span></label>
                     <div class="star-rating">
-                        <?php for ($i = 5; $i >= 1; $i--) : ?>
+                        <?php for ($i = 1; $i <= 5; $i++) : ?>
                             <input type="radio" name="rating" id="star<?php echo $i; ?>" value="<?php echo $i; ?>" <?php checked(isset($_POST['rating']) ? intval($_POST['rating']) : 5, $i); ?>>
-                            <label for="star<?php echo $i; ?>" title="<?php echo $i; ?> star"><?php echo str_repeat('★', $i); ?></label>
+                            <label for="star<?php echo $i; ?>" title="<?php echo $i; ?> star"><?php echo str_repeat('★', 1); ?></label>
                         <?php endfor; ?>
                     </div>
                 </div>
@@ -419,4 +432,38 @@ function lbd_directory_home_shortcode($atts) {
     <?php
     return ob_get_clean();
 }
-add_shortcode('directory_home', 'lbd_directory_home_shortcode'); 
+add_shortcode('directory_home', 'lbd_directory_home_shortcode');
+
+// Add star rating styles to the head
+function lbd_add_star_rating_styles() {
+    ?>
+    <style>
+    /* Star rating hover and selection effects */
+    .star-rating {
+        display: flex;
+        flex-direction: row-reverse;
+        justify-content: flex-end;
+    }
+    .star-rating input {
+        display: none;
+    }
+    .star-rating label {
+        color: #ddd;
+        font-size: 24px;
+        padding: 0 2px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    /* Selected state */
+    .star-rating input:checked ~ label {
+        color: #FFD700;
+    }
+    /* Hover state */
+    .star-rating label:hover,
+    .star-rating label:hover ~ label {
+        color: #FFD700;
+    }
+    </style>
+    <?php
+}
+add_action('wp_head', 'lbd_add_star_rating_styles'); 
