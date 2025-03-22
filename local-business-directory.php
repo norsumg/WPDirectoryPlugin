@@ -143,6 +143,21 @@ function lbd_fix_permalinks_page() {
         </div>
         
         <div class="card">
+            <h2>What's Causing The Issue?</h2>
+            <p>The Directory Plugin creates custom URL structures for business listings organized by area. For example:</p>
+            <ul>
+                <li><code>/london/restaurants/</code> - Shows all restaurants in London</li>
+                <li><code>/london/</code> - Shows all businesses in London</li>
+            </ul>
+            <p>This can conflict with regular WordPress pages if they have the same URL as a business area. For example, if you have both:</p>
+            <ul>
+                <li>A business area called "london"</li>
+                <li>A WordPress page with slug "london"</li>
+            </ul>
+            <p>Disabling the custom rules will prioritize your regular WordPress pages and posts.</p>
+        </div>
+        
+        <div class="card">
             <h2>Option 1: Disable Custom Directory Rules</h2>
             <p>This will disable the custom rewrite rules for business areas and categories. Your regular WordPress pages will work again, but some directory functionality might be limited.</p>
             
@@ -181,7 +196,7 @@ function lbd_fix_permalinks_page() {
 // Rewrite flush on plugin update
 function lbd_plugin_loaded() {
     // Check if we need to flush rules (on version change or first install)
-    $current_version = '1.3'; // Increment version
+    $current_version = '1.4'; // Increment version
     $saved_version = get_option('lbd_plugin_version');
     
     if ($saved_version !== $current_version) {

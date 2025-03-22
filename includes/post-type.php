@@ -135,6 +135,11 @@ add_action('init', 'lbd_add_rewrite_rules');
 
 // Filter to modify permalinks to include area and category
 function lbd_business_permalink( $permalink, $post, $leavename ) {
+    // Don't modify permalinks if custom rules are disabled
+    if (get_option('lbd_disable_custom_rules')) {
+        return $permalink;
+    }
+
     if ( $post->post_type !== 'business' ) {
         return $permalink;
     }
@@ -164,6 +169,11 @@ add_filter( 'post_type_link', 'lbd_business_permalink', 10, 3 );
 
 // Custom permalink for business areas
 function lbd_business_area_permalink($permalink, $term, $taxonomy) {
+    // Don't modify permalinks if custom rules are disabled
+    if (get_option('lbd_disable_custom_rules')) {
+        return $permalink;
+    }
+
     if ($taxonomy !== 'business_area') {
         return $permalink;
     }
@@ -175,6 +185,11 @@ add_filter('term_link', 'lbd_business_area_permalink', 10, 3);
 
 // Custom permalink for business categories
 function lbd_business_category_permalink($permalink, $term, $taxonomy) {
+    // Don't modify permalinks if custom rules are disabled
+    if (get_option('lbd_disable_custom_rules')) {
+        return $permalink;
+    }
+
     if ($taxonomy !== 'business_category') {
         return $permalink;
     }
