@@ -159,6 +159,35 @@ function lbd_metaboxes() {
         'id' => 'lbd_lgbtq_friendly',
         'type' => 'checkbox',
     ) );
+
+    // Google Reviews Section
+    $cmb->add_field( array(
+        'name' => 'Google Reviews',
+        'desc' => 'Reviews data imported from Google',
+        'id'   => 'lbd_google_reviews_title',
+        'type' => 'title',
+    ) );
+
+    $cmb->add_field( array(
+        'name' => 'Google Rating',
+        'id' => 'lbd_google_rating',
+        'type' => 'text',
+        'desc' => 'Average rating from Google (e.g. "4.5")',
+    ) );
+
+    $cmb->add_field( array(
+        'name' => 'Google Review Count',
+        'id' => 'lbd_google_review_count',
+        'type' => 'text',
+        'desc' => 'Number of reviews on Google',
+    ) );
+
+    $cmb->add_field( array(
+        'name' => 'Google Reviews URL',
+        'id' => 'lbd_google_reviews_url',
+        'type' => 'text_url',
+        'desc' => 'Link to Google reviews (will be displayed to users)',
+    ) );
 }
 add_action( 'cmb2_admin_init', 'lbd_metaboxes' );
 

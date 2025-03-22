@@ -124,7 +124,10 @@ function lbd_export_businesses_to_csv() {
         'business_image_url',
         'business_black_owned',
         'business_women_owned',
-        'business_lgbtq_friendly'
+        'business_lgbtq_friendly',
+        'business_google_rating',
+        'business_google_review_count',
+        'business_google_reviews_url'
     ));
     
     // Query all businesses
@@ -183,7 +186,10 @@ function lbd_export_businesses_to_csv() {
             $image_url,
             get_post_meta($business->ID, 'lbd_black_owned', true),
             get_post_meta($business->ID, 'lbd_women_owned', true),
-            get_post_meta($business->ID, 'lbd_lgbtq_friendly', true)
+            get_post_meta($business->ID, 'lbd_lgbtq_friendly', true),
+            get_post_meta($business->ID, 'lbd_google_rating', true),
+            get_post_meta($business->ID, 'lbd_google_review_count', true),
+            get_post_meta($business->ID, 'lbd_google_reviews_url', true)
         ));
     }
     
@@ -254,7 +260,7 @@ function lbd_csv_import_page() {
                 
                 <h3>CSV Format</h3>
                 <p>Your CSV file should have the following columns:</p>
-                <ul style="list-style-type: disc; margin-left: 2em;">
+                <ul class="csv-instructions">
                     <li><strong>business_name</strong> - The name of the business (required)</li>
                     <li><strong>business_description</strong> - The full description</li>
                     <li><strong>business_excerpt</strong> - A short description</li>
@@ -283,6 +289,9 @@ function lbd_csv_import_page() {
                     <li><strong>business_black_owned</strong> - Set to "yes" if business is Black owned</li>
                     <li><strong>business_women_owned</strong> - Set to "yes" if business is Women owned</li>
                     <li><strong>business_lgbtq_friendly</strong> - Set to "yes" if business is LGBTQ+ friendly</li>
+                    <li><strong>business_google_rating</strong> - Average rating from Google (e.g. "4.5")</li>
+                    <li><strong>business_google_review_count</strong> - Number of reviews on Google</li>
+                    <li><strong>business_google_reviews_url</strong> - Link to Google reviews</li>
                 </ul>
                 
                 <p class="submit">
@@ -303,9 +312,9 @@ function lbd_csv_import_page() {
     document.getElementById('lbd-sample-csv').addEventListener('click', function(e) {
         e.preventDefault();
         
-        const headers = 'business_name,business_description,business_excerpt,business_area,business_category,business_phone,business_address,business_website,business_email,business_facebook,business_instagram,business_hours_24,business_hours_monday,business_hours_tuesday,business_hours_wednesday,business_hours_thursday,business_hours_friday,business_hours_saturday,business_hours_sunday,business_payments,business_parking,business_amenities,business_accessibility,business_premium,business_image_url,business_black_owned,business_women_owned,business_lgbtq_friendly\n';
-        const sampleRow1 = 'ACME Web Design,"We create beautiful websites for small businesses. Our team has over 10 years of experience designing responsive websites that convert visitors into customers.",Web design experts in Ashford area,Ashford,Web Design,01234 567890,"123 Main St, Ashford",https://example.com,info@example.com,https://facebook.com/acmewebdesign,acmewebdesign,no,"9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","10:00 AM - 2:00 PM",Closed,"Cash, Credit Cards, PayPal","Free parking available","Free WiFi, Coffee, Meeting room","Wheelchair accessible entrance, Elevator",yes,https://example.com/sample-image1.jpg,yes,no,yes\n';
-        const sampleRow2 = 'Smith & Co Accountants,"Professional accounting services for small businesses and individuals. We provide tax preparation, bookkeeping, and financial planning.",Trusted local accountants serving Canterbury since 2005,Canterbury,Accountants,01234 123456,"45 High Street, Canterbury",https://example-accountants.com,contact@example-accountants.com,https://facebook.com/smithcoaccountants,smithcoaccountants,yes,"24 Hours","24 Hours","24 Hours","24 Hours","24 Hours","24 Hours","24 Hours","All major credit cards","Street parking","Private consultation rooms, Tea and coffee","Wheelchair accessible",no,https://example.com/sample-image2.jpg,no,yes,no\n';
+        const headers = 'business_name,business_description,business_excerpt,business_area,business_category,business_phone,business_address,business_website,business_email,business_facebook,business_instagram,business_hours_24,business_hours_monday,business_hours_tuesday,business_hours_wednesday,business_hours_thursday,business_hours_friday,business_hours_saturday,business_hours_sunday,business_payments,business_parking,business_amenities,business_accessibility,business_premium,business_image_url,business_black_owned,business_women_owned,business_lgbtq_friendly,business_google_rating,business_google_review_count,business_google_reviews_url\n';
+        const sampleRow1 = 'ACME Web Design,"We create beautiful websites for small businesses. Our team has over 10 years of experience designing responsive websites that convert visitors into customers.",Web design experts in Ashford area,Ashford,Web Design,01234 567890,"123 Main St, Ashford",https://example.com,info@example.com,https://facebook.com/acmewebdesign,acmewebdesign,no,"9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","10:00 AM - 2:00 PM",Closed,"Cash, Credit Cards, PayPal","Free parking available","Free WiFi, Coffee, Meeting room","Wheelchair accessible entrance, Elevator",yes,https://example.com/sample-image1.jpg,yes,no,yes,4.7,23,https://g.page/acme-web-design\n';
+        const sampleRow2 = 'Smith & Co Accountants,"Professional accounting services for small businesses and individuals. We provide tax preparation, bookkeeping, and financial planning.",Trusted local accountants serving Canterbury since 2005,Canterbury,Accountants,01234 123456,"45 High Street, Canterbury",https://example-accountants.com,contact@example-accountants.com,https://facebook.com/smithcoaccountants,smithcoaccountants,yes,"24 Hours","24 Hours","24 Hours","24 Hours","24 Hours","24 Hours","24 Hours","All major credit cards","Street parking","Private consultation rooms, Tea and coffee","Wheelchair accessible",no,https://example.com/sample-image2.jpg,no,yes,no,4.2,17,https://g.page/smith-co-accountants\n';
         
         const csvContent = headers + sampleRow1 + sampleRow2;
         const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -527,6 +536,19 @@ function lbd_create_business_from_csv($data) {
 
     if (isset($data['business_lgbtq_friendly']) && strtolower($data['business_lgbtq_friendly']) === 'yes') {
         update_post_meta($post_id, 'lbd_lgbtq_friendly', '1');
+    }
+    
+    // Store Google Reviews data
+    if (!empty($data['business_google_rating'])) {
+        update_post_meta($post_id, 'lbd_google_rating', sanitize_text_field($data['business_google_rating']));
+    }
+    
+    if (!empty($data['business_google_review_count'])) {
+        update_post_meta($post_id, 'lbd_google_review_count', sanitize_text_field($data['business_google_review_count']));
+    }
+    
+    if (!empty($data['business_google_reviews_url'])) {
+        update_post_meta($post_id, 'lbd_google_reviews_url', esc_url_raw($data['business_google_reviews_url']));
     }
     
     // Set featured image if URL is provided

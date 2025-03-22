@@ -257,7 +257,48 @@
                     }
                     echo '</div>';
                 } else {
-                    echo '<p>No reviews yet. Be the first to leave a review!</p>';
+                    // Check for Google Reviews as a fallback
+                    $google_rating = get_post_meta(get_the_ID(), 'lbd_google_rating', true);
+                    $google_review_count = get_post_meta(get_the_ID(), 'lbd_google_review_count', true);
+                    $google_reviews_url = get_post_meta(get_the_ID(), 'lbd_google_reviews_url', true);
+                    
+                    if ($google_rating && $google_review_count) {
+                        echo '<div class="google-reviews-fallback">';
+                        echo '<div class="review-summary">';
+                        echo '<div class="google-badge"><span class="google-icon">G</span> Google</div>';
+                        echo '<div class="average-rating">' . esc_html($google_rating) . ' / 5</div>';
+                        echo '<div class="rating-stars">';
+                        
+                        // Display stars based on Google rating
+                        $full_stars = floor($google_rating);
+                        $half_star = $google_rating - $full_stars >= 0.5;
+                        $empty_stars = 5 - $full_stars - ($half_star ? 1 : 0);
+                        
+                        for ($i = 0; $i < $full_stars; $i++) {
+                            echo '<span class="star full-star">★</span>';
+                        }
+                        
+                        if ($half_star) {
+                            echo '<span class="star half-star">★</span>';
+                        }
+                        
+                        for ($i = 0; $i < $empty_stars; $i++) {
+                            echo '<span class="star empty-star">☆</span>';
+                        }
+                        
+                        echo '</div>';
+                        echo '<div class="review-count">Based on ' . esc_html($google_review_count) . ' Google reviews</div>';
+                        
+                        if ($google_reviews_url) {
+                            echo '<div class="google-reviews-link"><a href="' . esc_url($google_reviews_url) . '" target="_blank" rel="noopener">Read reviews on Google</a></div>';
+                        }
+                        
+                        echo '</div>';
+                        echo '<p class="site-reviews-cta">Be the first to leave a review on our site!</p>';
+                        echo '</div>';
+                    } else {
+                        echo '<p>No reviews yet. Be the first to leave a review!</p>';
+                    }
                 }
             } else {
                 // Fallback to WordPress comments
