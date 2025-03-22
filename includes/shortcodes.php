@@ -66,44 +66,110 @@ function lbd_areas_shortcode( $atts ) {
 add_shortcode( 'business_areas', 'lbd_areas_shortcode' );
 
 // Shortcode for search form
-function lbd_search_form_shortcode() {
+function lbd_search_form_shortcode($atts) {
+    $atts = shortcode_atts( array(
+        'layout' => 'vertical',
+        'button_style' => 'default',
+        'placeholder' => 'Search businesses...',
+        'submit_text' => 'Search',
+    ), $atts );
+    
+    // Get current values if any
+    $search_term = isset($_GET['s']) ? esc_attr($_GET['s']) : '';
+    $selected_area = isset($_GET['area']) ? esc_attr($_GET['area']) : '';
+    $selected_category = isset($_GET['category']) ? esc_attr($_GET['category']) : '';
+    
     ob_start();
     ?>
-    <form method="get" action="<?php echo esc_url( home_url( '/search-results/' ) ); ?>" class="business-search-form">
-        <input type="text" name="s" placeholder="Search businesses..." value="<?php echo esc_attr( get_query_var( 's' ) ); ?>">
+    <form method="get" id="business-search-form" class="business-search-form <?php echo esc_attr($atts['layout']); ?>" onsubmit="return handleSearchSubmit(this);">
+        <div class="search-field">
+            <input type="text" name="s" placeholder="<?php echo esc_attr($atts['placeholder']); ?>" value="<?php echo $search_term; ?>">
+        </div>
         
-        <select name="area">
-            <option value="">All Areas</option>
-            <?php
-            $areas = get_terms( array( 'taxonomy' => 'business_area', 'hide_empty' => false ) );
-            foreach ( $areas as $area ) {
-                echo '<option value="' . esc_attr( $area->slug ) . '">' . esc_html( $area->name ) . '</option>';
+        <div class="area-field">
+            <select name="area" id="business-search-area">
+                <option value="">All Areas</option>
+                <?php
+                $areas = get_terms( array( 'taxonomy' => 'business_area', 'hide_empty' => false ) );
+                foreach ( $areas as $area ) {
+                    $selected = ($selected_area === $area->slug) ? 'selected' : '';
+                    echo '<option value="' . esc_attr( $area->slug ) . '" ' . $selected . '>' . esc_html( $area->name ) . '</option>';
+                }
+                ?>
+            </select>
+        </div>
+        
+        <div class="category-field">
+            <select name="category" id="business-search-category">
+                <option value="">All Categories</option>
+                <?php
+                $categories = get_terms( array( 'taxonomy' => 'business_category', 'hide_empty' => false ) );
+                foreach ( $categories as $category ) {
+                    $selected = ($selected_category === $category->slug) ? 'selected' : '';
+                    echo '<option value="' . esc_attr( $category->slug ) . '" ' . $selected . '>' . esc_html( $category->name ) . '</option>';
+                }
+                ?>
+            </select>
+        </div>
+        
+        <button type="submit" class="<?php echo esc_attr($atts['button_style']); ?>"><?php echo esc_html($atts['submit_text']); ?></button>
+        
+        <script>
+        function handleSearchSubmit(form) {
+            var searchInput = form.querySelector('input[name="s"]');
+            var areaSelect = document.getElementById('business-search-area');
+            var categorySelect = document.getElementById('business-search-category');
+            
+            var searchTerm = searchInput.value.trim();
+            var selectedArea = areaSelect.value;
+            var selectedCategory = categorySelect.value;
+            
+            // If we have no search term but have area and/or category, redirect to taxonomy page
+            if (searchTerm === '') {
+                // Both area and category selected
+                if (selectedArea && selectedCategory) {
+                    window.location.href = '<?php echo esc_js(home_url("/directory/")); ?>' + selectedArea + '/' + selectedCategory + '/';
+                    return false;
+                }
+                // Only area selected
+                else if (selectedArea) {
+                    window.location.href = '<?php echo esc_js(home_url("/directory/")); ?>' + selectedArea + '/';
+                    return false;
+                }
+                // Only category selected
+                else if (selectedCategory) {
+                    window.location.href = '<?php echo esc_js(home_url("/directory/categories/")); ?>' + selectedCategory + '/';
+                    return false;
+                }
             }
-            ?>
-        </select>
-        
-        <select name="category">
-            <option value="">All Categories</option>
-            <?php
-            $categories = get_terms( array( 'taxonomy' => 'business_category', 'hide_empty' => false ) );
-            foreach ( $categories as $category ) {
-                echo '<option value="' . esc_attr( $category->slug ) . '">' . esc_html( $category->name ) . '</option>';
-            }
-            ?>
-        </select>
-        
-        <button type="submit">Search</button>
+            
+            // With search term, go to search results
+            window.location.href = '<?php echo esc_js(home_url("/directory/search/")); ?>?s=' + 
+                encodeURIComponent(searchTerm) + 
+                (selectedArea ? '&area=' + encodeURIComponent(selectedArea) : '') +
+                (selectedCategory ? '&category=' + encodeURIComponent(selectedCategory) : '');
+            return false;
+        }
+        </script>
     </form>
     <?php
     return ob_get_clean();
 }
 add_shortcode( 'business_search_form', 'lbd_search_form_shortcode' );
 
-// Shortcode for search results
+/**
+ * Shortcode for search results
+ * [business_search_results]
+ */
 function lbd_search_results_shortcode() {
+    // Early exit if not a search page or has no search params
+    if (!isset($_GET['s']) && !isset($_GET['area']) && !isset($_GET['category'])) {
+        return '<p>Use the search form to find businesses.</p>';
+    }
+    
     $args = array(
         'post_type' => 'business',
-        'posts_per_page' => 10,
+        'posts_per_page' => 20,
         'meta_query' => array(
             'premium_clause' => array(
                 'key' => 'lbd_premium',
@@ -117,68 +183,172 @@ function lbd_search_results_shortcode() {
     );
 
     // Search term filter
-    if ( isset( $_GET['s'] ) && ! empty( $_GET['s'] ) ) {
-        $args['s'] = sanitize_text_field( $_GET['s'] );
+    if (isset($_GET['s']) && !empty($_GET['s'])) {
+        $args['s'] = sanitize_text_field($_GET['s']);
     }
 
     // Category filter
-    if ( isset( $_GET['category'] ) && ! empty( $_GET['category'] ) ) {
+    if (isset($_GET['category']) && !empty($_GET['category'])) {
         $args['tax_query'][] = array(
             'taxonomy' => 'business_category',
             'field' => 'slug',
-            'terms' => sanitize_text_field( $_GET['category'] ),
+            'terms' => sanitize_text_field($_GET['category']),
         );
     }
     
     // Area filter
-    if ( isset( $_GET['area'] ) && ! empty( $_GET['area'] ) ) {
+    if (isset($_GET['area']) && !empty($_GET['area'])) {
         $args['tax_query'][] = array(
             'taxonomy' => 'business_area',
             'field' => 'slug',
-            'terms' => sanitize_text_field( $_GET['area'] ),
+            'terms' => sanitize_text_field($_GET['area']),
         );
     }
 
-    $query = new WP_Query( $args );
-    ob_start();
-
-    if ( $query->have_posts() ) {
-        echo '<ul class="business-list">';
-        while ( $query->have_posts() ) {
-            $query->the_post();
-            ?>
-            <li>
-                <h2><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h2>
-                <?php if ( get_post_meta( get_the_ID(), 'lbd_premium', true ) ) : ?>
-                    <span class="premium-label">Premium</span>
-                <?php endif; ?>
-                
-                <?php 
-                // Display area and category
-                $areas = get_the_terms( get_the_ID(), 'business_area' );
-                $categories = get_the_terms( get_the_ID(), 'business_category' );
-                
-                echo '<div class="business-meta">';
-                if ( $areas && !is_wp_error($areas) ) {
-                    echo '<span class="business-area">Area: <a href="' . get_term_link( $areas[0] ) . '">' . esc_html( $areas[0]->name ) . '</a></span> | ';
-                }
-                
-                if ( $categories && !is_wp_error( $categories ) ) {
-                    echo '<span class="business-category">Category: ' . get_the_term_list( get_the_ID(), 'business_category', '', ', ' ) . '</span>';
-                }
-                echo '</div>';
-                ?>
-                
-                <p><?php the_excerpt(); ?></p>
-            </li>
-            <?php
-        }
-        echo '</ul>';
-        wp_reset_postdata();
-    } else {
-        echo '<p>No businesses found.</p>';
+    // Add tax_query relation if we have multiple conditions
+    if (isset($args['tax_query']) && count($args['tax_query']) > 1) {
+        $args['tax_query']['relation'] = 'AND';
     }
 
+    $query = new WP_Query($args);
+    ob_start();
+    
+    // Build the search description
+    $search_description = array();
+    if (isset($_GET['s']) && !empty($_GET['s'])) {
+        $search_description[] = '"' . esc_html($_GET['s']) . '"';
+    }
+    
+    $category_name = '';
+    if (isset($_GET['category']) && !empty($_GET['category'])) {
+        $category = get_term_by('slug', sanitize_text_field($_GET['category']), 'business_category');
+        if ($category) {
+            $category_name = $category->name;
+            $search_description[] = 'in category "' . esc_html($category_name) . '"';
+        }
+    }
+    
+    $area_name = '';
+    if (isset($_GET['area']) && !empty($_GET['area'])) {
+        $area = get_term_by('slug', sanitize_text_field($_GET['area']), 'business_area');
+        if ($area) {
+            $area_name = $area->name;
+            $search_description[] = 'in ' . esc_html($area_name);
+        }
+    }
+    
+    $search_string = !empty($search_description) ? implode(' ', $search_description) : 'all businesses';
+
+    ?>
+    <div class="business-search-results">
+        <h2>Search Results: <?php echo $search_string; ?></h2>
+        
+        <?php if ($area_name || $category_name): ?>
+        <div class="search-filters">
+            <?php if ($area_name): ?>
+            <div class="filter-item">
+                <strong>Area:</strong> <?php echo esc_html($area_name); ?>
+                <a href="<?php echo esc_url(remove_query_arg('area')); ?>" class="remove-filter" title="Remove area filter">×</a>
+            </div>
+            <?php endif; ?>
+            
+            <?php if ($category_name): ?>
+            <div class="filter-item">
+                <strong>Category:</strong> <?php echo esc_html($category_name); ?>
+                <a href="<?php echo esc_url(remove_query_arg('category')); ?>" class="remove-filter" title="Remove category filter">×</a>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+        
+        <?php if ($query->have_posts()): ?>
+            <p class="result-count">Found <?php echo $query->found_posts; ?> business<?php echo $query->found_posts !== 1 ? 'es' : ''; ?>.</p>
+            
+            <div class="business-list">
+            <?php while ($query->have_posts()): $query->the_post(); ?>
+                <div class="business-card">
+                    <div class="business-card-inner">
+                        <?php if (has_post_thumbnail()): ?>
+                        <div class="business-thumbnail">
+                            <a href="<?php the_permalink(); ?>">
+                                <?php the_post_thumbnail('medium'); ?>
+                            </a>
+                        </div>
+                        <?php endif; ?>
+                        
+                        <div class="business-details">
+                            <h3 class="business-title">
+                                <a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
+                                <?php if (get_post_meta(get_the_ID(), 'lbd_premium', true)): ?>
+                                <span class="premium-badge">Premium</span>
+                                <?php endif; ?>
+                            </h3>
+                            
+                            <?php 
+                            // Display area and category
+                            $areas = get_the_terms(get_the_ID(), 'business_area');
+                            $categories = get_the_terms(get_the_ID(), 'business_category');
+                            
+                            echo '<div class="business-meta">';
+                            if ($areas && !is_wp_error($areas)) {
+                                echo '<span class="business-area">Area: <a href="' . get_term_link($areas[0]) . '">' . esc_html($areas[0]->name) . '</a></span>';
+                            }
+                            
+                            if ($categories && !is_wp_error($categories)) {
+                                echo '<span class="business-category"> | Category: ';
+                                $cat_links = array();
+                                foreach ($categories as $category) {
+                                    $cat_links[] = '<a href="' . get_term_link($category) . '">' . esc_html($category->name) . '</a>';
+                                }
+                                echo implode(', ', $cat_links);
+                                echo '</span>';
+                            }
+                            echo '</div>';
+                            ?>
+                            
+                            <div class="business-excerpt">
+                                <?php the_excerpt(); ?>
+                            </div>
+                            
+                            <a href="<?php the_permalink(); ?>" class="view-business">View Business</a>
+                        </div>
+                    </div>
+                </div>
+            <?php endwhile; ?>
+            </div>
+            
+            <?php 
+            // Pagination
+            $big = 999999999;
+            echo '<div class="business-pagination">';
+            echo paginate_links(array(
+                'base' => str_replace($big, '%#%', esc_url(get_pagenum_link($big))),
+                'format' => '?paged=%#%',
+                'current' => max(1, get_query_var('paged')),
+                'total' => $query->max_num_pages,
+                'prev_text' => '&laquo; Previous',
+                'next_text' => 'Next &raquo;',
+            ));
+            echo '</div>';
+            ?>
+            
+        <?php else: ?>
+            <p class="no-results">No businesses found matching your search. Please try different search terms or browse all businesses.</p>
+            
+            <div class="search-suggestions">
+                <h3>Suggestions:</h3>
+                <ul>
+                    <li>Check your spelling</li>
+                    <li>Try more general keywords</li>
+                    <li>Try different keywords</li>
+                    <li><a href="<?php echo esc_url(home_url('/directory/')); ?>">Browse all business areas</a></li>
+                </ul>
+            </div>
+        <?php endif; ?>
+    </div>
+    <?php
+    
+    wp_reset_postdata();
     return ob_get_clean();
 }
 add_shortcode( 'business_search_results', 'lbd_search_results_shortcode' );
@@ -462,6 +632,225 @@ function lbd_add_star_rating_styles() {
     .star-rating label:hover,
     .star-rating label:hover ~ label {
         color: #FFD700;
+    }
+    
+    /* Form Styles */
+    .business-search-form input[type="text"],
+    .business-search-form input[type="email"],
+    .review-form input[type="text"],
+    .review-form input[type="email"],
+    .business-search-form select {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin-bottom: 10px;
+        width: 100%;
+    }
+    
+    /* Search Form Layout Options */
+    .business-search-form.horizontal {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: flex-end;
+    }
+    
+    .business-search-form.horizontal > * {
+        margin-right: 10px;
+        margin-bottom: 10px;
+        flex: 1;
+    }
+    
+    .business-search-form.horizontal button {
+        flex: 0 0 auto;
+    }
+    
+    /* Button Styles */
+    .business-search-form button.rounded {
+        border-radius: 20px;
+    }
+    
+    .business-search-form button.square {
+        border-radius: 0;
+    }
+    
+    .business-search-form button.pill {
+        border-radius: 50px;
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+    
+    /* Search Results Styles */
+    .business-search-results h2 {
+        margin-bottom: 1em;
+    }
+    
+    .search-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .filter-item {
+        background: #f5f5f5;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 0.9em;
+    }
+    
+    .remove-filter {
+        margin-left: 5px;
+        color: #999;
+        text-decoration: none;
+        font-weight: bold;
+    }
+    
+    .remove-filter:hover {
+        color: #f44336;
+    }
+    
+    .result-count {
+        color: #666;
+        margin-bottom: 20px;
+    }
+    
+    .business-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+    }
+    
+    .business-card {
+        border: 1px solid #eee;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    
+    .business-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        transform: translateY(-3px);
+    }
+    
+    .business-card-inner {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .business-thumbnail {
+        height: 150px;
+        overflow: hidden;
+    }
+    
+    .business-thumbnail img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+    }
+    
+    .business-card:hover .business-thumbnail img {
+        transform: scale(1.05);
+    }
+    
+    .business-details {
+        padding: 15px;
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+    }
+    
+    .business-title {
+        margin-top: 0;
+        margin-bottom: 10px;
+        font-size: 1.2em;
+        line-height: 1.3;
+    }
+    
+    .business-title a {
+        text-decoration: none;
+        color: #333;
+    }
+    
+    .premium-badge {
+        display: inline-block;
+        background: #FFD700;
+        color: #333;
+        font-size: 0.7em;
+        padding: 2px 6px;
+        border-radius: 3px;
+        margin-left: 8px;
+        vertical-align: middle;
+        font-weight: bold;
+    }
+    
+    .business-meta {
+        font-size: 0.85em;
+        color: #666;
+        margin-bottom: 10px;
+    }
+    
+    .business-excerpt {
+        font-size: 0.9em;
+        margin-bottom: 15px;
+        flex-grow: 1;
+    }
+    
+    .view-business {
+        display: inline-block;
+        background: #4285f4;
+        color: white;
+        padding: 8px 15px;
+        text-decoration: none;
+        border-radius: 4px;
+        font-size: 0.9em;
+        text-align: center;
+        transition: background 0.2s ease;
+        align-self: flex-start;
+    }
+    
+    .view-business:hover {
+        background: #3367d6;
+    }
+    
+    .business-pagination {
+        margin-top: 30px;
+        text-align: center;
+    }
+    
+    .business-pagination .page-numbers {
+        padding: 5px 10px;
+        margin: 0 3px;
+        border: 1px solid #ddd;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .business-pagination .current {
+        background: #4285f4;
+        color: white;
+        border-color: #4285f4;
+    }
+    
+    .search-suggestions {
+        margin-top: 20px;
+        background: #f9f9f9;
+        padding: 15px;
+        border-radius: 8px;
+    }
+    
+    .search-suggestions h3 {
+        margin-top: 0;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .business-list {
+            grid-template-columns: 1fr;
+        }
     }
     </style>
     <?php

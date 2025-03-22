@@ -85,8 +85,21 @@ To override the default templates, copy any of these files to your theme:
 
 ### Search Form
 ```
-[business_search_form]
+[business_search_form layout="horizontal" button_style="pill" placeholder="Find businesses..." submit_text="Search"]
 ```
+
+**Available options:**
+
+- `layout`: Choose from `vertical` (default) or `horizontal` layout
+- `button_style`: Choose from `default`, `rounded`, `square`, or `pill`
+- `placeholder`: Custom placeholder text for the search input
+- `submit_text`: Custom text for the submit button
+
+The search widget now smartly directs users to the appropriate pages:
+
+- If a user selects only an area (e.g., "London"), they will be redirected directly to that area page
+- If a user selects an area and category (e.g., "Restaurants in London"), they will be redirected to that specific category-in-area page
+- Only when a search term is entered will they be directed to the search results page
 
 ### Search Results
 ```
@@ -118,4 +131,37 @@ The plugin creates the following URL structure:
 - Business areas: `/area-name/`
 - Business categories: `/directory/category-name/`
 
-This structure helps with SEO and user navigation. 
+This structure helps with SEO and user navigation.
+
+## Search Widget Options
+
+The search form shortcode has been enhanced with several styling options:
+
+```
+[business_search_form layout="horizontal" button_style="pill" placeholder="Find businesses..." submit_text="Search"]
+```
+
+**Available options:**
+
+- `layout`: Choose from `vertical` (default) or `horizontal` layout
+- `button_style`: Choose from `default`, `rounded`, `square`, or `pill`
+- `placeholder`: Custom placeholder text for the search input
+- `submit_text`: Custom text for the submit button
+
+The search widget now smartly directs users to the appropriate pages:
+
+- If a user selects only an area (e.g., "London"), they will be redirected directly to that area page
+- If a user selects an area and category (e.g., "Restaurants in London"), they will be redirected to that specific category-in-area page
+- Only when a search term is entered will they be directed to the search results page
+
+## Directory URL Structure
+
+All directory pages now use the `/directory/` namespace to prevent conflicts with regular WordPress pages. The URL structure is as follows:
+
+- `/directory/` - Directory homepage (use the `[directory_home]` shortcode)
+- `/directory/london/` - All businesses in the London area
+- `/directory/london/restaurants/` - All restaurants in London
+- `/directory/categories/restaurants/` - All restaurants across all areas
+- `/directory/search/` - Search results page (use the template provided)
+
+This structure ensures that your directory pages won't conflict with regular pages that might have the same slugs. 
