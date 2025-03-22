@@ -526,6 +526,18 @@
     right: 0;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     z-index: 1000;
+    background: #fff; /* Ensure background is solid white when sticky */
+}
+
+/* WordPress admin bar compatibility */
+.admin-bar .business-tabs-container.sticky {
+    top: 32px; /* Adjust for admin bar */
+}
+
+@media screen and (max-width: 782px) {
+    .admin-bar .business-tabs-container.sticky {
+        top: 46px; /* Adjust for mobile admin bar */
+    }
 }
 
 .business-tabs {
@@ -582,7 +594,12 @@
 .business-section {
     padding: 30px 0;
     border-bottom: 1px solid #eee;
-    scroll-margin-top: 60px; /* Accounts for sticky tabs */
+    scroll-margin-top: 70px; /* Increased to ensure content appears below sticky tabs */
+}
+
+/* Adjust first section to prevent content jumping */
+.business-section:first-of-type {
+    padding-top: 20px;
 }
 
 .section-title {
