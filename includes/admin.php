@@ -127,7 +127,9 @@ function lbd_export_businesses_to_csv() {
         'business_lgbtq_friendly',
         'business_google_rating',
         'business_google_review_count',
-        'business_google_reviews_url'
+        'business_google_reviews_url',
+        'business_photos',
+        'business_accreditations'
     ));
     
     // Query all businesses
@@ -155,6 +157,24 @@ function lbd_export_businesses_to_csv() {
         if (has_post_thumbnail($business->ID)) {
             $image_id = get_post_thumbnail_id($business->ID);
             $image_url = wp_get_attachment_url($image_id);
+        }
+        
+        // Get photos as comma-separated list of URLs
+        $photos = get_post_meta($business->ID, 'lbd_business_photos', true);
+        $photo_urls = '';
+        if (!empty($photos) && is_array($photos)) {
+            $photo_url_array = array();
+            foreach ($photos as $photo_id => $photo_url) {
+                $photo_url_array[] = $photo_url;
+            }
+            $photo_urls = implode('|', $photo_url_array);
+        }
+        
+        // Get accreditations as JSON
+        $accreditations = get_post_meta($business->ID, 'lbd_accreditations', true);
+        $accreditations_json = '';
+        if (!empty($accreditations) && is_array($accreditations)) {
+            $accreditations_json = json_encode($accreditations);
         }
         
         // Add row to CSV
@@ -189,7 +209,9 @@ function lbd_export_businesses_to_csv() {
             get_post_meta($business->ID, 'lbd_lgbtq_friendly', true),
             get_post_meta($business->ID, 'lbd_google_rating', true),
             get_post_meta($business->ID, 'lbd_google_review_count', true),
-            get_post_meta($business->ID, 'lbd_google_reviews_url', true)
+            get_post_meta($business->ID, 'lbd_google_reviews_url', true),
+            $photo_urls,
+            $accreditations_json
         ));
     }
     
@@ -551,6 +573,51 @@ function lbd_create_business_from_csv($data) {
         update_post_meta($post_id, 'lbd_google_reviews_url', esc_url_raw($data['business_google_reviews_url']));
     }
     
+    // Import photos if provided
+    if (!empty($data['business_photos'])) {
+        $photo_urls = explode('|', $data['business_photos']);
+        $photos = array();
+        
+        foreach ($photo_urls as $photo_url) {
+            if (empty($photo_url)) continue;
+            
+            $photo_url = trim($photo_url);
+            $attachment_id = lbd_import_image_from_url($photo_url, $post_id, $data['business_name'] . ' - Photo');
+            
+            if (!is_wp_error($attachment_id)) {
+                $photos[$attachment_id] = wp_get_attachment_url($attachment_id);
+            }
+        }
+        
+        if (!empty($photos)) {
+            update_post_meta($post_id, 'lbd_business_photos', $photos);
+        }
+    }
+    
+    // Import accreditations if provided
+    if (!empty($data['business_accreditations'])) {
+        $accreditations = json_decode(stripslashes($data['business_accreditations']), true);
+        
+        if (is_array($accreditations)) {
+            // Import logos for accreditations
+            foreach ($accreditations as $key => $accreditation) {
+                if (!empty($accreditation['logo_url'])) {
+                    $logo_url = $accreditation['logo_url'];
+                    $attachment_id = lbd_import_image_from_url($logo_url, $post_id, $accreditation['name'] . ' - Logo');
+                    
+                    if (!is_wp_error($attachment_id)) {
+                        $accreditations[$key]['logo'] = $attachment_id;
+                    }
+                    
+                    // Remove the logo_url as it's not part of our schema
+                    unset($accreditations[$key]['logo_url']);
+                }
+            }
+            
+            update_post_meta($post_id, 'lbd_accreditations', $accreditations);
+        }
+    }
+    
     // Set featured image if URL is provided
     if (!empty($data['business_image_url'])) {
         $image_url = esc_url_raw($data['business_image_url']);
@@ -629,6 +696,65 @@ function lbd_set_featured_image_from_url($image_url, $post_id, $title = '') {
     
     // Set as featured image
     set_post_thumbnail($post_id, $attach_id);
+    
+    return $attach_id;
+}
+
+/**
+ * Import an image from a URL and attach it to a post
+ * Similar to lbd_set_featured_image_from_url but doesn't set as featured image
+ */
+function lbd_import_image_from_url($image_url, $post_id, $title = '') {
+    // Check if this image has already been uploaded
+    $existing_attachment = get_posts(array(
+        'post_type' => 'attachment',
+        'meta_key' => '_lbd_source_url',
+        'meta_value' => $image_url,
+        'posts_per_page' => 1,
+    ));
+    
+    if (!empty($existing_attachment)) {
+        return $existing_attachment[0]->ID;
+    }
+    
+    // Include necessary files for media handling
+    require_once(ABSPATH . 'wp-admin/includes/media.php');
+    require_once(ABSPATH . 'wp-admin/includes/file.php');
+    require_once(ABSPATH . 'wp-admin/includes/image.php');
+    
+    // Download the image
+    $tmp = download_url($image_url);
+    
+    if (is_wp_error($tmp)) {
+        return $tmp;
+    }
+    
+    // Prepare file parameters
+    $file_array = array(
+        'name' => basename($image_url),
+        'tmp_name' => $tmp,
+    );
+    
+    // If the URL has no extension, add one
+    if (!preg_match('/\.(jpg|jpeg|png|gif)$/i', $file_array['name'])) {
+        $file_array['name'] .= '.jpg';
+    }
+    
+    // Add a timestamp to the file name to avoid duplicates
+    $file_array['name'] = time() . '-' . $file_array['name'];
+    
+    // Upload the image and attach it to the post
+    $attach_id = media_handle_sideload($file_array, $post_id, $title);
+    
+    // Remove the temporary file
+    @unlink($tmp);
+    
+    if (is_wp_error($attach_id)) {
+        return $attach_id;
+    }
+    
+    // Save the source URL as post meta for future reference
+    update_post_meta($attach_id, '_lbd_source_url', $image_url);
     
     return $attach_id;
 }

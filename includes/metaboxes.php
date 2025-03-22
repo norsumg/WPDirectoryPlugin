@@ -188,6 +188,77 @@ function lbd_metaboxes() {
         'type' => 'text_url',
         'desc' => 'Link to Google reviews (will be displayed to users)',
     ) );
+    
+    // Business Photos Gallery Section
+    $cmb->add_field( array(
+        'name' => 'Business Photos',
+        'desc' => 'Upload photos to showcase your business',
+        'id'   => 'lbd_photos_title',
+        'type' => 'title',
+    ) );
+    
+    $cmb->add_field( array(
+        'name' => 'Photo Gallery',
+        'id' => 'lbd_business_photos',
+        'type' => 'file_list',
+        'preview_size' => 'medium',
+        'query_args' => array(
+            'type' => 'image',
+        ),
+        'desc' => 'Upload or select images. These will appear in the photos tab on your business page.',
+    ) );
+    
+    // Accreditations Section
+    $cmb->add_field( array(
+        'name' => 'Accreditations',
+        'desc' => 'Add certifications, memberships, and other professional accreditations',
+        'id'   => 'lbd_accreditations_title',
+        'type' => 'title',
+    ) );
+    
+    $accreditation_group = $cmb->add_field( array(
+        'id'          => 'lbd_accreditations',
+        'type'        => 'group',
+        'description' => 'Add each accreditation with a name, link, and logo',
+        'options'     => array(
+            'group_title'   => 'Accreditation {#}',
+            'add_button'    => 'Add Another Accreditation',
+            'remove_button' => 'Remove Accreditation',
+            'sortable'      => true,
+        ),
+    ) );
+    
+    $cmb->add_group_field( $accreditation_group, array(
+        'name' => 'Name',
+        'id'   => 'name',
+        'type' => 'text',
+        'desc' => 'The name of the accreditation or certification',
+    ) );
+    
+    $cmb->add_group_field( $accreditation_group, array(
+        'name' => 'Link',
+        'id'   => 'link',
+        'type' => 'text_url',
+        'desc' => 'URL to the accreditation organization (optional)',
+    ) );
+    
+    $cmb->add_group_field( $accreditation_group, array(
+        'name' => 'Logo',
+        'id'   => 'logo',
+        'type' => 'file',
+        'preview_size' => 'medium',
+        'options' => array(
+            'url' => false,
+        ),
+        'desc' => 'Upload or select an image for the accreditation logo',
+    ) );
+    
+    $cmb->add_group_field( $accreditation_group, array(
+        'name' => 'Description',
+        'id'   => 'description',
+        'type' => 'textarea_small',
+        'desc' => 'Brief description of the accreditation (optional)',
+    ) );
 }
 add_action( 'cmb2_admin_init', 'lbd_metaboxes' );
 
