@@ -157,10 +157,9 @@
             );
 
             foreach ($days as $day_id => $day_name) {
-                // Check if there are hours set or closed status
-                if (get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id . '_open', true) || 
-                    get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id . '_close', true) || 
-                    get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id . '_closed', true)) {
+                // Check if there are hours set for this day
+                $day_group = get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id . '_group', true);
+                if (!empty($day_group)) {
                     $has_hours = true;
                     break;
                 }
@@ -176,21 +175,27 @@
             <?php else : ?>
                 <table class="hours-table">
                     <?php foreach ($days as $day_id => $day_name) : 
-                        $is_closed = get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id . '_closed', true);
-                        $opening = get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id . '_open', true);
-                        $closing = get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id . '_close', true);
+                        $day_group = get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id . '_group', true);
                         
-                        // Format the hours display
-                        if ($is_closed) {
-                            $hours_display = 'Closed';
-                        } elseif ($opening && $closing) {
-                            $hours_display = esc_html($opening) . ' - ' . esc_html($closing);
-                        } elseif ($opening) {
-                            $hours_display = 'From ' . esc_html($opening);
-                        } elseif ($closing) {
-                            $hours_display = 'Until ' . esc_html($closing);
-                        } else {
+                        if (empty($day_group)) {
                             $hours_display = 'Hours not specified';
+                        } else {
+                            $is_closed = isset($day_group[0]['closed']) ? $day_group[0]['closed'] : false;
+                            $opening = isset($day_group[0]['open']) ? $day_group[0]['open'] : '';
+                            $closing = isset($day_group[0]['close']) ? $day_group[0]['close'] : '';
+                            
+                            // Format the hours display
+                            if ($is_closed) {
+                                $hours_display = 'Closed';
+                            } elseif ($opening && $closing) {
+                                $hours_display = esc_html($opening) . ' - ' . esc_html($closing);
+                            } elseif ($opening) {
+                                $hours_display = 'From ' . esc_html($opening);
+                            } elseif ($closing) {
+                                $hours_display = 'Until ' . esc_html($closing);
+                            } else {
+                                $hours_display = 'Hours not specified';
+                            }
                         }
                     ?>
                         <tr>
