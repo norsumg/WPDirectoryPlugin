@@ -219,21 +219,25 @@ function lbd_redirect_searches() {
         }
         
         if ($search_page_id && !is_wp_error($search_page_id)) {
-            // Build redirect URL
-            $redirect_url = add_query_arg('s', $search_term, get_permalink($search_page_id));
-            
-            // Add any additional query params (area, category)
-            if (isset($_GET['area']) && !empty($_GET['area'])) {
-                $redirect_url = add_query_arg('area', sanitize_text_field($_GET['area']), $redirect_url);
+            // IMPORTANT: Only redirect if we're not already on the search page
+            // This prevents redirect loops
+            if (!is_page($search_page_id)) {
+                // Build redirect URL
+                $redirect_url = add_query_arg('s', $search_term, get_permalink($search_page_id));
+                
+                // Add any additional query params (area, category)
+                if (isset($_GET['area']) && !empty($_GET['area'])) {
+                    $redirect_url = add_query_arg('area', sanitize_text_field($_GET['area']), $redirect_url);
+                }
+                
+                if (isset($_GET['category']) && !empty($_GET['category'])) {
+                    $redirect_url = add_query_arg('category', sanitize_text_field($_GET['category']), $redirect_url);
+                }
+                
+                // Redirect
+                wp_redirect($redirect_url);
+                exit;
             }
-            
-            if (isset($_GET['category']) && !empty($_GET['category'])) {
-                $redirect_url = add_query_arg('category', sanitize_text_field($_GET['category']), $redirect_url);
-            }
-            
-            // Redirect
-            wp_redirect($redirect_url);
-            exit;
         }
     }
 }
