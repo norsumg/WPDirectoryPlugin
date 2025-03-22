@@ -249,68 +249,6 @@ function lbd_light_search_modification($query) {
 add_action('pre_get_posts', 'lbd_light_search_modification');
 
 /**
- * Simple function to customize search results - uses minimal processing
- */
-function lbd_light_customize_results($content) {
-    // Only modify business search results and prevent recursion
-    static $is_processing = false;
-    if ($is_processing || !is_search() || !is_main_query() || !in_the_loop() || get_post_type() !== 'business') {
-        return $content;
-    }
-    
-    $is_processing = true;
-    
-    // Get post ID once to minimize function calls
-    $post_id = get_the_ID();
-    
-    // Build a simple output - no complex data processing
-    $output = '<div class="business-search-result">';
-    
-    // Get the first term of each taxonomy - no complex processing
-    $areas = get_the_terms($post_id, 'business_area');
-    $categories = get_the_terms($post_id, 'business_category');
-    
-    // Marketing heading for the business
-    $output .= '<h3>' . esc_html(get_the_title()) . '</h3>';
-    
-    // Display category and area if they exist
-    $meta_content = '';
-    if (!empty($categories) && !is_wp_error($categories)) {
-        $category = reset($categories);
-        $meta_content .= '<span class="business-category">' . esc_html($category->name) . '</span>';
-    }
-    
-    if (!empty($areas) && !is_wp_error($areas)) {
-        $area = reset($areas);
-        $meta_content .= ' in <span class="business-area">' . esc_html($area->name) . '</span>';
-    }
-    
-    if (!empty($meta_content)) {
-        $output .= '<div class="business-meta">' . $meta_content . '</div>';
-    }
-    
-    // Get description with fallback to excerpt
-    $description = get_post_meta($post_id, 'lbd_description', true);
-    if (empty($description)) {
-        $description = get_the_excerpt();
-    }
-    
-    // Display description
-    $output .= '<div class="business-description">' . wpautop($description) . '</div>';
-    
-    // Add view button
-    $output .= '<div class="search-view-business">';
-    $output .= '<a href="' . get_permalink() . '" class="business-view-link">View Business</a>';
-    $output .= '</div>';
-    
-    $output .= '</div>';
-    
-    $is_processing = false;
-    return $output;
-}
-add_filter('the_content', 'lbd_light_customize_results');
-
-/**
  * Add styles for business search results
  */
 function lbd_add_search_results_styles() {
@@ -320,7 +258,7 @@ function lbd_add_search_results_styles() {
     
     ?>
     <style>
-    /* Business search result styling */
+    /* Reset business search result styling */
     .business-search-result {
         border: 1px solid #eee;
         border-radius: 8px;
@@ -334,30 +272,29 @@ function lbd_add_search_results_styles() {
         box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }
     
-    /* Hide post author, title and default elements in search results */
-    .business-search-result .author,
-    .business-search-result .entry-meta .author,
-    .business-search-result .post-author,
-    .search article.business .entry-meta .author,
-    .search article.business .byline,
-    .search article.business .entry-title,
-    .search .business-post-title {
+    /* Hide post author in search results */
+    body.search .author,
+    body.search .entry-meta .author,
+    body.search .post-author,
+    body.search article.business .entry-meta .author,
+    body.search article.business .byline,
+    body.search article.business .entry-title,
+    body.search article.business .more-link {
         display: none !important;
     }
     
-    /* Hide specific theme elements that might be showing the title */
-    .search .post-title,
-    .search .entry-header,
-    .search article.business h2.entry-title,
     .business-search-result h2 {
-        display: none !important;
-    }
-    
-    .business-search-result h3 {
         margin: 0 0 10px 0;
         font-size: 1.4em;
+    }
+    
+    .business-search-result h2 a {
         color: #333;
-        font-weight: 600;
+        text-decoration: none;
+    }
+    
+    .business-search-result h2 a:hover {
+        color: #0073aa;
     }
     
     .business-meta {
@@ -380,11 +317,7 @@ function lbd_add_search_results_styles() {
         line-height: 1.6;
     }
     
-    /* Hide default read more link */
-    .business-search-result .more-link {
-        display: none !important;
-    }
-    
+    /* View business button */
     .search-view-business {
         margin-top: 15px;
     }
@@ -406,34 +339,122 @@ function lbd_add_search_results_styles() {
         text-decoration: none !important;
     }
     
-    /* Handle mobile responsiveness */
-    @media (max-width: 768px) {
-        .business-meta {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 8px;
-        }
+    /* Force horizontal form on search results */
+    body.search .business-search-form {
+        margin-bottom: 30px;
     }
     
-    /* Force the business search layout to be horizontal on search pages */
-    .search .business-search-form .search-inputs {
+    body.search .business-search-form .search-inputs {
         flex-direction: row !important;
         flex-wrap: wrap;
         align-items: flex-start;
     }
     
-    .search .business-search-form .search-field {
+    body.search .business-search-form .search-field {
         max-width: 300px;
     }
     
-    .search .business-search-form .area-field,
-    .search .business-search-form .category-field {
+    body.search .business-search-form .area-field,
+    body.search .business-search-form .category-field {
         max-width: 225px;
+    }
+    
+    body.search .business-search-form button {
+        height: 40px;
+        margin-top: 0;
+        align-self: flex-start;
+    }
+    
+    /* Additional fix for themes */
+    body.search .entry-content,
+    body.search .entry {
+        overflow: visible;
+    }
+    
+    /* Handle mobile responsiveness */
+    @media (max-width: 768px) {
+        body.search .business-search-form .search-inputs {
+            flex-direction: column !important;
+        }
+        
+        body.search .business-search-form .search-field,
+        body.search .business-search-form .area-field,
+        body.search .business-search-form .category-field {
+            max-width: 100%;
+            width: 100%;
+        }
     }
     </style>
     <?php
 }
-add_action('wp_head', 'lbd_add_search_results_styles');
+add_action('wp_head', 'lbd_add_search_results_styles', 100);
+
+/**
+ * Simple function to customize search results - uses minimal processing
+ */
+function lbd_light_customize_results($content) {
+    // Only modify business search results and prevent recursion
+    static $is_processing = false;
+    if ($is_processing || !is_search() || !is_main_query() || !in_the_loop() || get_post_type() !== 'business') {
+        return $content;
+    }
+    
+    $is_processing = true;
+    
+    // Add a fixed class to the body for our CSS targeting
+    add_filter('body_class', function($classes) {
+        $classes[] = 'business-search-active';
+        return $classes;
+    });
+    
+    // Get post ID once to minimize function calls
+    $post_id = get_the_ID();
+    
+    // Build a simple output - no complex data processing
+    $output = '<div class="business-search-result">';
+    
+    // Add title with permalink
+    $output .= '<h2><a href="' . get_permalink() . '">' . get_the_title() . '</a></h2>';
+    
+    // Get the first term of each taxonomy - no complex processing
+    $areas = get_the_terms($post_id, 'business_area');
+    $categories = get_the_terms($post_id, 'business_category');
+    
+    $output .= '<div class="business-meta">';
+    
+    // Display category and area if they exist
+    if (!empty($categories) && !is_wp_error($categories)) {
+        $category = reset($categories);
+        $output .= '<span class="business-category">' . esc_html($category->name) . '</span>';
+    }
+    
+    if (!empty($areas) && !is_wp_error($areas)) {
+        $area = reset($areas);
+        $output .= ' in <span class="business-area">' . esc_html($area->name) . '</span>';
+    }
+    
+    $output .= '</div>';
+    
+    // Get description with fallback to excerpt
+    $description = get_post_meta($post_id, 'lbd_description', true);
+    if (empty($description)) {
+        $description = get_the_excerpt();
+    }
+    
+    // Display description
+    $output .= '<div class="business-description">' . wpautop($description) . '</div>';
+    
+    // Add view button
+    $output .= '<div class="search-view-business">';
+    $output .= '<a href="' . get_permalink() . '" class="business-view-link">View Business</a>';
+    $output .= '</div>';
+    
+    $output .= '</div>';
+    
+    $is_processing = false;
+    return $output;
+}
+add_filter('the_content', 'lbd_light_customize_results');
 
 /**
  * Modify search result title to be more specific for business searches
