@@ -136,9 +136,11 @@ function lbd_search_form_shortcode($atts) {
                     window.location.href = '<?php echo esc_js(home_url("/directory/")); ?>' + selectedArea + '/';
                     return false;
                 }
-                // Only category selected
+                // Only category selected - check if any businesses use this category
                 else if (selectedCategory) {
-                    window.location.href = '<?php echo esc_js(home_url("/directory/categories/")); ?>' + selectedCategory + '/';
+                    // For category-only searches, we'll go to the search page instead of categories page
+                    // This allows businesses in any area to be found
+                    window.location.href = '<?php echo esc_js(home_url("/directory/search/")); ?>?category=' + encodeURIComponent(selectedCategory);
                     return false;
                 }
             }
@@ -190,21 +192,16 @@ function lbd_search_results_shortcode() {
         $args['s'] = $search_term;
         
         // Enhanced search: Look in meta fields too for the search term
-        add_filter('posts_join', function($join) {
-            global $wpdb;
-            $join .= " LEFT JOIN $wpdb->postmeta ON ($wpdb->posts.ID = $wpdb->postmeta.post_id) ";
-            return $join;
-        });
-        
+        add_filter('posts_join', 'lbd_search_join');
         add_filter('posts_where', function($where) use ($search_term) {
             global $wpdb;
+            // Search in all post meta for broader matches
             $where .= $wpdb->prepare(
-                " OR ($wpdb->postmeta.meta_key IN ('lbd_phone', 'lbd_address', 'lbd_email', 'lbd_website') AND $wpdb->postmeta.meta_value LIKE %s) ",
+                " OR ($wpdb->postmeta.meta_value LIKE %s) ",
                 '%' . $wpdb->esc_like($search_term) . '%'
             );
             return $where;
         });
-        
         add_filter('posts_distinct', function($distinct) {
             return "DISTINCT";
         });
@@ -635,6 +632,15 @@ function lbd_directory_home_shortcode($atts) {
 }
 add_shortcode('directory_home', 'lbd_directory_home_shortcode');
 
+// Add search join function
+function lbd_search_join($join) {
+    global $wpdb;
+    if (!strpos($join, "LEFT JOIN $wpdb->postmeta ON")) {
+        $join .= " LEFT JOIN $wpdb->postmeta ON ($wpdb->posts.ID = $wpdb->postmeta.post_id) ";
+    }
+    return $join;
+}
+
 // Add star rating styles to the head
 function lbd_add_star_rating_styles() {
     ?>
@@ -681,28 +687,29 @@ function lbd_add_star_rating_styles() {
     /* Search Form Layout Options */
     .business-search-form.horizontal {
         display: flex;
+        align-items: center;
         flex-wrap: wrap;
         gap: 10px;
-        align-items: flex-end;
     }
     
-    .business-search-form.horizontal > * {
-        margin-right: 10px;
-        margin-bottom: 10px;
+    .business-search-form.horizontal > div {
         flex: 1;
+        min-width: 200px;
+        margin: 0;
     }
     
     .business-search-form.horizontal button {
-        flex: 0 0 auto;
-        margin-bottom: 10px;
+        margin: 0;
+        height: 40px;
+        align-self: flex-end;
     }
     
-    /* Make sure button is aligned with inputs in horizontal layout */
-    .business-search-form.horizontal .search-field,
-    .business-search-form.horizontal .area-field,
-    .business-search-form.horizontal .category-field,
-    .business-search-form.horizontal button {
-        margin-bottom: 0;
+    /* Form elements should have consistent height */
+    .business-search-form input[type="text"],
+    .business-search-form select,
+    .business-search-form button {
+        height: 40px;
+        box-sizing: border-box;
     }
     
     /* Button Styles */
