@@ -155,3 +155,43 @@ function lbd_get_business_review_count($business_id) {
     
     return (int) $wpdb->get_var($query);
 }
+
+/**
+ * Add custom rewrite rules for review submission
+ */
+function lbd_add_rewrite_rules() {
+    add_rewrite_rule(
+        'submit-review/?$',
+        'index.php?lbd_review_form=1',
+        'top'
+    );
+    
+    add_rewrite_rule(
+        'submit-review/([0-9]+)/?$',
+        'index.php?lbd_review_form=1&business_id=$matches[1]',
+        'top'
+    );
+}
+add_action('init', 'lbd_add_rewrite_rules');
+
+/**
+ * Add query vars for review form
+ */
+function lbd_add_query_vars($vars) {
+    $vars[] = 'lbd_review_form';
+    $vars[] = 'business_id';
+    return $vars;
+}
+add_filter('query_vars', 'lbd_add_query_vars');
+
+/**
+ * Handle review form template redirect
+ */
+function lbd_template_redirect() {
+    if (get_query_var('lbd_review_form')) {
+        // Load the review form template
+        include(plugin_dir_path(dirname(__FILE__)) . 'templates/review-form.php');
+        exit;
+    }
+}
+add_action('template_redirect', 'lbd_template_redirect');

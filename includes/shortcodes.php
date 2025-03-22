@@ -184,11 +184,23 @@ function lbd_search_results_shortcode() {
 add_shortcode( 'business_search_results', 'lbd_search_results_shortcode' );
 
 // Shortcode for review submission form
-function lbd_review_form_shortcode() {
+function lbd_review_form_shortcode($atts) {
+    // Parse attributes
+    $atts = shortcode_atts(array(
+        'business_id' => 0,
+        'title' => '',
+    ), $atts);
+    
     ob_start();
     
-    // Check if a business ID is provided
+    // Check if a business ID is provided in the URL first (higher priority)
     $business_id = isset($_GET['business_id']) ? intval($_GET['business_id']) : 0;
+    
+    // If not in URL, check if provided in shortcode attribute
+    if (!$business_id && !empty($atts['business_id'])) {
+        $business_id = intval($atts['business_id']);
+    }
+    
     $business = null;
     
     if ($business_id) {
@@ -334,4 +346,10 @@ function lbd_review_form_shortcode() {
     
     return ob_get_clean();
 }
-add_shortcode('review_submission_form', 'lbd_review_form_shortcode'); 
+add_shortcode('review_submission_form', 'lbd_review_form_shortcode');
+
+// Add an additional alias shortcode for flexibility
+function lbd_review_form_alias_shortcode($atts) {
+    return lbd_review_form_shortcode($atts);
+}
+add_shortcode('submit_review_form', 'lbd_review_form_alias_shortcode'); 
