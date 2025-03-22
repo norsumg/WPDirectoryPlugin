@@ -7,7 +7,7 @@ function lbd_register_post_type() {
         ),
         'public' => true,
         'supports' => array( 'title', 'editor', 'thumbnail', 'comments' ),
-        'rewrite' => array( 'slug' => '%business_area%/%business_category%', 'with_front' => false ),
+        'rewrite' => array( 'slug' => 'directory/%business_area%/%business_category%', 'with_front' => false ),
         'has_archive' => true,
     ) );
 }
@@ -21,7 +21,7 @@ function lbd_register_taxonomy() {
             'name' => 'Business Categories',
             'singular_name' => 'Business Category',
         ),
-        'rewrite' => array( 'slug' => 'directory', 'with_front' => false ),
+        'rewrite' => array( 'slug' => 'directory/categories', 'with_front' => false ),
     ) );
     
     // Business Area taxonomy
@@ -31,7 +31,7 @@ function lbd_register_taxonomy() {
             'name' => 'Business Areas',
             'singular_name' => 'Business Area',
         ),
-        'rewrite' => array( 'slug' => 'area', 'with_front' => false ),
+        'rewrite' => array( 'slug' => 'directory/area', 'with_front' => false ),
         'query_var' => true,
     ) );
 }
@@ -39,61 +39,9 @@ add_action( 'init', 'lbd_register_taxonomy' );
 
 // Add custom rewrite rules for business areas
 function lbd_add_rewrite_rules() {
-    // Don't run if they're disabled
-    if (get_option('lbd_disable_custom_rules')) {
-        return;
-    }
-    
     // Check to make sure the business area taxonomy exists
     if (!taxonomy_exists('business_area')) {
         return;
-    }
-    
-    global $wp_rewrite;
-    
-    // List of known WordPress pages/paths that should be excluded from business area rules
-    $excluded_paths = array(
-        'submit-review',    // Review submission page
-        'wp-admin',         // Admin area
-        'wp-content',       // Content directory
-        'wp-includes',      // Includes directory
-        'sitemap',          // Sitemap
-        'feed',             // RSS feeds
-        'wp-json',          // REST API
-        'index.php',        // Direct file access
-        'xmlrpc.php',       // XML-RPC
-        'wp-login.php',     // Login
-        'wp-register.php',  // Registration
-    );
-    
-    // Add any permalink bases from the rewrite structure
-    if ($wp_rewrite->permalink_structure) {
-        $structure = trim($wp_rewrite->permalink_structure, '/');
-        $parts = explode('/', $structure);
-        if (!empty($parts[0])) {
-            $excluded_paths[] = $parts[0];
-        }
-    }
-    
-    // Add common archive base names
-    $excluded_paths[] = 'category';
-    $excluded_paths[] = 'tag';
-    $excluded_paths[] = 'author';
-    $excluded_paths[] = 'date';
-    $excluded_paths[] = 'archive';
-    $excluded_paths[] = 'search';
-    
-    // Get any published WordPress pages to exclude their slugs
-    $wp_pages = get_posts(array(
-        'post_type' => 'page',
-        'post_status' => 'publish',
-        'posts_per_page' => -1,
-        'fields' => 'ids',
-    ));
-    
-    // Get their slugs
-    foreach ($wp_pages as $page_id) {
-        $excluded_paths[] = get_post_field('post_name', $page_id);
     }
     
     // Get all business areas for specific matching
@@ -104,27 +52,22 @@ function lbd_add_rewrite_rules() {
     ));
 
     if (!empty($business_areas) && !is_wp_error($business_areas)) {
-        // Filter out any business areas that match excluded paths
-        $business_areas = array_diff($business_areas, $excluded_paths);
+        // Create regex pattern from area slugs: (area1|area2|area3)
+        $areas_pattern = '(' . implode('|', array_map('preg_quote', $business_areas)) . ')';
+
+        // Rewrite for area pages - with directory namespace
+        add_rewrite_rule(
+            '^directory/(' . $areas_pattern . ')/?$',
+            'index.php?business_area=$matches[1]',
+            'top'
+        );
         
-        if (!empty($business_areas)) {
-            // Create regex pattern from area slugs: (area1|area2|area3)
-            $areas_pattern = '(' . implode('|', array_map('preg_quote', $business_areas)) . ')';
-    
-            // Rewrite for area pages - only match known business areas
-            add_rewrite_rule(
-                '^' . $areas_pattern . '/?$',
-                'index.php?business_area=$matches[1]',
-                'top'
-            );
-            
-            // Rewrite for area-specific category pages - only for known areas
-            add_rewrite_rule(
-                '^' . $areas_pattern . '/([^/]+)/?$',
-                'index.php?business_area=$matches[1]&business_category=$matches[2]',
-                'top'
-            );
-        }
+        // Rewrite for area-specific category pages - with directory namespace
+        add_rewrite_rule(
+            '^directory/(' . $areas_pattern . ')/([^/]+)/?$',
+            'index.php?business_area=$matches[1]&business_category=$matches[2]',
+            'top'
+        );
     }
     
     // Add rewrite tags
@@ -135,11 +78,6 @@ add_action('init', 'lbd_add_rewrite_rules');
 
 // Filter to modify permalinks to include area and category
 function lbd_business_permalink( $permalink, $post, $leavename ) {
-    // Don't modify permalinks if custom rules are disabled
-    if (get_option('lbd_disable_custom_rules')) {
-        return $permalink;
-    }
-
     if ( $post->post_type !== 'business' ) {
         return $permalink;
     }
@@ -169,27 +107,17 @@ add_filter( 'post_type_link', 'lbd_business_permalink', 10, 3 );
 
 // Custom permalink for business areas
 function lbd_business_area_permalink($permalink, $term, $taxonomy) {
-    // Don't modify permalinks if custom rules are disabled
-    if (get_option('lbd_disable_custom_rules')) {
-        return $permalink;
-    }
-
     if ($taxonomy !== 'business_area') {
         return $permalink;
     }
     
-    // Replace /area/term-slug/ with just /term-slug/
-    return home_url('/' . $term->slug . '/');
+    // Use directory namespace for area URLs
+    return home_url('/directory/' . $term->slug . '/');
 }
 add_filter('term_link', 'lbd_business_area_permalink', 10, 3);
 
 // Custom permalink for business categories
 function lbd_business_category_permalink($permalink, $term, $taxonomy) {
-    // Don't modify permalinks if custom rules are disabled
-    if (get_option('lbd_disable_custom_rules')) {
-        return $permalink;
-    }
-
     if ($taxonomy !== 'business_category') {
         return $permalink;
     }
@@ -209,12 +137,12 @@ function lbd_business_category_permalink($permalink, $term, $taxonomy) {
         }
     }
     
-    // If we have an area context, use it in the permalink
+    // If we have an area context, use it in the permalink with directory namespace
     if ($current_area) {
-        return home_url('/' . $current_area->slug . '/' . $term->slug . '/');
+        return home_url('/directory/' . $current_area->slug . '/' . $term->slug . '/');
     }
     
-    // Default: keep original permalink
+    // Default: keep original permalink (should already include directory/categories/ from registration)
     return $permalink;
 }
 add_filter('term_link', 'lbd_business_category_permalink', 10, 3); 
