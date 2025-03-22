@@ -198,20 +198,11 @@ add_action('plugins_loaded', 'lbd_plugin_loaded');
 function lbd_modify_search_query($query) {
     // Only modify search queries on the front end
     if (!is_admin() && $query->is_search() && $query->is_main_query()) {
-        // Get the search term
-        $search_term = get_search_query();
-        
-        // If we have a category or area parameter, only search businesses
-        $is_business_specific = false;
-        if (isset($_GET['category']) || isset($_GET['area'])) {
-            $is_business_specific = true;
-        }
-        
         // Check if we're explicitly searching for businesses
         $search_businesses = isset($_GET['post_type']) && $_GET['post_type'] === 'business';
         
-        // If this is a business-specific search or the user wants to search only businesses
-        if ($is_business_specific || $search_businesses) {
+        // If this is a business-specific search
+        if ($search_businesses) {
             // Only search business post type
             $query->set('post_type', 'business');
             
@@ -240,168 +231,9 @@ function lbd_modify_search_query($query) {
                 }
                 $query->set('tax_query', $tax_query);
             }
-            
-            // If the search term is just whitespace, remove it but keep other filters
-            if (trim($search_term) === '') {
-                $query->set('s', '');
-            }
-            
-            // Add meta search capability
-            add_filter('posts_join', 'lbd_search_join');
-            add_filter('posts_where', 'lbd_search_where', 10, 2);
-            add_filter('posts_distinct', 'lbd_search_distinct');
         }
     }
     
     return $query;
 }
-add_action('pre_get_posts', 'lbd_modify_search_query');
-
-/**
- * Join the postmeta table for search queries
- */
-function lbd_search_join($join) {
-    global $wpdb;
-    
-    if (!is_search() || !is_main_query()) {
-        return $join;
-    }
-    
-    $join .= " LEFT JOIN $wpdb->postmeta ON ($wpdb->posts.ID = $wpdb->postmeta.post_id) ";
-    return $join;
-}
-
-/**
- * Extend WHERE clause to search in post meta
- */
-function lbd_search_where($where, $query) {
-    global $wpdb;
-    
-    if (!is_search() || !is_main_query()) {
-        return $where;
-    }
-    
-    $search_term = get_search_query();
-    if (!empty($search_term)) {
-        $like = '%' . $wpdb->esc_like($search_term) . '%';
-        $where .= $wpdb->prepare(" OR ($wpdb->postmeta.meta_value LIKE %s)", $like);
-    }
-    
-    return $where;
-}
-
-/**
- * Add DISTINCT to prevent duplicate results
- */
-function lbd_search_distinct() {
-    if (!is_search() || !is_main_query()) {
-        return '';
-    }
-    
-    return "DISTINCT";
-}
-
-/**
- * Add the search form shortcode
- */
-function lbd_search_form_shortcode($atts) {
-    $atts = shortcode_atts(array(
-        'placeholder' => 'Search businesses...',
-        'button_text' => 'Search',
-        'show_filters' => 'yes',
-    ), $atts);
-    
-    ob_start();
-    ?>
-    <form role="search" method="get" class="business-directory-search-form" action="<?php echo esc_url(home_url('/')); ?>">
-        <input type="hidden" name="post_type" value="business" />
-        
-        <div class="search-form-fields">
-            <input type="search" class="search-field" placeholder="<?php echo esc_attr($atts['placeholder']); ?>" value="<?php echo get_search_query(); ?>" name="s" />
-            
-            <?php if ($atts['show_filters'] === 'yes'): ?>
-                <?php
-                // Get all areas for dropdown
-                $areas = get_terms(array(
-                    'taxonomy' => 'business_area',
-                    'hide_empty' => false,
-                ));
-                
-                if (!empty($areas) && !is_wp_error($areas)):
-                ?>
-                <select name="area" class="area-filter">
-                    <option value="">All Areas</option>
-                    <?php foreach ($areas as $area): ?>
-                        <option value="<?php echo esc_attr($area->slug); ?>" <?php selected(isset($_GET['area']) && $_GET['area'] === $area->slug); ?>>
-                            <?php echo esc_html($area->name); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <?php endif; ?>
-                
-                <?php
-                // Get all categories for dropdown
-                $categories = get_terms(array(
-                    'taxonomy' => 'business_category',
-                    'hide_empty' => false,
-                ));
-                
-                if (!empty($categories) && !is_wp_error($categories)):
-                ?>
-                <select name="category" class="category-filter">
-                    <option value="">All Categories</option>
-                    <?php foreach ($categories as $category): ?>
-                        <option value="<?php echo esc_attr($category->slug); ?>" <?php selected(isset($_GET['category']) && $_GET['category'] === $category->slug); ?>>
-                            <?php echo esc_html($category->name); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <?php endif; ?>
-            <?php endif; ?>
-            
-            <button type="submit" class="search-submit"><?php echo esc_html($atts['button_text']); ?></button>
-        </div>
-    </form>
-    
-    <style>
-    .business-directory-search-form {
-        margin-bottom: 2em;
-    }
-    .business-directory-search-form .search-form-fields {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        align-items: center;
-    }
-    .business-directory-search-form .search-field,
-    .business-directory-search-form .area-filter,
-    .business-directory-search-form .category-filter {
-        min-width: 150px;
-        padding: 8px 10px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-    }
-    .business-directory-search-form .search-field {
-        flex-grow: 1;
-    }
-    .business-directory-search-form .search-submit {
-        padding: 8px 15px;
-        background-color: #0073aa;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-    .business-directory-search-form .search-submit:hover {
-        background-color: #005177;
-    }
-    </style>
-    <?php
-    
-    return ob_get_clean();
-}
-add_shortcode('business_search_form', 'lbd_search_form_shortcode');
-
-// Remove old functions that are no longer needed
-remove_action('template_redirect', 'lbd_redirect_searches');
-remove_filter('lbd_admin_settings', 'lbd_admin_search_settings'); 
+add_action('pre_get_posts', 'lbd_modify_search_query'); 
