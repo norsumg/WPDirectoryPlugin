@@ -12,11 +12,27 @@ function lbd_metaboxes() {
     }
 
     $cmb = new_cmb2_box( array(
-        'id' => 'lbd_business_metabox',
-        'title' => 'Business Details',
-        'object_types' => array( 'business' ),
-        'context' => 'normal',
-        'priority' => 'high',
+        'id'            => 'lbd_metabox',
+        'title'         => __( 'Business Details', 'lbd' ),
+        'object_types'  => array( 'business', ), // Post type
+        'context'       => 'normal',
+        'priority'      => 'high',
+        'show_names'    => true, // Show field names on the left
+    ) );
+
+    // Cover Photo
+    $cmb->add_field( array(
+        'name' => 'Cover Photo',
+        'desc' => 'Upload a landscape image (recommended size: 1024x280px) to be displayed at the top of your business profile',
+        'id'   => 'lbd_cover_photo',
+        'type' => 'file',
+        'options' => array(
+            'url' => false,
+        ),
+        'preview_size' => 'medium',
+        'text' => array(
+            'add_upload_file_text' => 'Add Cover Photo'
+        ),
     ) );
 
     $cmb->add_field( array(

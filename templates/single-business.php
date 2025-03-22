@@ -1,6 +1,19 @@
 <?php get_header(); ?>
 <div class="business-profile">
     <?php while ( have_posts() ) : the_post(); ?>
+        <!-- Cover Photo -->
+        <div class="business-cover-photo">
+            <?php 
+            $cover_photo_id = get_post_meta(get_the_ID(), 'lbd_cover_photo', true);
+            if ($cover_photo_id) {
+                $cover_photo_url = wp_get_attachment_image_url($cover_photo_id, 'full');
+                echo '<div class="cover-photo-image" style="background-image: url(' . esc_url($cover_photo_url) . ');"></div>';
+            } else {
+                echo '<div class="cover-photo-placeholder"></div>';
+            }
+            ?>
+        </div>
+        
         <h1 class="business-title"><?php the_title(); ?></h1>
         
         <!-- Tab Navigation -->

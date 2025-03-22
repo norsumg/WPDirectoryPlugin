@@ -24,8 +24,12 @@
 
 /* Business profile styles */
 .business-profile {
-    max-width: 800px;
+    max-width: 1024px;
     margin: 0 auto;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding-bottom: 30px;
 }
 .business-details {
     margin: 20px 0;
@@ -516,7 +520,7 @@
     z-index: 100;
     width: 100%;
     margin: 0;
-    padding: 0;
+    padding: 0 20px;
 }
 
 .business-tabs-container.sticky {
@@ -592,9 +596,13 @@
 
 /* Section Styles */
 .business-section {
-    padding: 30px 0;
+    padding: 30px 20px;
     border-bottom: 1px solid #eee;
-    scroll-margin-top: 70px; /* Increased to ensure content appears below sticky tabs */
+    scroll-margin-top: 70px;
+}
+
+.business-section:last-child {
+    border-bottom: none;
 }
 
 /* Adjust first section to prevent content jumping */
@@ -611,8 +619,10 @@
 
 /* Business Title */
 .business-title {
+    margin-top: 0;
     margin-bottom: 15px;
     font-size: 32px;
+    padding: 0 20px;
 }
 
 /* Photos Gallery */
@@ -748,4 +758,26 @@
     .gallery-item img {
         height: 150px;
     }
+}
+
+/* Cover Photo Styles */
+.business-cover-photo {
+    width: 100%;
+    margin-bottom: 20px;
+    border-radius: 8px 8px 0 0;
+    overflow: hidden;
+}
+
+.cover-photo-image {
+    width: 100%;
+    height: 280px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.cover-photo-placeholder {
+    width: 100%;
+    height: 180px;
+    background-color: #f2f2f2;
 } 
