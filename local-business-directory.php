@@ -272,18 +272,20 @@ function lbd_add_search_results_styles() {
         box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }
     
-    /* Hide post author in search results */
+    /* Hide theme elements in search results */
+    body.search article.business .entry-header,
     body.search .author,
     body.search .entry-meta .author,
     body.search .post-author,
     body.search article.business .entry-meta .author,
     body.search article.business .byline,
-    body.search article.business .entry-title,
     body.search article.business .more-link {
         display: none !important;
     }
     
+    /* But ensure our custom business title is visible */
     .business-search-result h2 {
+        display: block !important;
         margin: 0 0 10px 0;
         font-size: 1.4em;
     }
