@@ -6,12 +6,12 @@
         <!-- Tab Navigation -->
         <div class="business-tabs-container">
             <ul class="business-tabs">
-                <li class="tab-item active"><a href="#overview" data-section="overview">Overview</a></li>
-                <li class="tab-item"><a href="#services" data-section="services">Services</a></li>
-                <li class="tab-item"><a href="#reviews" data-section="reviews">Reviews</a></li>
-                <li class="tab-item"><a href="#photos" data-section="photos">Photos</a></li>
-                <li class="tab-item"><a href="#more-info" data-section="more-info">More info</a></li>
-                <li class="tab-item"><a href="#accreditations" data-section="accreditations">Accreditations</a></li>
+                <li class="tab-item active"><a href="#overview">Overview</a></li>
+                <li class="tab-item"><a href="#services">Services</a></li>
+                <li class="tab-item"><a href="#reviews">Reviews</a></li>
+                <li class="tab-item"><a href="#photos">Photos</a></li>
+                <li class="tab-item"><a href="#more-info">Company info</a></li>
+                <li class="tab-item"><a href="#accreditations">Accreditations</a></li>
             </ul>
         </div>
         
@@ -440,6 +440,12 @@ jQuery(document).ready(function($) {
     $('.business-tabs a').on('click', function(e) {
         e.preventDefault();
         var target = $(this).attr('href');
+        
+        // Set active tab
+        $('.business-tabs a').parent().removeClass('active');
+        $(this).parent().addClass('active');
+        
+        // Smooth scroll to section
         $('html, body').animate({
             scrollTop: $(target).offset().top - tabsContainer.outerHeight()
         }, 500);
@@ -456,7 +462,7 @@ jQuery(document).ready(function($) {
         }
         
         // Update active tab based on scroll position
-        var scrollPosition = $(window).scrollTop() + tabsContainer.outerHeight() + 50;
+        var scrollPosition = $(window).scrollTop() + tabsContainer.outerHeight() + 20;
         
         $('.business-section').each(function() {
             var target = $(this);
@@ -464,10 +470,8 @@ jQuery(document).ready(function($) {
             
             if (target.offset().top <= scrollPosition && 
                 target.offset().top + target.outerHeight() > scrollPosition) {
-                $('.business-tabs a').removeClass('active');
-                $('.business-tabs a[href="#' + sectionId + '"]').addClass('active');
-                $('.tab-item').removeClass('active');
-                $('.tab-item a[href="#' + sectionId + '"]').parent().addClass('active');
+                $('.business-tabs a').parent().removeClass('active');
+                $('.business-tabs a[href="#' + sectionId + '"]').parent().addClass('active');
             }
         });
     });
