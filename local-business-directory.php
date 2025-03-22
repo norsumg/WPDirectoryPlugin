@@ -76,6 +76,17 @@ function lbd_force_rebuild_rules() {
     lbd_register_post_type();
     lbd_register_taxonomy();
     
+    // Don't add custom directory rules if disabled
+    if (!get_option('lbd_disable_custom_rules')) {
+        // Let WordPress know we'll add custom rules
+        add_action('init', 'lbd_add_rewrite_rules', 999);
+    } else {
+        // Show a message that custom rules are disabled
+        add_action('admin_notices', function() {
+            echo '<div class="notice notice-warning is-dismissible"><p>Local Business Directory: Custom rewrite rules are currently <strong>disabled</strong>. Regular pages will work, but some directory functionality might be limited. To re-enable, visit <a href="' . admin_url('tools.php?page=lbd-fix-permalinks') . '">Fix Directory Permalinks</a>.</p></div>';
+        });
+    }
+    
     // Flush rules - hard flush
     $wp_rewrite->flush_rules(true);
     
@@ -85,10 +96,92 @@ function lbd_force_rebuild_rules() {
     });
 }
 
+// Add an emergency permalink fixer admin page
+function lbd_add_emergency_admin_page() {
+    add_management_page(
+        'Fix Directory Permalinks',
+        'Fix Directory Permalinks',
+        'manage_options',
+        'lbd-fix-permalinks',
+        'lbd_fix_permalinks_page'
+    );
+}
+add_action('admin_menu', 'lbd_add_emergency_admin_page');
+
+// Emergency permalink fixer page content
+function lbd_fix_permalinks_page() {
+    // Handle form submissions
+    if (isset($_POST['lbd_action']) && current_user_can('manage_options')) {
+        $action = sanitize_text_field($_POST['lbd_action']);
+        
+        if ($action === 'disable_rules' && wp_verify_nonce($_POST['_wpnonce'], 'lbd_disable_rules')) {
+            update_option('lbd_disable_custom_rules', 1);
+            flush_rewrite_rules(true);
+            echo '<div class="notice notice-success"><p>Custom directory rewrite rules have been <strong>disabled</strong>. Your regular pages should now work.</p></div>';
+        }
+        else if ($action === 'enable_rules' && wp_verify_nonce($_POST['_wpnonce'], 'lbd_enable_rules')) {
+            delete_option('lbd_disable_custom_rules');
+            flush_rewrite_rules(true);
+            echo '<div class="notice notice-info"><p>Custom directory rewrite rules have been <strong>enabled</strong>. Check your site navigation to verify everything works.</p></div>';
+        }
+        else if ($action === 'reset_permalinks' && wp_verify_nonce($_POST['_wpnonce'], 'lbd_reset_permalinks')) {
+            flush_rewrite_rules(true);
+            echo '<div class="notice notice-info"><p>WordPress permalinks have been reset. Please check your site navigation.</p></div>';
+        }
+    }
+    
+    $rules_disabled = get_option('lbd_disable_custom_rules');
+    
+    ?>
+    <div class="wrap">
+        <h1>Fix Directory Permalinks</h1>
+        
+        <div class="card">
+            <h2>Current Status</h2>
+            <p>Custom directory rewrite rules are currently: <strong><?php echo $rules_disabled ? 'DISABLED' : 'ENABLED'; ?></strong></p>
+            <p>If your regular WordPress pages show "Not Found" errors, use the options below to fix the issue.</p>
+        </div>
+        
+        <div class="card">
+            <h2>Option 1: Disable Custom Directory Rules</h2>
+            <p>This will disable the custom rewrite rules for business areas and categories. Your regular WordPress pages will work again, but some directory functionality might be limited.</p>
+            
+            <form method="post">
+                <?php wp_nonce_field('lbd_disable_rules'); ?>
+                <input type="hidden" name="lbd_action" value="disable_rules">
+                <p><button type="submit" class="button button-primary">Disable Custom Rules</button></p>
+            </form>
+        </div>
+        
+        <div class="card">
+            <h2>Option 2: Enable Custom Directory Rules</h2>
+            <p>This will re-enable the custom rewrite rules for business areas and categories.</p>
+            
+            <form method="post">
+                <?php wp_nonce_field('lbd_enable_rules'); ?>
+                <input type="hidden" name="lbd_action" value="enable_rules">
+                <p><button type="submit" class="button">Enable Custom Rules</button></p>
+            </form>
+        </div>
+        
+        <div class="card">
+            <h2>Option 3: Reset WordPress Permalinks</h2>
+            <p>This will force WordPress to regenerate all permalink rules.</p>
+            
+            <form method="post">
+                <?php wp_nonce_field('lbd_reset_permalinks'); ?>
+                <input type="hidden" name="lbd_action" value="reset_permalinks">
+                <p><button type="submit" class="button">Reset Permalinks</button></p>
+            </form>
+        </div>
+    </div>
+    <?php
+}
+
 // Rewrite flush on plugin update
 function lbd_plugin_loaded() {
     // Check if we need to flush rules (on version change or first install)
-    $current_version = '1.2'; // Increment version
+    $current_version = '1.3'; // Increment version
     $saved_version = get_option('lbd_plugin_version');
     
     if ($saved_version !== $current_version) {

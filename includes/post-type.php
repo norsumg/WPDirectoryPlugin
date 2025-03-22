@@ -39,6 +39,18 @@ add_action( 'init', 'lbd_register_taxonomy' );
 
 // Add custom rewrite rules for business areas
 function lbd_add_rewrite_rules() {
+    // Don't run if they're disabled
+    if (get_option('lbd_disable_custom_rules')) {
+        return;
+    }
+    
+    // Check to make sure the business area taxonomy exists
+    if (!taxonomy_exists('business_area')) {
+        return;
+    }
+    
+    global $wp_rewrite;
+    
     // List of known WordPress pages/paths that should be excluded from business area rules
     $excluded_paths = array(
         'submit-review',    // Review submission page
@@ -48,7 +60,28 @@ function lbd_add_rewrite_rules() {
         'sitemap',          // Sitemap
         'feed',             // RSS feeds
         'wp-json',          // REST API
+        'index.php',        // Direct file access
+        'xmlrpc.php',       // XML-RPC
+        'wp-login.php',     // Login
+        'wp-register.php',  // Registration
     );
+    
+    // Add any permalink bases from the rewrite structure
+    if ($wp_rewrite->permalink_structure) {
+        $structure = trim($wp_rewrite->permalink_structure, '/');
+        $parts = explode('/', $structure);
+        if (!empty($parts[0])) {
+            $excluded_paths[] = $parts[0];
+        }
+    }
+    
+    // Add common archive base names
+    $excluded_paths[] = 'category';
+    $excluded_paths[] = 'tag';
+    $excluded_paths[] = 'author';
+    $excluded_paths[] = 'date';
+    $excluded_paths[] = 'archive';
+    $excluded_paths[] = 'search';
     
     // Get any published WordPress pages to exclude their slugs
     $wp_pages = get_posts(array(
