@@ -687,21 +687,31 @@ function lbd_add_star_rating_styles() {
     /* Search Form Layout Options */
     .business-search-form.horizontal {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         flex-wrap: wrap;
         gap: 10px;
     }
     
     .business-search-form.horizontal > div {
         flex: 1;
-        min-width: 200px;
         margin: 0;
+    }
+    
+    /* Specific field widths */
+    .business-search-form.horizontal .search-field {
+        max-width: 300px;
+        flex: 2;
+    }
+    
+    .business-search-form.horizontal .area-field,
+    .business-search-form.horizontal .category-field {
+        max-width: 225px;
     }
     
     .business-search-form.horizontal button {
         margin: 0;
         height: 40px;
-        align-self: flex-end;
+        align-self: flex-start;
     }
     
     /* Form elements should have consistent height */
