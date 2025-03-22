@@ -159,227 +159,236 @@ function lbd_search_form_shortcode($atts) {
 }
 add_shortcode( 'business_search_form', 'lbd_search_form_shortcode' );
 
+// Add search join function
+function lbd_search_join($join) {
+    global $wpdb;
+    if (!strpos($join, "LEFT JOIN $wpdb->postmeta ON")) {
+        $join .= " LEFT JOIN $wpdb->postmeta ON ($wpdb->posts.ID = $wpdb->postmeta.post_id) ";
+    }
+    return $join;
+}
+
+// Add search where function
+function lbd_search_where($where, $search_term) {
+    global $wpdb;
+    // Ensure we're only searching in business post type
+    $where .= " AND $wpdb->posts.post_type = 'business' ";
+    
+    // Search in post meta for broader matches
+    $where .= $wpdb->prepare(
+        " OR ($wpdb->posts.post_type = 'business' AND $wpdb->postmeta.meta_value LIKE %s) ",
+        '%' . $wpdb->esc_like($search_term) . '%'
+    );
+    
+    return $where;
+}
+
+// Add search distinct function
+function lbd_search_distinct() {
+    return "DISTINCT";
+}
+
 /**
- * Shortcode for search results
- * [business_search_results]
+ * Implementation of the [lbd_search_results] shortcode
  */
-function lbd_search_results_shortcode() {
-    // Early exit if not a search page or has no search params
-    if (!isset($_GET['s']) && !isset($_GET['area']) && !isset($_GET['category'])) {
-        return '<p>Use the search form to find businesses.</p>';
+function lbd_search_results_shortcode($atts) {
+    $atts = shortcode_atts(array(
+        'per_page' => 10,
+        'info_layout' => 'list',
+    ), $atts);
+
+    $output = '';
+    $search_term = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
+    $area = isset($_GET['area']) ? sanitize_text_field($_GET['area']) : '';
+    $category = isset($_GET['category']) ? sanitize_text_field($_GET['category']) : '';
+    
+    // Debug info in HTML comments
+    $output .= "<!-- Search parameters: term='$search_term', area='$area', category='$category' -->\n";
+    
+    // Build search query
+    global $wpdb;
+    $found_posts = array();
+    
+    // Start with empty array for found post IDs
+    $post_ids = array();
+    
+    // If we have a search term, perform a direct SQL search to find matches
+    if (!empty($search_term)) {
+        // Prepare the search term for SQL LIKE comparison
+        $like_term = '%' . $wpdb->esc_like($search_term) . '%';
+        
+        // Search in post title and content
+        $title_content_query = $wpdb->prepare(
+            "SELECT ID FROM {$wpdb->posts} 
+            WHERE post_type = 'business' 
+            AND post_status = 'publish' 
+            AND (post_title LIKE %s OR post_content LIKE %s)",
+            $like_term, $like_term
+        );
+        
+        $title_content_ids = $wpdb->get_col($title_content_query);
+        $post_ids = array_merge($post_ids, $title_content_ids);
+        
+        // Search in post meta
+        $meta_query = $wpdb->prepare(
+            "SELECT DISTINCT post_id FROM {$wpdb->postmeta} 
+            WHERE meta_value LIKE %s",
+            $like_term
+        );
+        
+        $meta_ids = $wpdb->get_col($meta_query);
+        
+        // Filter to only include business post type
+        if (!empty($meta_ids)) {
+            $meta_post_type_query = "SELECT ID FROM {$wpdb->posts} 
+                WHERE ID IN (" . implode(',', array_map('intval', $meta_ids)) . ") 
+                AND post_type = 'business' 
+                AND post_status = 'publish'";
+            
+            $filtered_meta_ids = $wpdb->get_col($meta_post_type_query);
+            $post_ids = array_merge($post_ids, $filtered_meta_ids);
+        }
+        
+        // Remove duplicates
+        $post_ids = array_unique($post_ids);
     }
     
+    // Debug info
+    $output .= "<!-- Direct SQL search found " . count($post_ids) . " matching posts -->\n";
+    
+    // Create a query for the search results
     $args = array(
         'post_type' => 'business',
-        'posts_per_page' => 20,
-        'meta_query' => array(
-            'premium_clause' => array(
-                'key' => 'lbd_premium',
-                'compare' => 'EXISTS',
-            ),
-        ),
-        'orderby' => array(
-            'premium_clause' => 'DESC',
-            'title' => 'ASC',
-        ),
+        'posts_per_page' => $atts['per_page'],
+        'paged' => get_query_var('paged') ? get_query_var('paged') : 1,
     );
-
-    // Search term filter
-    if (isset($_GET['s']) && !empty($_GET['s'])) {
-        $search_term = sanitize_text_field($_GET['s']);
-        
-        // Main search query
+    
+    // Add post IDs if we have them from direct search
+    if (!empty($post_ids)) {
+        $args['post__in'] = $post_ids;
+    } elseif (!empty($search_term)) {
+        // If direct search found nothing but we have a search term,
+        // let WordPress try its built-in search as a fallback
         $args['s'] = $search_term;
-        
-        // Enhanced search: Look in meta fields too for the search term
-        add_filter('posts_join', 'lbd_search_join');
-        add_filter('posts_where', function($where) use ($search_term) {
-            global $wpdb;
-            // Search in all post meta for broader matches
-            $where .= $wpdb->prepare(
-                " OR ($wpdb->postmeta.meta_value LIKE %s) ",
-                '%' . $wpdb->esc_like($search_term) . '%'
-            );
-            return $where;
-        });
-        add_filter('posts_distinct', function($distinct) {
-            return "DISTINCT";
-        });
-    }
-
-    // Category filter
-    if (isset($_GET['category']) && !empty($_GET['category'])) {
-        $args['tax_query'][] = array(
-            'taxonomy' => 'business_category',
-            'field' => 'slug',
-            'terms' => sanitize_text_field($_GET['category']),
-        );
     }
     
-    // Area filter
-    if (isset($_GET['area']) && !empty($_GET['area'])) {
-        $args['tax_query'][] = array(
+    // Add taxonomy queries if specified
+    $tax_query = array('relation' => 'AND');
+    
+    if (!empty($area)) {
+        $tax_query[] = array(
             'taxonomy' => 'business_area',
             'field' => 'slug',
-            'terms' => sanitize_text_field($_GET['area']),
+            'terms' => $area
         );
     }
-
-    // Add tax_query relation if we have multiple conditions
-    if (isset($args['tax_query']) && count($args['tax_query']) > 1) {
-        $args['tax_query']['relation'] = 'AND';
-    }
-
-    $query = new WP_Query($args);
     
-    // Clean up filters to avoid affecting other queries
-    if (isset($_GET['s']) && !empty($_GET['s'])) {
-        remove_all_filters('posts_join');
-        remove_all_filters('posts_where');
-        remove_all_filters('posts_distinct');
+    if (!empty($category)) {
+        $tax_query[] = array(
+            'taxonomy' => 'business_category',
+            'field' => 'slug',
+            'terms' => $category
+        );
     }
     
-    ob_start();
-    
-    // Build the search description
-    $search_description = array();
-    if (isset($_GET['s']) && !empty($_GET['s'])) {
-        $search_description[] = '"' . esc_html($_GET['s']) . '"';
+    if (count($tax_query) > 1) {
+        $args['tax_query'] = $tax_query;
     }
     
-    $category_name = '';
-    if (isset($_GET['category']) && !empty($_GET['category'])) {
-        $category = get_term_by('slug', sanitize_text_field($_GET['category']), 'business_category');
-        if ($category) {
-            $category_name = $category->name;
-            $search_description[] = 'in category "' . esc_html($category_name) . '"';
+    // Run the query
+    $businesses_query = new WP_Query($args);
+    
+    // Debug info
+    $output .= "<!-- Final query found " . $businesses_query->found_posts . " posts -->\n";
+    
+    // Display search header
+    $output .= '<div class="business-search-header">';
+    $output .= '<h2 class="search-results-title">Search Results</h2>';
+    
+    if (!empty($search_term) || !empty($area) || !empty($category)) {
+        $output .= '<p class="search-filters">';
+        if (!empty($search_term)) {
+            $output .= '<span class="search-term">Searching for: <strong>' . esc_html($search_term) . '</strong></span> ';
         }
-    }
-    
-    $area_name = '';
-    if (isset($_GET['area']) && !empty($_GET['area'])) {
-        $area = get_term_by('slug', sanitize_text_field($_GET['area']), 'business_area');
-        if ($area) {
-            $area_name = $area->name;
-            $search_description[] = 'in ' . esc_html($area_name);
+        if (!empty($area)) {
+            $area_term = get_term_by('slug', $area, 'business_area');
+            if ($area_term) {
+                $output .= '<span class="search-area">in <strong>' . esc_html($area_term->name) . '</strong></span> ';
+            }
         }
+        if (!empty($category)) {
+            $category_term = get_term_by('slug', $category, 'business_category');
+            if ($category_term) {
+                $output .= '<span class="search-category">in category <strong>' . esc_html($category_term->name) . '</strong></span>';
+            }
+        }
+        $output .= '</p>';
     }
+    $output .= '</div>';
     
-    $search_string = !empty($search_description) ? implode(' ', $search_description) : 'all businesses';
-
-    ?>
-    <div class="business-search-results">
-        <h2>Search Results: <?php echo $search_string; ?></h2>
+    // Display results
+    if ($businesses_query->have_posts()) {
+        $output .= '<div class="businesses ' . esc_attr($atts['info_layout']) . '-layout">';
         
-        <?php if ($area_name || $category_name): ?>
-        <div class="search-filters">
-            <?php if ($area_name): ?>
-            <div class="filter-item">
-                <strong>Area:</strong> <?php echo esc_html($area_name); ?>
-                <a href="<?php echo esc_url(remove_query_arg('area')); ?>" class="remove-filter" title="Remove area filter">×</a>
-            </div>
-            <?php endif; ?>
+        while ($businesses_query->have_posts()) {
+            $businesses_query->the_post();
+            $business_id = get_the_ID();
             
-            <?php if ($category_name): ?>
-            <div class="filter-item">
-                <strong>Category:</strong> <?php echo esc_html($category_name); ?>
-                <a href="<?php echo esc_url(remove_query_arg('category')); ?>" class="remove-filter" title="Remove category filter">×</a>
-            </div>
-            <?php endif; ?>
-        </div>
-        <?php endif; ?>
+            // Use the existing business single view template
+            ob_start();
+            include(LBD_PLUGIN_DIR . 'templates/business-' . $atts['info_layout'] . '-item.php');
+            $output .= ob_get_clean();
+        }
         
-        <?php if ($query->have_posts()): ?>
-            <p class="result-count">Found <?php echo $query->found_posts; ?> business<?php echo $query->found_posts !== 1 ? 'es' : ''; ?>.</p>
+        $output .= '</div>';
+        
+        // Pagination
+        $big = 999999999;
+        $output .= '<div class="business-pagination">';
+        $output .= paginate_links(array(
+            'base' => str_replace($big, '%#%', esc_url(get_pagenum_link($big))),
+            'format' => '?paged=%#%',
+            'current' => max(1, get_query_var('paged')),
+            'total' => $businesses_query->max_num_pages
+        ));
+        $output .= '</div>';
+    } else {
+        $output .= '<div class="no-businesses-found">';
+        $output .= '<p>No businesses found matching your search criteria.</p>';
+        
+        // Suggest recent businesses
+        $recent_args = array(
+            'post_type' => 'business',
+            'posts_per_page' => 5,
+            'orderby' => 'date',
+            'order' => 'DESC'
+        );
+        
+        $recent_query = new WP_Query($recent_args);
+        
+        if ($recent_query->have_posts()) {
+            $output .= '<div class="recent-businesses">';
+            $output .= '<h3>Recently Added Businesses</h3>';
+            $output .= '<ul>';
             
-            <div class="business-list">
-            <?php while ($query->have_posts()): $query->the_post(); ?>
-                <div class="business-card">
-                    <div class="business-card-inner">
-                        <?php if (has_post_thumbnail()): ?>
-                        <div class="business-thumbnail">
-                            <a href="<?php the_permalink(); ?>">
-                                <?php the_post_thumbnail('medium'); ?>
-                            </a>
-                        </div>
-                        <?php endif; ?>
-                        
-                        <div class="business-details">
-                            <h3 class="business-title">
-                                <a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
-                                <?php if (get_post_meta(get_the_ID(), 'lbd_premium', true)): ?>
-                                <span class="premium-badge">Premium</span>
-                                <?php endif; ?>
-                            </h3>
-                            
-                            <?php 
-                            // Display area and category
-                            $areas = get_the_terms(get_the_ID(), 'business_area');
-                            $categories = get_the_terms(get_the_ID(), 'business_category');
-                            
-                            echo '<div class="business-meta">';
-                            if ($areas && !is_wp_error($areas)) {
-                                echo '<span class="business-area">Area: <a href="' . get_term_link($areas[0]) . '">' . esc_html($areas[0]->name) . '</a></span>';
-                            }
-                            
-                            if ($categories && !is_wp_error($categories)) {
-                                echo '<span class="business-category"> | Category: ';
-                                $cat_links = array();
-                                foreach ($categories as $category) {
-                                    $cat_links[] = '<a href="' . get_term_link($category) . '">' . esc_html($category->name) . '</a>';
-                                }
-                                echo implode(', ', $cat_links);
-                                echo '</span>';
-                            }
-                            echo '</div>';
-                            ?>
-                            
-                            <div class="business-excerpt">
-                                <?php the_excerpt(); ?>
-                            </div>
-                            
-                            <a href="<?php the_permalink(); ?>" class="view-business">View Business</a>
-                        </div>
-                    </div>
-                </div>
-            <?php endwhile; ?>
-            </div>
+            while ($recent_query->have_posts()) {
+                $recent_query->the_post();
+                $output .= '<li><a href="' . get_permalink() . '">' . get_the_title() . '</a></li>';
+            }
             
-            <?php 
-            // Pagination
-            $big = 999999999;
-            echo '<div class="business-pagination">';
-            echo paginate_links(array(
-                'base' => str_replace($big, '%#%', esc_url(get_pagenum_link($big))),
-                'format' => '?paged=%#%',
-                'current' => max(1, get_query_var('paged')),
-                'total' => $query->max_num_pages,
-                'prev_text' => '&laquo; Previous',
-                'next_text' => 'Next &raquo;',
-            ));
-            echo '</div>';
-            ?>
-            
-        <?php else: ?>
-            <p class="no-results">No businesses found matching your search. Please try different search terms or browse all businesses.</p>
-            
-            <div class="search-suggestions">
-                <h3>Suggestions:</h3>
-                <ul>
-                    <li>Check your spelling</li>
-                    <li>Try more general keywords</li>
-                    <li>Try different keywords</li>
-                    <li><a href="<?php echo esc_url(home_url('/directory/')); ?>">Browse all business areas</a></li>
-                </ul>
-            </div>
-        <?php endif; ?>
-    </div>
-    <?php
+            $output .= '</ul>';
+            $output .= '</div>';
+        }
+        
+        $output .= '</div>';
+        wp_reset_postdata();
+    }
     
     wp_reset_postdata();
-    return ob_get_clean();
+    return $output;
 }
-add_shortcode( 'business_search_results', 'lbd_search_results_shortcode' );
+add_shortcode('business_search_results', 'lbd_search_results_shortcode');
+add_shortcode('lbd_search_results', 'lbd_search_results_shortcode');
 
 // Shortcode for review submission form
 function lbd_review_form_shortcode($atts) {
@@ -631,15 +640,6 @@ function lbd_directory_home_shortcode($atts) {
     return ob_get_clean();
 }
 add_shortcode('directory_home', 'lbd_directory_home_shortcode');
-
-// Add search join function
-function lbd_search_join($join) {
-    global $wpdb;
-    if (!strpos($join, "LEFT JOIN $wpdb->postmeta ON")) {
-        $join .= " LEFT JOIN $wpdb->postmeta ON ($wpdb->posts.ID = $wpdb->postmeta.post_id) ";
-    }
-    return $join;
-}
 
 // Add star rating styles to the head
 function lbd_add_star_rating_styles() {
@@ -912,4 +912,105 @@ function lbd_add_star_rating_styles() {
     </style>
     <?php
 }
-add_action('wp_head', 'lbd_add_star_rating_styles'); 
+add_action('wp_head', 'lbd_add_star_rating_styles');
+
+/**
+ * Shortcode for testing search functionality
+ * [test_business_search term="search term"]
+ */
+function lbd_test_search_shortcode($atts) {
+    $atts = shortcode_atts(array(
+        'term' => '',
+    ), $atts);
+    
+    if (empty($atts['term'])) {
+        return '<p>Please specify a search term using the "term" attribute.</p>';
+    }
+    
+    $search_term = sanitize_text_field($atts['term']);
+    $output = "<h3>Search Test Results for: '{$search_term}'</h3>";
+    
+    global $wpdb;
+    
+    // 1. Test direct title search
+    $title_sql = $wpdb->prepare(
+        "SELECT ID, post_title FROM {$wpdb->posts} 
+        WHERE post_type = 'business' AND post_status = 'publish' 
+        AND post_title LIKE %s",
+        '%' . $wpdb->esc_like($search_term) . '%'
+    );
+    
+    $title_results = $wpdb->get_results($title_sql);
+    $output .= "<h4>Title Matches (" . count($title_results) . ")</h4>";
+    if (!empty($title_results)) {
+        $output .= "<ul>";
+        foreach ($title_results as $result) {
+            $output .= "<li>ID: {$result->ID} - {$result->post_title}</li>";
+        }
+        $output .= "</ul>";
+    } else {
+        $output .= "<p>No matches in titles.</p>";
+    }
+    
+    // 2. Test direct content search
+    $content_sql = $wpdb->prepare(
+        "SELECT ID, post_title FROM {$wpdb->posts} 
+        WHERE post_type = 'business' AND post_status = 'publish' 
+        AND post_content LIKE %s",
+        '%' . $wpdb->esc_like($search_term) . '%'
+    );
+    
+    $content_results = $wpdb->get_results($content_sql);
+    $output .= "<h4>Content Matches (" . count($content_results) . ")</h4>";
+    if (!empty($content_results)) {
+        $output .= "<ul>";
+        foreach ($content_results as $result) {
+            $output .= "<li>ID: {$result->ID} - {$result->post_title}</li>";
+        }
+        $output .= "</ul>";
+    } else {
+        $output .= "<p>No matches in content.</p>";
+    }
+    
+    // 3. Test meta value search
+    $meta_sql = $wpdb->prepare(
+        "SELECT p.ID, p.post_title, pm.meta_key, pm.meta_value 
+        FROM {$wpdb->posts} p
+        JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+        WHERE p.post_type = 'business' AND p.post_status = 'publish' 
+        AND pm.meta_value LIKE %s",
+        '%' . $wpdb->esc_like($search_term) . '%'
+    );
+    
+    $meta_results = $wpdb->get_results($meta_sql);
+    $output .= "<h4>Meta Value Matches (" . count($meta_results) . ")</h4>";
+    if (!empty($meta_results)) {
+        $output .= "<ul>";
+        foreach ($meta_results as $result) {
+            $output .= "<li>ID: {$result->ID} - {$result->post_title} - Meta Key: {$result->meta_key} - Value: " . substr($result->meta_value, 0, 50) . "</li>";
+        }
+        $output .= "</ul>";
+    } else {
+        $output .= "<p>No matches in meta values.</p>";
+    }
+    
+    // 4. Show all businesses for comparison
+    $all_sql = "SELECT ID, post_title FROM {$wpdb->posts} 
+        WHERE post_type = 'business' AND post_status = 'publish'
+        LIMIT 10";
+    
+    $all_results = $wpdb->get_results($all_sql);
+    $output .= "<h4>Sample of All Businesses (First 10)</h4>";
+    if (!empty($all_results)) {
+        $output .= "<ul>";
+        foreach ($all_results as $result) {
+            $output .= "<li>ID: {$result->ID} - {$result->post_title}</li>";
+        }
+        $output .= "</ul>";
+    } else {
+        $output .= "<p>No businesses found.</p>";
+    }
+    
+    return $output;
+}
+add_shortcode('test_business_search', 'lbd_test_search_shortcode'); 

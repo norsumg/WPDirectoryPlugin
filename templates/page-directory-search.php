@@ -2,21 +2,29 @@
 /**
  * Template Name: Directory Search
  * 
- * This template is used for the directory search results page
+ * Template for displaying directory search results
  */
 
 get_header(); ?>
 
-<div class="directory-search-container">
-    <div class="directory-search-header">
-        <h1 class="page-title">Business Directory Search</h1>
-        
-        <?php echo do_shortcode('[business_search_form layout="horizontal" button_style="pill" placeholder="Find businesses..."]'); ?>
-    </div>
-
-    <div class="directory-search-results">
-        <?php echo do_shortcode('[business_search_results]'); ?>
-    </div>
-</div>
+<div id="primary" class="content-area">
+    <main id="main" class="site-main" role="main">
+        <div class="container">
+            <div class="directory-search-container">
+                <div class="directory-search-form">
+                    <h2>Find Local Businesses</h2>
+                    <?php echo do_shortcode('[business_search]'); ?>
+                </div>
+                
+                <div class="directory-search-results">
+                    <?php 
+                    // Use the enhanced search results shortcode
+                    echo do_shortcode('[lbd_search_results per_page="10" info_layout="list"]'); 
+                    ?>
+                </div>
+            </div>
+        </div>
+    </main><!-- #main -->
+</div><!-- #primary -->
 
 <?php get_footer(); ?> 
