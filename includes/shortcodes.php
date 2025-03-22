@@ -66,165 +66,163 @@ function lbd_areas_shortcode( $atts ) {
 add_shortcode( 'business_areas', 'lbd_areas_shortcode' );
 
 /**
- * Shortcode for a business search form
- * [business_search_form]
+ * Shortcode for the business search form
+ * [business_search_form layout="horizontal" button_style="pill" placeholder="Find businesses..."]
  */
 function lbd_search_form_shortcode($atts) {
-    $atts = shortcode_atts(array(
-        'layout' => 'vertical',     // vertical or horizontal
+    // Parse attributes
+    $atts = shortcode_atts( array(
+        'layout' => 'vertical',
+        'button_style' => 'default',
         'placeholder' => 'Search businesses...',
-        'button_style' => 'default', // default, rounded, square, pill
-        'button_text' => 'Search',
-    ), $atts);
+        'show_filters' => 'yes',
+    ), $atts );
     
-    // Get areas and categories for dropdown
-    $areas = get_terms(array(
-        'taxonomy' => 'business_area',
-        'hide_empty' => true,
-    ));
-    
-    $categories = get_terms(array(
-        'taxonomy' => 'business_category',
-        'hide_empty' => true,
-    ));
-    
-    // Get current search values (if any)
-    $search_term = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
-    $selected_area = isset($_GET['area']) ? sanitize_text_field($_GET['area']) : '';
-    $selected_category = isset($_GET['category']) ? sanitize_text_field($_GET['category']) : '';
-    
-    // Start building the form
-    $output = '<form role="search" method="get" class="business-search-form ' . esc_attr($atts['layout']) . '" action="' . esc_url(home_url('/')) . '">';
-    
-    // CSS styling
-    $output .= '<style>
-        .business-search-form {
-            margin-bottom: 30px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        
-        .business-search-form.horizontal {
-            flex-direction: row;
-            align-items: flex-start;
-        }
-        
-        .business-search-form.vertical {
-            flex-direction: column;
-        }
-        
-        .business-search-form input[type="text"],
-        .business-search-form select,
-        .business-search-form button {
-            height: 40px;
-            box-sizing: border-box;
-        }
-        
-        .business-search-form.horizontal .input-container {
-            flex: 1;
-            min-width: 200px;
-        }
-        
-        .business-search-form.vertical .input-container {
-            width: 100%;
-            margin-bottom: 10px;
-        }
-        
-        .search-field {
-            max-width: 300px;
-        }
-        
-        .area-field, .category-field {
-            max-width: 225px;
-        }
-        
-        /* Button styles */
-        .business-search-form button {
-            cursor: pointer;
-            padding: 8px 15px;
-            background-color: #4a4a4a;
-            color: white;
-            border: none;
-        }
-        
-        .business-search-form button.rounded {
-            border-radius: 5px;
-        }
-        
-        .business-search-form button.square {
-            border-radius: 0;
-        }
-        
-        .business-search-form button.pill {
-            border-radius: 20px;
-            padding-left: 20px;
-            padding-right: 20px;
-        }
-        
-        .business-search-form button:hover {
-            background-color: #333;
-        }
-        
-        .business-search-form.horizontal button {
-            margin: 0;
-            height: 40px;
-            align-self: flex-start;
-        }
-    </style>';
-    
-    // Search input
-    $output .= '<div class="input-container search-field">';
-    $output .= '<input type="text" name="s" placeholder="' . esc_attr($atts['placeholder']) . '" value="' . esc_attr($search_term) . '" />';
-    $output .= '</div>';
-    
-    // Area dropdown
-    if (!empty($areas) && !is_wp_error($areas)) {
-        $output .= '<div class="input-container area-field">';
-        $output .= '<select name="area">';
-        $output .= '<option value="">All Areas</option>';
-        
-        foreach ($areas as $area) {
-            $selected = ($selected_area == $area->slug) ? 'selected="selected"' : '';
-            $output .= '<option value="' . esc_attr($area->slug) . '" ' . $selected . '>' . esc_html($area->name) . '</option>';
-        }
-        
-        $output .= '</select>';
-        $output .= '</div>';
+    // Set CSS classes based on attributes
+    $form_classes = 'business-search-form';
+    if ($atts['layout'] == 'horizontal') {
+        $form_classes .= ' horizontal';
     }
     
-    // Category dropdown
-    if (!empty($categories) && !is_wp_error($categories)) {
-        $output .= '<div class="input-container category-field">';
-        $output .= '<select name="category">';
-        $output .= '<option value="">All Categories</option>';
-        
-        foreach ($categories as $category) {
-            $selected = ($selected_category == $category->slug) ? 'selected="selected"' : '';
-            $output .= '<option value="' . esc_attr($category->slug) . '" ' . $selected . '>' . esc_html($category->name) . '</option>';
-        }
-        
-        $output .= '</select>';
-        $output .= '</div>';
+    $button_classes = 'search-button';
+    if ($atts['button_style'] == 'pill') {
+        $button_classes .= ' pill-button';
+    } else if ($atts['button_style'] == 'rounded') {
+        $button_classes .= ' rounded-button';
     }
     
-    // Search button
-    $button_class = '';
-    if (in_array($atts['button_style'], array('rounded', 'square', 'pill'))) {
-        $button_class = $atts['button_style'];
+    // Current values
+    $current_search = get_search_query();
+    $current_area = isset($_GET['area']) ? sanitize_text_field($_GET['area']) : '';
+    $current_category = isset($_GET['category']) ? sanitize_text_field($_GET['category']) : '';
+    
+    // Start output buffering
+    ob_start();
+    ?>
+    <div class="<?php echo esc_attr($form_classes); ?>">
+        <form role="search" method="get" action="<?php echo esc_url(home_url('/')); ?>" class="search-form">
+            <input type="hidden" name="post_type" value="business" />
+            
+            <div class="search-inputs">
+                <div class="input-container search-field">
+                    <input type="text" name="s" placeholder="<?php echo esc_attr($atts['placeholder']); ?>" value="<?php echo esc_attr($current_search); ?>" />
+                </div>
+                
+                <?php if ($atts['show_filters'] !== 'no'): ?>
+                    <div class="input-container area-field">
+                        <select name="area">
+                            <option value="">All Areas</option>
+                            <?php
+                            $areas = get_terms(array(
+                                'taxonomy' => 'business_area',
+                                'hide_empty' => false,
+                            ));
+                            
+                            if (!empty($areas) && !is_wp_error($areas)) {
+                                foreach ($areas as $area) {
+                                    $selected = ($current_area === $area->slug) ? 'selected="selected"' : '';
+                                    echo '<option value="' . esc_attr($area->slug) . '" ' . $selected . '>' . esc_html($area->name) . '</option>';
+                                }
+                            }
+                            ?>
+                        </select>
+                    </div>
+                    
+                    <div class="input-container category-field">
+                        <select name="category">
+                            <option value="">All Categories</option>
+                            <?php
+                            $categories = get_terms(array(
+                                'taxonomy' => 'business_category',
+                                'hide_empty' => false,
+                            ));
+                            
+                            if (!empty($categories) && !is_wp_error($categories)) {
+                                foreach ($categories as $category) {
+                                    $selected = ($current_category === $category->slug) ? 'selected="selected"' : '';
+                                    echo '<option value="' . esc_attr($category->slug) . '" ' . $selected . '>' . esc_html($category->name) . '</option>';
+                                }
+                            }
+                            ?>
+                        </select>
+                    </div>
+                <?php endif; ?>
+                
+                <button type="submit" class="<?php echo esc_attr($button_classes); ?>">Search</button>
+            </div>
+        </form>
+    </div>
+    
+    <style>
+    /* Basic styles for the search form */
+    .business-search-form {
+        margin-bottom: 20px;
     }
     
-    $output .= '<button type="submit" class="' . esc_attr($button_class) . '">' . esc_html($atts['button_text']) . '</button>';
-    
-    // Optional search page ID - if set, we direct searches to that page
-    $search_page_id = get_option('lbd_search_page_id');
-    if ($search_page_id) {
-        $output .= '<input type="hidden" name="page_id" value="' . esc_attr($search_page_id) . '" />';
+    .business-search-form .search-inputs {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
     }
     
-    $output .= '</form>';
+    .business-search-form.horizontal .search-inputs {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: flex-start;
+    }
     
-    return $output;
+    .business-search-form input[type="text"],
+    .business-search-form select,
+    .business-search-form button {
+        height: 40px;
+        box-sizing: border-box;
+    }
+    
+    .business-search-form .input-container {
+        flex-grow: 1;
+    }
+    
+    .business-search-form .search-field {
+        max-width: 300px;
+    }
+    
+    .business-search-form .area-field,
+    .business-search-form .category-field {
+        max-width: 225px;
+    }
+    
+    .business-search-form input[type="text"],
+    .business-search-form select {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    
+    .business-search-form button {
+        background-color: #0073aa;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        cursor: pointer;
+    }
+    
+    .business-search-form button:hover {
+        background-color: #005a87;
+    }
+    
+    /* Button styles */
+    .business-search-form .pill-button {
+        border-radius: 50px;
+    }
+    
+    .business-search-form .rounded-button {
+        border-radius: 8px;
+    }
+    </style>
+    <?php
+    
+    return ob_get_clean();
 }
 add_shortcode('business_search_form', 'lbd_search_form_shortcode');
 
