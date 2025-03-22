@@ -193,55 +193,72 @@ function lbd_plugin_loaded() {
 add_action('plugins_loaded', 'lbd_plugin_loaded');
 
 /**
- * Redirect searches with 's' parameter to the directory search page
+ * Modify WordPress search to include business directory results when appropriate
  */
-function lbd_redirect_searches() {
-    // Only redirect if it's a search and we have a search term
-    if (isset($_GET['s']) && !is_admin()) {
-        // Get the search term
-        $search_term = sanitize_text_field($_GET['s']);
+function lbd_modify_search_query($query) {
+    // Only modify main search query on the frontend
+    if (!is_admin() && $query->is_main_query() && $query->is_search()) {
+        // Get search term
+        $search_term = get_search_query();
         
-        // Get directory search page ID from options, or create one if it doesn't exist
-        $search_page_id = get_option('lbd_search_page_id');
-        
-        if (!$search_page_id) {
-            // Create a search page if it doesn't exist
-            $search_page_id = wp_insert_post(array(
-                'post_title' => 'Directory Search',
-                'post_content' => '[business_search_form layout="horizontal"][lbd_search_results per_page="10" info_layout="list"]',
-                'post_status' => 'publish',
-                'post_type' => 'page',
-            ));
+        // If we're on a dedicated directory search page, only show businesses
+        if (is_page(get_option('lbd_search_page_id'))) {
+            $query->set('post_type', 'business');
+        } else {
+            // Otherwise, include businesses in general site search
+            // Get the post types that are currently being searched
+            $post_types = $query->get('post_type');
             
-            if (!is_wp_error($search_page_id)) {
-                update_option('lbd_search_page_id', $search_page_id);
+            // If post_types is empty or not an array, set it to array with 'post'
+            if (empty($post_types)) {
+                $post_types = array('post');
+            } elseif (!is_array($post_types)) {
+                $post_types = array($post_types);
+            }
+            
+            // Add 'business' to the post types if it's not already there
+            if (!in_array('business', $post_types)) {
+                $post_types[] = 'business';
+                $query->set('post_type', $post_types);
             }
         }
         
-        if ($search_page_id && !is_wp_error($search_page_id)) {
-            // IMPORTANT: Only redirect if we're not already on the search page
-            // This prevents redirect loops
-            if (!is_page($search_page_id)) {
-                // Build redirect URL
-                $redirect_url = add_query_arg('s', $search_term, get_permalink($search_page_id));
+        // Enhance search for business post type
+        add_filter('posts_join', 'lbd_search_join');
+        add_filter('posts_where', function($where) use ($search_term) {
+            global $wpdb;
+            
+            // Only modify if searching for businesses
+            if (strpos($where, "post_type = 'business'") !== false || 
+                strpos($where, "post_type IN") !== false) {
                 
-                // Add any additional query params (area, category)
-                if (isset($_GET['area']) && !empty($_GET['area'])) {
-                    $redirect_url = add_query_arg('area', sanitize_text_field($_GET['area']), $redirect_url);
-                }
-                
-                if (isset($_GET['category']) && !empty($_GET['category'])) {
-                    $redirect_url = add_query_arg('category', sanitize_text_field($_GET['category']), $redirect_url);
-                }
-                
-                // Redirect
-                wp_redirect($redirect_url);
-                exit;
+                // Add search in meta values
+                $where .= $wpdb->prepare(
+                    " OR ($wpdb->posts.post_type = 'business' AND $wpdb->postmeta.meta_value LIKE %s) ",
+                    '%' . $wpdb->esc_like($search_term) . '%'
+                );
             }
-        }
+            return $where;
+        });
+        add_filter('posts_distinct', function($distinct) {
+            return "DISTINCT";
+        });
     }
+    
+    return $query;
 }
-add_action('template_redirect', 'lbd_redirect_searches');
+add_action('pre_get_posts', 'lbd_modify_search_query');
+
+/**
+ * Join post meta table for search queries
+ */
+function lbd_search_join($join) {
+    global $wpdb;
+    if (!strpos($join, "LEFT JOIN $wpdb->postmeta ON")) {
+        $join .= " LEFT JOIN $wpdb->postmeta ON ($wpdb->posts.ID = $wpdb->postmeta.post_id) ";
+    }
+    return $join;
+}
 
 /**
  * Add the search page to admin settings
@@ -252,9 +269,9 @@ function lbd_admin_search_settings($settings) {
         'fields' => [
             [
                 'id' => 'lbd_search_page_id',
-                'label' => 'Directory Search Page',
+                'label' => 'Directory Search Page (Optional)',
                 'type' => 'page_select',
-                'description' => 'Select the page that will display directory search results.',
+                'description' => 'If you want a dedicated business search page, select it here. Leave blank to include businesses in your site\'s normal search.',
             ],
         ],
     ];
