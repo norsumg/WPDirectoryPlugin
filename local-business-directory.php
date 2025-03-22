@@ -196,6 +196,10 @@ add_action('plugins_loaded', 'lbd_plugin_loaded');
  * Modify WordPress search to include businesses properly
  */
 function lbd_modify_search_query($query) {
+    // Temporarily returning without modification to troubleshoot 500 error
+    return $query;
+    
+    /* Original code - commented out temporarily
     // Only modify search queries on the front end
     if (!is_admin() && $query->is_search() && $query->is_main_query()) {
         // Check if we're explicitly searching for businesses
@@ -235,8 +239,10 @@ function lbd_modify_search_query($query) {
     }
     
     return $query;
+    */
 }
-add_action('pre_get_posts', 'lbd_modify_search_query');
+// Temporarily uncomment this hook to disable search modifications
+// add_action('pre_get_posts', 'lbd_modify_search_query');
 
 /**
  * Customize how businesses appear in search results - optimized version with preloading
@@ -500,6 +506,10 @@ add_action('wp_head', 'lbd_add_search_results_styles');
  * Modify search result title to be more specific for business searches
  */
 function lbd_modify_search_title($title) {
+    // Temporarily return the original title to troubleshoot 500 error
+    return $title;
+    
+    /* Original code - commented out temporarily
     // Only change on search pages
     if (!is_search()) {
         return $title;
@@ -541,8 +551,10 @@ function lbd_modify_search_title($title) {
     }
     
     return $title;
+    */
 }
-add_filter('pre_get_document_title', 'lbd_modify_search_title', 15);
+// Temporarily uncomment this hook to disable title modifications
+// add_filter('pre_get_document_title', 'lbd_modify_search_title', 15);
 
 /**
  * Add the search form to the top of search results pages for business searches
