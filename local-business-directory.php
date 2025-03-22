@@ -63,4 +63,20 @@ register_activation_hook(__FILE__, 'lbd_activate');
 function lbd_deactivation() {
     flush_rewrite_rules();
 }
-register_deactivation_hook( __FILE__, 'lbd_deactivation' ); 
+register_deactivation_hook( __FILE__, 'lbd_deactivation' );
+
+// Rewrite flush on plugin update
+function lbd_plugin_loaded() {
+    // Check if we need to flush rules (on version change or first install)
+    $current_version = '1.1'; // Update this when making permalink-affecting changes
+    $saved_version = get_option('lbd_plugin_version');
+    
+    if ($saved_version !== $current_version) {
+        // This is either a new install or an update, flush rules
+        add_action('wp_loaded', function() use ($current_version) {
+            flush_rewrite_rules();
+            update_option('lbd_plugin_version', $current_version);
+        });
+    }
+}
+add_action('plugins_loaded', 'lbd_plugin_loaded'); 
