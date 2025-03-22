@@ -45,23 +45,19 @@ function lbd_detect_permalink_changes() {
 }
 add_action( 'admin_init', 'lbd_detect_permalink_changes' );
 
-// Flush rewrite rules on activation
-function lbd_activation() {
-    // Make sure post type and taxonomy functions exist
-    if (function_exists('lbd_register_post_type') && function_exists('lbd_register_taxonomy')) {
-        lbd_register_post_type();
-        lbd_register_taxonomy();
-        // Register custom rewrite rules
-        if (function_exists('lbd_add_rewrite_rules')) {
-            lbd_add_rewrite_rules();
-        }
-        flush_rewrite_rules();
-    }
+// Activation function
+function lbd_activate() {
+    // Create custom post type
+    lbd_register_post_type();
+    lbd_register_taxonomies();
     
-    // Create custom database tables
+    // Flush rewrite rules
+    flush_rewrite_rules();
+    
+    // Trigger our activation hook for any other functions
     do_action('lbd_activation');
 }
-register_activation_hook( __FILE__, 'lbd_activation' );
+register_activation_hook(__FILE__, 'lbd_activate');
 
 // Flush rewrite rules on deactivation
 function lbd_deactivation() {
