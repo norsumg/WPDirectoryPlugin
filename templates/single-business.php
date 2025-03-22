@@ -104,40 +104,49 @@
         
         <?php
         // Opening Hours
-        $has_hours = false;
-        $days = array(
-            'monday' => 'Monday',
-            'tuesday' => 'Tuesday',
-            'wednesday' => 'Wednesday',
-            'thursday' => 'Thursday',
-            'friday' => 'Friday',
-            'saturday' => 'Saturday',
-            'sunday' => 'Sunday'
-        );
+        $is_24_hours = get_post_meta(get_the_ID(), 'lbd_hours_24', true);
+        $has_hours = $is_24_hours;
 
-        foreach ($days as $day_id => $day_name) {
-            if (get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id, true)) {
-                $has_hours = true;
-                break;
+        if (!$is_24_hours) {
+            $days = array(
+                'monday' => 'Monday',
+                'tuesday' => 'Tuesday',
+                'wednesday' => 'Wednesday',
+                'thursday' => 'Thursday',
+                'friday' => 'Friday',
+                'saturday' => 'Saturday',
+                'sunday' => 'Sunday'
+            );
+
+            foreach ($days as $day_id => $day_name) {
+                if (get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id, true)) {
+                    $has_hours = true;
+                    break;
+                }
             }
         }
 
         if ($has_hours) : ?>
         <div class="business-hours">
             <h3>Opening Hours</h3>
-            <table class="hours-table">
-                <?php foreach ($days as $day_id => $day_name) : 
-                    $hours = get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id, true);
-                    if (!$hours) {
-                        $hours = 'Closed';
-                    }
-                ?>
-                    <tr>
-                        <th><?php echo esc_html($day_name); ?></th>
-                        <td><?php echo esc_html($hours); ?></td>
-                    </tr>
-                <?php endforeach; ?>
-            </table>
+            
+            <?php if ($is_24_hours) : ?>
+                <p class="hours-24"><strong>Open 24 Hours, 7 days a week</strong></p>
+            <?php else : ?>
+                <table class="hours-table">
+                    <?php foreach ($days as $day_id => $day_name) : 
+                        $hours = get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id, true);
+                        if (!$hours) {
+                            $hours = 'Closed';
+                        }
+                    ?>
+                        <tr>
+                            <th><?php echo esc_html($day_name); ?></th>
+                            <td><?php echo esc_html($hours); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </table>
+            <?php endif; ?>
         </div>
         <?php endif; ?>
         

@@ -72,6 +72,13 @@ function lbd_metaboxes() {
         'type' => 'title',
     ) );
 
+    $cmb->add_field( array(
+        'name' => 'Open 24 Hours',
+        'desc' => 'Check if this business is open 24 hours, 7 days a week',
+        'id'   => 'lbd_hours_24',
+        'type' => 'checkbox',
+    ) );
+
     $days = array(
         'monday' => 'Monday',
         'tuesday' => 'Tuesday',
@@ -153,4 +160,59 @@ function lbd_metaboxes() {
         'type' => 'checkbox',
     ) );
 }
-add_action( 'cmb2_admin_init', 'lbd_metaboxes' ); 
+add_action( 'cmb2_admin_init', 'lbd_metaboxes' );
+
+/**
+ * Add JavaScript for 24-hour checkbox functionality
+ */
+function lbd_hours_admin_script() {
+    global $post_type;
+    if ($post_type !== 'business') {
+        return;
+    }
+    ?>
+    <script type="text/javascript">
+    jQuery(document).ready(function($) {
+        var daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        
+        // Function to update hours fields based on 24-hour checkbox
+        function update24HoursFields() {
+            var is24Hours = $('#lbd_hours_24').prop('checked');
+            
+            // Loop through each day and update the field
+            daysOfWeek.forEach(function(day) {
+                var field = $('#lbd_hours_' + day);
+                
+                if (is24Hours) {
+                    // Store original value as data attribute if not already stored
+                    if (!field.data('original-value')) {
+                        field.data('original-value', field.val());
+                    }
+                    field.val('24 Hours');
+                    field.prop('readonly', true);
+                    field.css('background-color', '#f0f0f0');
+                } else {
+                    // Restore original value if exists
+                    if (field.data('original-value')) {
+                        field.val(field.data('original-value'));
+                    } else {
+                        field.val('');
+                    }
+                    field.prop('readonly', false);
+                    field.css('background-color', '');
+                }
+            });
+        }
+        
+        // Set initial state
+        update24HoursFields();
+        
+        // Handle checkbox change
+        $('#lbd_hours_24').on('change', function() {
+            update24HoursFields();
+        });
+    });
+    </script>
+    <?php
+}
+add_action('admin_footer', 'lbd_hours_admin_script'); 

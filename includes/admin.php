@@ -108,6 +108,7 @@ function lbd_export_businesses_to_csv() {
         'business_email',
         'business_facebook',
         'business_instagram',
+        'business_hours_24',
         'business_hours_monday',
         'business_hours_tuesday',
         'business_hours_wednesday',
@@ -166,6 +167,7 @@ function lbd_export_businesses_to_csv() {
             get_post_meta($business->ID, 'lbd_email', true),
             get_post_meta($business->ID, 'lbd_facebook', true),
             get_post_meta($business->ID, 'lbd_instagram', true),
+            get_post_meta($business->ID, 'lbd_hours_24', true),
             get_post_meta($business->ID, 'lbd_hours_monday', true),
             get_post_meta($business->ID, 'lbd_hours_tuesday', true),
             get_post_meta($business->ID, 'lbd_hours_wednesday', true),
@@ -264,6 +266,7 @@ function lbd_csv_import_page() {
                     <li><strong>business_email</strong> - Email address</li>
                     <li><strong>business_facebook</strong> - Facebook page URL</li>
                     <li><strong>business_instagram</strong> - Instagram username (without @)</li>
+                    <li><strong>business_hours_24</strong> - Set to "yes" if business is open 24 hours</li>
                     <li><strong>business_hours_monday</strong> - Monday opening hours (e.g., "9:00 AM - 5:00 PM" or "Closed")</li>
                     <li><strong>business_hours_tuesday</strong> - Tuesday opening hours</li>
                     <li><strong>business_hours_wednesday</strong> - Wednesday opening hours</li>
@@ -300,9 +303,9 @@ function lbd_csv_import_page() {
     document.getElementById('lbd-sample-csv').addEventListener('click', function(e) {
         e.preventDefault();
         
-        const headers = 'business_name,business_description,business_excerpt,business_area,business_category,business_phone,business_address,business_website,business_email,business_facebook,business_instagram,business_hours_monday,business_hours_tuesday,business_hours_wednesday,business_hours_thursday,business_hours_friday,business_hours_saturday,business_hours_sunday,business_payments,business_parking,business_amenities,business_accessibility,business_premium,business_image_url,business_black_owned,business_women_owned,business_lgbtq_friendly\n';
-        const sampleRow1 = 'ACME Web Design,"We create beautiful websites for small businesses. Our team has over 10 years of experience designing responsive websites that convert visitors into customers.",Web design experts in Ashford area,Ashford,Web Design,01234 567890,"123 Main St, Ashford",https://example.com,info@example.com,https://facebook.com/acmewebdesign,acmewebdesign,"9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","10:00 AM - 2:00 PM",Closed,"Cash, Credit Cards, PayPal","Free parking available","Free WiFi, Coffee, Meeting room","Wheelchair accessible entrance, Elevator",yes,https://example.com/sample-image1.jpg,yes,no,yes\n';
-        const sampleRow2 = 'Smith & Co Accountants,"Professional accounting services for small businesses and individuals. We provide tax preparation, bookkeeping, and financial planning.",Trusted local accountants serving Canterbury since 2005,Canterbury,Accountants,01234 123456,"45 High Street, Canterbury",https://example-accountants.com,contact@example-accountants.com,https://facebook.com/smithcoaccountants,smithcoaccountants,"9:00 AM - 5:30 PM","9:00 AM - 5:30 PM","9:00 AM - 5:30 PM","9:00 AM - 5:30 PM","9:00 AM - 4:00 PM",Closed,Closed,"All major credit cards","Street parking","Private consultation rooms, Tea and coffee","Wheelchair accessible",no,https://example.com/sample-image2.jpg,no,yes,no\n';
+        const headers = 'business_name,business_description,business_excerpt,business_area,business_category,business_phone,business_address,business_website,business_email,business_facebook,business_instagram,business_hours_24,business_hours_monday,business_hours_tuesday,business_hours_wednesday,business_hours_thursday,business_hours_friday,business_hours_saturday,business_hours_sunday,business_payments,business_parking,business_amenities,business_accessibility,business_premium,business_image_url,business_black_owned,business_women_owned,business_lgbtq_friendly\n';
+        const sampleRow1 = 'ACME Web Design,"We create beautiful websites for small businesses. Our team has over 10 years of experience designing responsive websites that convert visitors into customers.",Web design experts in Ashford area,Ashford,Web Design,01234 567890,"123 Main St, Ashford",https://example.com,info@example.com,https://facebook.com/acmewebdesign,acmewebdesign,no,"9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","10:00 AM - 2:00 PM",Closed,"Cash, Credit Cards, PayPal","Free parking available","Free WiFi, Coffee, Meeting room","Wheelchair accessible entrance, Elevator",yes,https://example.com/sample-image1.jpg,yes,no,yes\n';
+        const sampleRow2 = 'Smith & Co Accountants,"Professional accounting services for small businesses and individuals. We provide tax preparation, bookkeeping, and financial planning.",Trusted local accountants serving Canterbury since 2005,Canterbury,Accountants,01234 123456,"45 High Street, Canterbury",https://example-accountants.com,contact@example-accountants.com,https://facebook.com/smithcoaccountants,smithcoaccountants,yes,"24 Hours","24 Hours","24 Hours","24 Hours","24 Hours","24 Hours","24 Hours","All major credit cards","Street parking","Private consultation rooms, Tea and coffee","Wheelchair accessible",no,https://example.com/sample-image2.jpg,no,yes,no\n';
         
         const csvContent = headers + sampleRow1 + sampleRow2;
         const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -488,6 +491,11 @@ function lbd_create_business_from_csv($data) {
     update_post_meta($post_id, 'lbd_email', sanitize_email($data['business_email'] ?? ''));
     update_post_meta($post_id, 'lbd_facebook', esc_url_raw($data['business_facebook'] ?? ''));
     update_post_meta($post_id, 'lbd_instagram', sanitize_text_field($data['business_instagram'] ?? ''));
+
+    // Set 24 hours flag if provided
+    if (isset($data['business_hours_24']) && strtolower($data['business_hours_24']) === 'yes') {
+        update_post_meta($post_id, 'lbd_hours_24', '1');
+    }
 
     // Store opening hours
     $days = array('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday');
