@@ -647,88 +647,22 @@ function lbd_get_cached_terms($taxonomy) {
 }
 
 /**
- * Preload post meta for a set of post IDs
- */
-function lbd_preload_post_meta($post_ids, $meta_keys = array()) {
-    if (empty($post_ids)) {
-        return array();
-    }
-    
-    global $wpdb;
-    $post_ids_string = implode(',', array_map('intval', $post_ids));
-    
-    // If specific meta keys are provided, only get those
-    $meta_keys_condition = '';
-    if (!empty($meta_keys)) {
-        $meta_keys_placeholders = implode("','", array_map('esc_sql', $meta_keys));
-        $meta_keys_condition = "AND meta_key IN ('$meta_keys_placeholders')";
-    }
-    
-    // Get all post meta in a single query
-    $query = "
-        SELECT post_id, meta_key, meta_value 
-        FROM $wpdb->postmeta 
-        WHERE post_id IN ($post_ids_string) 
-        $meta_keys_condition
-    ";
-    
-    $results = $wpdb->get_results($query);
-    
-    // Organize by post ID
-    $meta_by_post = array();
-    foreach ($results as $row) {
-        if (!isset($meta_by_post[$row->post_id])) {
-            $meta_by_post[$row->post_id] = array();
-        }
-        $meta_by_post[$row->post_id][$row->meta_key] = $row->meta_value;
-    }
-    
-    return $meta_by_post;
-}
-
-/**
- * Preload terms for multiple posts
- */
-function lbd_preload_post_terms($post_ids, $taxonomies) {
-    if (empty($post_ids) || empty($taxonomies)) {
-        return array();
-    }
-    
-    // Get terms for all posts at once
-    $terms_objects = wp_get_object_terms($post_ids, $taxonomies, array('fields' => 'all_with_object_id'));
-    
-    if (is_wp_error($terms_objects)) {
-        return array();
-    }
-    
-    // Organize by post ID and taxonomy
-    $terms_by_post = array();
-    foreach ($terms_objects as $term) {
-        $post_id = $term->object_id;
-        $taxonomy = $term->taxonomy;
-        
-        if (!isset($terms_by_post[$post_id])) {
-            $terms_by_post[$post_id] = array();
-        }
-        
-        if (!isset($terms_by_post[$post_id][$taxonomy])) {
-            $terms_by_post[$post_id][$taxonomy] = array();
-        }
-        
-        $terms_by_post[$post_id][$taxonomy][] = $term;
-    }
-    
-    return $terms_by_post;
-}
-
-/**
  * Preload data for search results to improve performance
  */
 function lbd_preload_search_results_data() {
+    // Temporarily disabled to troubleshoot performance issues
+    return;
+    
+    /* Rest of the function is kept for future reference but won't execute */
+    
     // Only on search pages for business post type
     if (!is_search() || !isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
         return;
     }
+    
+    // Set a reasonable time limit for this function
+    $time_start = microtime(true);
+    $time_limit = 2; // seconds
     
     global $wp_query;
     
@@ -745,28 +679,152 @@ function lbd_preload_search_results_data() {
         return;
     }
     
-    // 1. Preload all post meta for business posts
-    $meta_keys = array(
-        'lbd_premium',
-        'lbd_description',
-        'lbd_review_count',
-        'lbd_review_average'
-    );
+    // Safety check - limit to max 50 posts to prevent overload
+    if (count($post_ids) > 50) {
+        $post_ids = array_slice($post_ids, 0, 50);
+    }
     
-    // Store in global variable for retrieval in business_search_results
-    global $lbd_preloaded_meta;
-    $lbd_preloaded_meta = lbd_preload_post_meta($post_ids, $meta_keys);
-    
-    // 2. Preload all terms for areas and categories
-    global $lbd_preloaded_terms;
-    $lbd_preloaded_terms = lbd_preload_post_terms($post_ids, array('business_area', 'business_category'));
+    try {
+        // 1. Preload all post meta for business posts
+        $meta_keys = array(
+            'lbd_premium',
+            'lbd_description',
+            'lbd_review_count',
+            'lbd_review_average'
+        );
+        
+        // Store in global variable for retrieval in business_search_results
+        global $lbd_preloaded_meta;
+        $lbd_preloaded_meta = lbd_preload_post_meta($post_ids, $meta_keys);
+        
+        // Check time to avoid timeout
+        if ((microtime(true) - $time_start) > $time_limit) {
+            // Too slow, skip remaining preloads
+            return;
+        }
+        
+        // 2. Preload all terms for areas and categories
+        global $lbd_preloaded_terms;
+        $lbd_preloaded_terms = lbd_preload_post_terms($post_ids, array('business_area', 'business_category'));
+    } catch (Exception $e) {
+        // If anything goes wrong, just continue without preloaded data
+        // This will fall back to standard WordPress functions
+        error_log('Business Directory preload error: ' . $e->getMessage());
+    }
 }
 add_action('wp', 'lbd_preload_search_results_data');
+
+/**
+ * Preload post meta for a set of post IDs
+ */
+function lbd_preload_post_meta($post_ids, $meta_keys = array()) {
+    if (empty($post_ids)) {
+        return array();
+    }
+    
+    // Safety check - make sure post_ids is an array
+    if (!is_array($post_ids)) {
+        return array();
+    }
+    
+    global $wpdb;
+    
+    try {
+        $post_ids_string = implode(',', array_map('intval', $post_ids));
+        
+        // If specific meta keys are provided, only get those
+        $meta_keys_condition = '';
+        if (!empty($meta_keys)) {
+            $meta_keys_placeholders = implode("','", array_map('esc_sql', $meta_keys));
+            $meta_keys_condition = "AND meta_key IN ('$meta_keys_placeholders')";
+        }
+        
+        // Get all post meta in a single query
+        $query = "
+            SELECT post_id, meta_key, meta_value 
+            FROM $wpdb->postmeta 
+            WHERE post_id IN ($post_ids_string) 
+            $meta_keys_condition
+        ";
+        
+        $results = $wpdb->get_results($query);
+        
+        // Check for SQL errors
+        if ($wpdb->last_error) {
+            error_log('SQL Error in lbd_preload_post_meta: ' . $wpdb->last_error);
+            return array();
+        }
+        
+        // Organize by post ID
+        $meta_by_post = array();
+        foreach ($results as $row) {
+            if (!isset($meta_by_post[$row->post_id])) {
+                $meta_by_post[$row->post_id] = array();
+            }
+            $meta_by_post[$row->post_id][$row->meta_key] = $row->meta_value;
+        }
+        
+        return $meta_by_post;
+    } catch (Exception $e) {
+        error_log('Error in lbd_preload_post_meta: ' . $e->getMessage());
+        return array();
+    }
+}
+
+/**
+ * Preload terms for multiple posts
+ */
+function lbd_preload_post_terms($post_ids, $taxonomies) {
+    if (empty($post_ids) || empty($taxonomies)) {
+        return array();
+    }
+    
+    // Safety check - make sure inputs are arrays
+    if (!is_array($post_ids) || !is_array($taxonomies)) {
+        return array();
+    }
+    
+    try {
+        // Get terms for all posts at once
+        $terms_objects = wp_get_object_terms($post_ids, $taxonomies, array('fields' => 'all_with_object_id'));
+        
+        if (is_wp_error($terms_objects)) {
+            error_log('WordPress Error in lbd_preload_post_terms: ' . $terms_objects->get_error_message());
+            return array();
+        }
+        
+        // Organize by post ID and taxonomy
+        $terms_by_post = array();
+        foreach ($terms_objects as $term) {
+            $post_id = $term->object_id;
+            $taxonomy = $term->taxonomy;
+            
+            if (!isset($terms_by_post[$post_id])) {
+                $terms_by_post[$post_id] = array();
+            }
+            
+            if (!isset($terms_by_post[$post_id][$taxonomy])) {
+                $terms_by_post[$post_id][$taxonomy] = array();
+            }
+            
+            $terms_by_post[$post_id][$taxonomy][] = $term;
+        }
+        
+        return $terms_by_post;
+    } catch (Exception $e) {
+        error_log('Error in lbd_preload_post_terms: ' . $e->getMessage());
+        return array();
+    }
+}
 
 /**
  * Get preloaded post meta if available, otherwise fall back to get_post_meta
  */
 function lbd_get_preloaded_meta($post_id, $meta_key, $single = true) {
+    // Temporarily disable preloading and always use regular get_post_meta
+    return get_post_meta($post_id, $meta_key, $single);
+    
+    /* Original code - commented out temporarily
     global $lbd_preloaded_meta;
     
     if (isset($lbd_preloaded_meta[$post_id]) && isset($lbd_preloaded_meta[$post_id][$meta_key])) {
@@ -776,12 +834,17 @@ function lbd_get_preloaded_meta($post_id, $meta_key, $single = true) {
     
     // Fall back to regular get_post_meta
     return get_post_meta($post_id, $meta_key, $single);
+    */
 }
 
 /**
  * Get preloaded terms if available, otherwise get_the_terms
  */
 function lbd_get_preloaded_terms($post_id, $taxonomy) {
+    // Temporarily disable preloading and always use get_the_terms
+    return get_the_terms($post_id, $taxonomy);
+    
+    /* Original code - commented out temporarily
     global $lbd_preloaded_terms;
     
     if (isset($lbd_preloaded_terms[$post_id]) && isset($lbd_preloaded_terms[$post_id][$taxonomy])) {
@@ -790,4 +853,5 @@ function lbd_get_preloaded_terms($post_id, $taxonomy) {
     
     // Fall back to regular get_the_terms
     return get_the_terms($post_id, $taxonomy);
+    */
 } 
