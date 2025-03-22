@@ -239,57 +239,93 @@ function lbd_modify_search_query($query) {
 add_action('pre_get_posts', 'lbd_modify_search_query');
 
 /**
- * Customize how businesses appear in search results
+ * Customize how businesses appear in search results - optimized version with preloading
  */
 function lbd_customize_business_search_results($content) {
-    // Only modify on the main search page
-    if (!is_search() || !in_the_loop() || !is_main_query()) {
+    // Only modify on the main search page for business post types
+    if (!is_search() || !is_main_query() || !in_the_loop() || get_post_type() !== 'business') {
         return $content;
     }
     
-    // Only modify business post types
-    if (get_post_type() !== 'business') {
-        return $content;
-    }
-    
-    // Get business details
+    // Get business ID once
     $business_id = get_the_ID();
-    $area_terms = get_the_terms($business_id, 'business_area');
-    $category_terms = get_the_terms($business_id, 'business_category');
-    $area_name = $area_terms && !is_wp_error($area_terms) ? $area_terms[0]->name : '';
-    $is_premium = get_post_meta($business_id, 'lbd_premium', true);
     
-    // Start building the enhanced content
+    // Basic output without regex parsing
     $output = '<div class="business-search-result">';
     
-    // Add a premium badge if applicable
-    if ($is_premium) {
+    // Add premium badge if needed - use preloaded meta
+    if (lbd_get_preloaded_meta($business_id, 'lbd_premium')) {
         $output .= '<span class="premium-badge">Premium</span>';
     }
     
-    // Add area and category info
-    $output .= '<div class="business-meta">';
-    if ($area_name) {
-        $output .= '<span class="business-area">Location: ' . esc_html($area_name) . '</span>';
-    }
+    // Add title directly
+    $output .= '<h2 class="entry-title"><a href="' . get_permalink() . '">' . get_the_title() . '</a></h2>';
     
-    if ($category_terms && !is_wp_error($category_terms)) {
-        $output .= ' <span class="business-categories">Categories: ';
-        $cats = array();
-        foreach ($category_terms as $term) {
-            $cats[] = '<a href="' . get_term_link($term) . '">' . esc_html($term->name) . '</a>';
-        }
-        $output .= implode(', ', $cats);
+    // Get taxonomy terms from preloaded data
+    $output .= '<div class="business-meta">';
+    
+    // Use preloaded terms
+    $area_terms = lbd_get_preloaded_terms($business_id, 'business_area');
+    $category_terms = lbd_get_preloaded_terms($business_id, 'business_category');
+    
+    $area_term = !empty($area_terms) && !is_wp_error($area_terms) ? $area_terms[0] : null;
+    $category_term = !empty($category_terms) && !is_wp_error($category_terms) ? $category_terms[0] : null;
+    
+    // Show category and area info
+    if ($category_term && $area_term) {
+        $output .= '<span class="business-category-area">';
+        $output .= '<a href="' . get_term_link($category_term) . '">' . esc_html($category_term->name) . '</a>';
+        $output .= ' in ';
+        $output .= '<a href="' . get_term_link($area_term) . '">' . esc_html($area_term->name) . '</a>';
+        $output .= '</span>';
+    } elseif ($category_term) {
+        $output .= '<span class="business-category">';
+        $output .= '<a href="' . get_term_link($category_term) . '">' . esc_html($category_term->name) . '</a>';
+        $output .= '</span>';
+    } elseif ($area_term) {
+        $output .= '<span class="business-area">';
+        $output .= '<a href="' . get_term_link($area_term) . '">' . esc_html($area_term->name) . '</a>';
         $output .= '</span>';
     }
+    
+    // Simplified review display from preloaded meta
+    $review_count = (int) lbd_get_preloaded_meta($business_id, 'lbd_review_count');
+    $review_average = (float) lbd_get_preloaded_meta($business_id, 'lbd_review_average');
+    
+    if ($review_average > 0) {
+        $output .= ' <span class="business-rating">';
+        $output .= '<span class="star-rating">';
+        
+        // Simple star rating
+        $stars = round($review_average);
+        for ($i = 1; $i <= 5; $i++) {
+            if ($i <= $stars) {
+                $output .= '<span class="star">★</span>';
+            } else {
+                $output .= '<span class="star empty-star">☆</span>';
+            }
+        }
+        
+        $output .= '</span>';
+        $output .= ' <span class="review-count">(' . $review_count . ' ' . _n('review', 'reviews', $review_count) . ')</span>';
+        $output .= '</span>';
+    }
+    
     $output .= '</div>';
     
-    // Add the content
-    $output .= $content;
+    // Use preloaded description or fallback to excerpt
+    $description = lbd_get_preloaded_meta($business_id, 'lbd_description');
+    if (empty($description)) {
+        $description = get_the_excerpt();
+    }
     
-    // Add a view business link
+    $output .= '<div class="business-description">';
+    $output .= wpautop($description);
+    $output .= '</div>';
+    
+    // Add view business link
     $output .= '<div class="search-view-business">';
-    $output .= '<a href="' . get_permalink() . '" class="business-view-link">View Business Details</a>';
+    $output .= '<a href="' . get_permalink() . '" class="business-view-link">View Business</a>';
     $output .= '</div>';
     
     $output .= '</div>';
@@ -325,6 +361,15 @@ function lbd_add_search_results_styles() {
         transform: translateY(-3px);
     }
     
+    /* Hide post author in search results */
+    .business-search-result .author,
+    .business-search-result .entry-meta .author,
+    .business-search-result .post-author,
+    .search article.business .entry-meta .author,
+    .search article.business .byline {
+        display: none !important;
+    }
+    
     .premium-badge {
         position: absolute;
         top: 0;
@@ -342,19 +387,73 @@ function lbd_add_search_results_styles() {
         margin-bottom: 15px;
         border-bottom: 1px solid #f0f0f0;
         padding-bottom: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 15px;
     }
     
+    .business-category-area,
+    .business-category,
     .business-area {
-        margin-right: 15px;
+        font-weight: 500;
     }
     
-    .business-categories a {
+    .business-category-area a,
+    .business-category a,
+    .business-area a {
         color: #0073aa;
         text-decoration: none;
     }
     
-    .business-categories a:hover {
+    .business-category-area a:hover,
+    .business-category a:hover,
+    .business-area a:hover {
         text-decoration: underline;
+    }
+    
+    /* Star rating styling */
+    .business-rating {
+        display: inline-flex;
+        align-items: center;
+    }
+    
+    .star-rating {
+        color: #FFD700;
+        position: relative;
+        display: inline-block;
+        letter-spacing: 2px;
+    }
+    
+    .star-rating .star {
+        display: inline-block;
+    }
+    
+    .star-rating .half-star {
+        position: relative;
+        opacity: 0.5;
+    }
+    
+    .star-rating .empty-star {
+        color: #ccc;
+    }
+    
+    .review-count {
+        margin-left: 5px;
+        color: #666;
+        font-size: 0.85em;
+    }
+    
+    /* Description */
+    .business-description {
+        margin-bottom: 15px;
+        color: #333;
+        line-height: 1.6;
+    }
+    
+    /* Hide default read more link */
+    .business-search-result .more-link {
+        display: none !important;
     }
     
     .search-view-business {
@@ -364,9 +463,9 @@ function lbd_add_search_results_styles() {
     .business-view-link {
         display: inline-block;
         background: #0073aa;
-        color: white;
+        color: white !important;
         padding: 8px 16px;
-        text-decoration: none;
+        text-decoration: none !important;
         border-radius: 4px;
         font-size: 0.9em;
         transition: background 0.2s ease;
@@ -374,23 +473,17 @@ function lbd_add_search_results_styles() {
     
     .business-view-link:hover {
         background: #005177;
-        text-decoration: none;
+        color: white !important;
+        text-decoration: none !important;
     }
     
-    /* Style search results with business post type */
-    .search-results article.business {
-        position: relative;
-    }
-    
-    /* Make the search template notice the specific post type */
-    .search-results .business-type-indicator {
-        font-size: 0.8em;
-        background: #f0f0f0;
-        color: #333;
-        padding: 2px 8px;
-        border-radius: 3px;
-        display: inline-block;
-        margin-bottom: 10px;
+    /* Handle mobile responsiveness */
+    @media (max-width: 768px) {
+        .business-meta {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
     }
     </style>
     <?php
@@ -449,36 +542,252 @@ add_filter('pre_get_document_title', 'lbd_modify_search_title', 15);
  * Add the search form to the top of search results pages for business searches
  */
 function lbd_add_search_form_to_search_page($content) {
-    // Only add to search pages
-    if (!is_search() || !in_the_loop() || !is_main_query()) {
+    // Only add to search pages and only if it's a business search
+    if (!is_search() || !isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
         return $content;
     }
     
-    // Only for business searches
-    if (!isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
-        return $content;
-    }
-    
-    // Only add to the first post in search results
+    // Only add to the first post and only if in the main loop
     static $search_form_added = false;
-    if ($search_form_added) {
+    if ($search_form_added || !in_the_loop() || !is_main_query()) {
         return $content;
     }
     
-    // Get the search form
-    ob_start();
-    ?>
-    <div class="business-search-header">
-        <h2>Business Directory Search</h2>
-        <p>Refine your search or browse businesses by area and category.</p>
-        <?php echo do_shortcode('[business_search_form layout="horizontal" button_style="pill" show_filters="yes"]'); ?>
-    </div>
-    <?php
-    $search_form = ob_get_clean();
-    
-    // Mark as added
+    // Mark as added to avoid duplicate forms
     $search_form_added = true;
     
-    return $search_form . $content;
+    // Get current search parameters
+    $search_term = get_search_query();
+    $area = isset($_GET['area']) ? sanitize_text_field($_GET['area']) : '';
+    $category = isset($_GET['category']) ? sanitize_text_field($_GET['category']) : '';
+    
+    // Get the search form using basic HTML instead of shortcode for better performance
+    $form_html = '<div class="business-search-header">
+        <h2>Business Directory Search</h2>
+        <p>Refine your search or browse businesses by area and category.</p>
+        <div class="business-search-form horizontal">
+            <form role="search" method="get" action="' . esc_url(home_url('/')) . '" class="search-form">
+                <input type="hidden" name="post_type" value="business" />
+                
+                <div class="search-inputs">
+                    <div class="input-container search-field">
+                        <input type="text" name="s" placeholder="Search businesses..." value="' . esc_attr($search_term) . '" />
+                    </div>';
+    
+    // Add area dropdown with cached terms
+    $form_html .= '<div class="input-container area-field">
+                        <select name="area">
+                            <option value="">All Areas</option>';
+    
+    // Get cached areas
+    $areas = lbd_get_cached_terms('business_area');
+    
+    if (!empty($areas) && !is_wp_error($areas)) {
+        foreach ($areas as $term) {
+            $selected = $area === $term->slug ? ' selected="selected"' : '';
+            $form_html .= '<option value="' . esc_attr($term->slug) . '"' . $selected . '>' . esc_html($term->name) . '</option>';
+        }
+    }
+    
+    $form_html .= '</select>
+                    </div>';
+    
+    // Add category dropdown with cached terms
+    $form_html .= '<div class="input-container category-field">
+                        <select name="category">
+                            <option value="">All Categories</option>';
+    
+    // Get cached categories
+    $categories = lbd_get_cached_terms('business_category');
+    
+    if (!empty($categories) && !is_wp_error($categories)) {
+        foreach ($categories as $term) {
+            $selected = $category === $term->slug ? ' selected="selected"' : '';
+            $form_html .= '<option value="' . esc_attr($term->slug) . '"' . $selected . '>' . esc_html($term->name) . '</option>';
+        }
+    }
+    
+    $form_html .= '</select>
+                    </div>
+                    
+                    <button type="submit" class="search-button pill-button">Search</button>
+                </div>
+            </form>
+        </div>
+    </div>';
+    
+    return $form_html . $content;
 }
-add_filter('the_content', 'lbd_add_search_form_to_search_page', 5); 
+add_filter('the_content', 'lbd_add_search_form_to_search_page', 5);
+
+/**
+ * Get cached taxonomy terms
+ */
+function lbd_get_cached_terms($taxonomy) {
+    // Try to get cached terms
+    $cache_key = 'lbd_' . $taxonomy . '_terms';
+    $cached_terms = get_transient($cache_key);
+    
+    if (false === $cached_terms) {
+        // Cache doesn't exist, get terms and cache them
+        $terms = get_terms(array(
+            'taxonomy' => $taxonomy,
+            'hide_empty' => false,
+        ));
+        
+        if (!is_wp_error($terms)) {
+            set_transient($cache_key, $terms, HOUR_IN_SECONDS * 6); // Cache for 6 hours
+            return $terms;
+        }
+        
+        return array();
+    }
+    
+    return $cached_terms;
+}
+
+/**
+ * Preload post meta for a set of post IDs
+ */
+function lbd_preload_post_meta($post_ids, $meta_keys = array()) {
+    if (empty($post_ids)) {
+        return array();
+    }
+    
+    global $wpdb;
+    $post_ids_string = implode(',', array_map('intval', $post_ids));
+    
+    // If specific meta keys are provided, only get those
+    $meta_keys_condition = '';
+    if (!empty($meta_keys)) {
+        $meta_keys_placeholders = implode("','", array_map('esc_sql', $meta_keys));
+        $meta_keys_condition = "AND meta_key IN ('$meta_keys_placeholders')";
+    }
+    
+    // Get all post meta in a single query
+    $query = "
+        SELECT post_id, meta_key, meta_value 
+        FROM $wpdb->postmeta 
+        WHERE post_id IN ($post_ids_string) 
+        $meta_keys_condition
+    ";
+    
+    $results = $wpdb->get_results($query);
+    
+    // Organize by post ID
+    $meta_by_post = array();
+    foreach ($results as $row) {
+        if (!isset($meta_by_post[$row->post_id])) {
+            $meta_by_post[$row->post_id] = array();
+        }
+        $meta_by_post[$row->post_id][$row->meta_key] = $row->meta_value;
+    }
+    
+    return $meta_by_post;
+}
+
+/**
+ * Preload terms for multiple posts
+ */
+function lbd_preload_post_terms($post_ids, $taxonomies) {
+    if (empty($post_ids) || empty($taxonomies)) {
+        return array();
+    }
+    
+    // Get terms for all posts at once
+    $terms_objects = wp_get_object_terms($post_ids, $taxonomies, array('fields' => 'all_with_object_id'));
+    
+    if (is_wp_error($terms_objects)) {
+        return array();
+    }
+    
+    // Organize by post ID and taxonomy
+    $terms_by_post = array();
+    foreach ($terms_objects as $term) {
+        $post_id = $term->object_id;
+        $taxonomy = $term->taxonomy;
+        
+        if (!isset($terms_by_post[$post_id])) {
+            $terms_by_post[$post_id] = array();
+        }
+        
+        if (!isset($terms_by_post[$post_id][$taxonomy])) {
+            $terms_by_post[$post_id][$taxonomy] = array();
+        }
+        
+        $terms_by_post[$post_id][$taxonomy][] = $term;
+    }
+    
+    return $terms_by_post;
+}
+
+/**
+ * Preload data for search results to improve performance
+ */
+function lbd_preload_search_results_data() {
+    // Only on search pages for business post type
+    if (!is_search() || !isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
+        return;
+    }
+    
+    global $wp_query;
+    
+    // If no posts found, don't need to preload
+    if (!$wp_query->have_posts() || empty($wp_query->posts)) {
+        return;
+    }
+    
+    // Get all post IDs from search results
+    $post_ids = wp_list_pluck($wp_query->posts, 'ID');
+    
+    // Skip if no post IDs (shouldn't happen but just in case)
+    if (empty($post_ids)) {
+        return;
+    }
+    
+    // 1. Preload all post meta for business posts
+    $meta_keys = array(
+        'lbd_premium',
+        'lbd_description',
+        'lbd_review_count',
+        'lbd_review_average'
+    );
+    
+    // Store in global variable for retrieval in business_search_results
+    global $lbd_preloaded_meta;
+    $lbd_preloaded_meta = lbd_preload_post_meta($post_ids, $meta_keys);
+    
+    // 2. Preload all terms for areas and categories
+    global $lbd_preloaded_terms;
+    $lbd_preloaded_terms = lbd_preload_post_terms($post_ids, array('business_area', 'business_category'));
+}
+add_action('wp', 'lbd_preload_search_results_data');
+
+/**
+ * Get preloaded post meta if available, otherwise fall back to get_post_meta
+ */
+function lbd_get_preloaded_meta($post_id, $meta_key, $single = true) {
+    global $lbd_preloaded_meta;
+    
+    if (isset($lbd_preloaded_meta[$post_id]) && isset($lbd_preloaded_meta[$post_id][$meta_key])) {
+        $value = $lbd_preloaded_meta[$post_id][$meta_key];
+        return $value;
+    }
+    
+    // Fall back to regular get_post_meta
+    return get_post_meta($post_id, $meta_key, $single);
+}
+
+/**
+ * Get preloaded terms if available, otherwise get_the_terms
+ */
+function lbd_get_preloaded_terms($post_id, $taxonomy) {
+    global $lbd_preloaded_terms;
+    
+    if (isset($lbd_preloaded_terms[$post_id]) && isset($lbd_preloaded_terms[$post_id][$taxonomy])) {
+        return $lbd_preloaded_terms[$post_id][$taxonomy];
+    }
+    
+    // Fall back to regular get_the_terms
+    return get_the_terms($post_id, $taxonomy);
+} 
