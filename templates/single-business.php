@@ -43,7 +43,38 @@
         <div class="business-details">
             <p><strong>Phone:</strong> <?php echo esc_html( get_post_meta( get_the_ID(), 'lbd_phone', true ) ); ?></p>
             <p><strong>Address:</strong> <?php echo esc_html( get_post_meta( get_the_ID(), 'lbd_address', true ) ); ?></p>
-            <p><strong>Website:</strong> <a href="<?php echo esc_url( get_post_meta( get_the_ID(), 'lbd_website', true ) ); ?>"><?php echo esc_html( get_post_meta( get_the_ID(), 'lbd_website', true ) ); ?></a></p>
+            
+            <?php 
+            $email = get_post_meta( get_the_ID(), 'lbd_email', true );
+            if ($email) : ?>
+                <p><strong>Email:</strong> <a href="mailto:<?php echo esc_attr($email); ?>"><?php echo esc_html($email); ?></a></p>
+            <?php endif; ?>
+            
+            <p><strong>Website:</strong> <a href="<?php echo esc_url( get_post_meta( get_the_ID(), 'lbd_website', true ) ); ?>" target="_blank"><?php echo esc_html( get_post_meta( get_the_ID(), 'lbd_website', true ) ); ?></a></p>
+            
+            <?php 
+            // Social Media
+            $facebook = get_post_meta( get_the_ID(), 'lbd_facebook', true );
+            $instagram = get_post_meta( get_the_ID(), 'lbd_instagram', true );
+            
+            if ($facebook || $instagram) : ?>
+            <div class="business-social">
+                <p><strong>Follow us:</strong></p>
+                <div class="social-links">
+                    <?php if ($facebook) : ?>
+                        <a href="<?php echo esc_url($facebook); ?>" class="social-link facebook" target="_blank" title="Facebook">
+                            <span class="social-icon">f</span>
+                        </a>
+                    <?php endif; ?>
+                    
+                    <?php if ($instagram) : ?>
+                        <a href="https://instagram.com/<?php echo esc_attr($instagram); ?>" class="social-link instagram" target="_blank" title="Instagram">
+                            <span class="social-icon">ig</span>
+                        </a>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endif; ?>
             
             <?php
             // Display business attributes if any are set
@@ -70,6 +101,86 @@
             }
             ?>
         </div>
+        
+        <?php
+        // Opening Hours
+        $has_hours = false;
+        $days = array(
+            'monday' => 'Monday',
+            'tuesday' => 'Tuesday',
+            'wednesday' => 'Wednesday',
+            'thursday' => 'Thursday',
+            'friday' => 'Friday',
+            'saturday' => 'Saturday',
+            'sunday' => 'Sunday'
+        );
+
+        foreach ($days as $day_id => $day_name) {
+            if (get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id, true)) {
+                $has_hours = true;
+                break;
+            }
+        }
+
+        if ($has_hours) : ?>
+        <div class="business-hours">
+            <h3>Opening Hours</h3>
+            <table class="hours-table">
+                <?php foreach ($days as $day_id => $day_name) : 
+                    $hours = get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id, true);
+                    if (!$hours) {
+                        $hours = 'Closed';
+                    }
+                ?>
+                    <tr>
+                        <th><?php echo esc_html($day_name); ?></th>
+                        <td><?php echo esc_html($hours); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </table>
+        </div>
+        <?php endif; ?>
+        
+        <?php
+        // Additional Information Section
+        $payments = get_post_meta(get_the_ID(), 'lbd_payments', true);
+        $parking = get_post_meta(get_the_ID(), 'lbd_parking', true);
+        $amenities = get_post_meta(get_the_ID(), 'lbd_amenities', true);
+        $accessibility = get_post_meta(get_the_ID(), 'lbd_accessibility', true);
+
+        if ($payments || $parking || $amenities || $accessibility) : ?>
+        <div class="business-additional-info">
+            <h3>Additional Information</h3>
+            
+            <?php if ($payments) : ?>
+                <div class="info-item">
+                    <h4>Payments Accepted</h4>
+                    <p><?php echo esc_html($payments); ?></p>
+                </div>
+            <?php endif; ?>
+            
+            <?php if ($parking) : ?>
+                <div class="info-item">
+                    <h4>Parking</h4>
+                    <p><?php echo esc_html($parking); ?></p>
+                </div>
+            <?php endif; ?>
+            
+            <?php if ($amenities) : ?>
+                <div class="info-item">
+                    <h4>Amenities</h4>
+                    <p><?php echo nl2br(esc_html($amenities)); ?></p>
+                </div>
+            <?php endif; ?>
+            
+            <?php if ($accessibility) : ?>
+                <div class="info-item">
+                    <h4>Accessibility</h4>
+                    <p><?php echo nl2br(esc_html($accessibility)); ?></p>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
         
         <div class="business-description">
             <?php the_content(); ?>

@@ -38,10 +38,93 @@ function lbd_metaboxes() {
     ) );
 
     $cmb->add_field( array(
+        'name' => 'Email',
+        'id' => 'lbd_email',
+        'type' => 'text_email',
+    ) );
+
+    $cmb->add_field( array(
+        'name' => 'Facebook',
+        'id' => 'lbd_facebook',
+        'type' => 'text_url',
+        'desc' => 'Full URL to Facebook page',
+    ) );
+
+    $cmb->add_field( array(
+        'name' => 'Instagram',
+        'id' => 'lbd_instagram',
+        'type' => 'text',
+        'desc' => 'Instagram username without the @ symbol',
+    ) );
+
+    $cmb->add_field( array(
         'name' => 'Premium',
         'id' => 'lbd_premium',
         'type' => 'checkbox',
         'desc' => 'Check to mark this business as premium (appears first in search results)',
+    ) );
+
+    // Opening Hours Section
+    $cmb->add_field( array(
+        'name' => 'Opening Hours',
+        'desc' => 'Set business hours for each day of the week',
+        'id'   => 'lbd_hours_title',
+        'type' => 'title',
+    ) );
+
+    $days = array(
+        'monday' => 'Monday',
+        'tuesday' => 'Tuesday',
+        'wednesday' => 'Wednesday',
+        'thursday' => 'Thursday',
+        'friday' => 'Friday',
+        'saturday' => 'Saturday',
+        'sunday' => 'Sunday'
+    );
+
+    foreach ($days as $day_id => $day_name) {
+        $cmb->add_field( array(
+            'name' => $day_name,
+            'id' => 'lbd_hours_' . $day_id,
+            'type' => 'text',
+            'desc' => 'e.g. "9:00 AM - 5:00 PM" or "Closed"',
+        ) );
+    }
+
+    // Additional Information Section
+    $cmb->add_field( array(
+        'name' => 'Additional Information',
+        'desc' => 'More details about your business',
+        'id'   => 'lbd_additional_info_title',
+        'type' => 'title',
+    ) );
+
+    $cmb->add_field( array(
+        'name' => 'Payments Accepted',
+        'id' => 'lbd_payments',
+        'type' => 'text',
+        'desc' => 'e.g. "Cash, Credit Card, PayPal"',
+    ) );
+
+    $cmb->add_field( array(
+        'name' => 'Parking',
+        'id' => 'lbd_parking',
+        'type' => 'text',
+        'desc' => 'e.g. "Free parking available", "Street parking only"',
+    ) );
+
+    $cmb->add_field( array(
+        'name' => 'Amenities',
+        'id' => 'lbd_amenities',
+        'type' => 'textarea_small',
+        'desc' => 'List special amenities offered by your business',
+    ) );
+
+    $cmb->add_field( array(
+        'name' => 'Accessibility',
+        'id' => 'lbd_accessibility',
+        'type' => 'textarea_small',
+        'desc' => 'Describe accessibility features',
     ) );
 
     // Business Attributes Section
