@@ -144,6 +144,17 @@ function lbd_fix_permalinks_page() {
         </div>
         
         <div class="card">
+            <h2>Creating a Directory Homepage</h2>
+            <p>Now that directory pages use the <code>/directory/</code> prefix, we recommend creating a dedicated directory homepage:</p>
+            <ol>
+                <li>Create a new WordPress page titled "Directory" with the slug "directory"</li>
+                <li>Add this shortcode to the page: <code>[directory_home]</code></li>
+                <li>This will create a browsable directory listing of all areas and categories</li>
+            </ol>
+            <p>Using this approach, your visitors can navigate to <code>/directory/</code> to browse the business listings.</p>
+        </div>
+        
+        <div class="card">
             <h2>Update Permalink Structure</h2>
             <p>If you're experiencing any issues with your permalinks, use this button to refresh the rewrite rules:</p>
             

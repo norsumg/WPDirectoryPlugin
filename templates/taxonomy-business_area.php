@@ -49,7 +49,7 @@
             <?php endif; ?>
             
         <?php else : ?>
-            <p class="no-businesses">No businesses found in this area. Check back soon or <a href="<?php echo home_url(); ?>">browse other areas</a>.</p>
+            <p class="no-businesses">No businesses found in this area. Check back soon or <a href="<?php echo home_url('/directory/'); ?>">browse other areas</a>.</p>
         <?php endif; ?>
     </div>
 </div>

@@ -26,11 +26,11 @@ function lbd_custom_categories_shortcode( $atts ) {
 
     $output = '<ul class="business-categories">';
     foreach ( $terms as $term ) {
-        $term_link = get_term_link( $term );
-        
-        // If we have an area context, create an area-specific link
-        if ($area) {
-            $term_link = home_url('/' . $area->slug . '/' . $term->slug . '/');
+        // Get the term link - make it area-specific if we have an area context
+        if ( $area ) {
+            $term_link = home_url('/directory/' . $area->slug . '/' . $term->slug . '/');
+        } else {
+            $term_link = get_term_link( $term );
         }
         
         $output .= '<li><a href="' . esc_url($term_link) . '">' . esc_html( $term->name ) . '</a></li>';
@@ -159,7 +159,7 @@ function lbd_search_results_shortcode() {
                 $categories = get_the_terms( get_the_ID(), 'business_category' );
                 
                 echo '<div class="business-meta">';
-                if ( $areas && !is_wp_error( $areas ) ) {
+                if ( $areas && !is_wp_error($areas) ) {
                     echo '<span class="business-area">Area: <a href="' . get_term_link( $areas[0] ) . '">' . esc_html( $areas[0]->name ) . '</a></span> | ';
                 }
                 
@@ -352,4 +352,71 @@ add_shortcode('review_submission_form', 'lbd_review_form_shortcode');
 function lbd_review_form_alias_shortcode($atts) {
     return lbd_review_form_shortcode($atts);
 }
-add_shortcode('submit_review_form', 'lbd_review_form_alias_shortcode'); 
+add_shortcode('submit_review_form', 'lbd_review_form_alias_shortcode');
+
+/**
+ * Shortcode to display a directory homepage with links to all areas and categories
+ * [directory_home]
+ */
+function lbd_directory_home_shortcode($atts) {
+    $atts = shortcode_atts( array(
+        'show_areas' => 'true',
+        'show_categories' => 'true',
+    ), $atts );
+    
+    $show_areas = filter_var($atts['show_areas'], FILTER_VALIDATE_BOOLEAN);
+    $show_categories = filter_var($atts['show_categories'], FILTER_VALIDATE_BOOLEAN);
+    
+    ob_start();
+    ?>
+    <div class="directory-home">
+        <h2>Business Directory</h2>
+        
+        <?php if ($show_areas): ?>
+        <div class="directory-areas">
+            <h3>Browse by Area</h3>
+            <?php
+            $areas = get_terms(array(
+                'taxonomy' => 'business_area',
+                'hide_empty' => true,
+            ));
+            
+            if (!empty($areas) && !is_wp_error($areas)) {
+                echo '<ul class="directory-areas-list">';
+                foreach ($areas as $area) {
+                    echo '<li><a href="' . get_term_link($area) . '">' . esc_html($area->name) . '</a></li>';
+                }
+                echo '</ul>';
+            } else {
+                echo '<p>No business areas found.</p>';
+            }
+            ?>
+        </div>
+        <?php endif; ?>
+        
+        <?php if ($show_categories): ?>
+        <div class="directory-categories">
+            <h3>Browse by Category</h3>
+            <?php
+            $categories = get_terms(array(
+                'taxonomy' => 'business_category',
+                'hide_empty' => true,
+            ));
+            
+            if (!empty($categories) && !is_wp_error($categories)) {
+                echo '<ul class="directory-categories-list">';
+                foreach ($categories as $category) {
+                    echo '<li><a href="' . get_term_link($category) . '">' . esc_html($category->name) . '</a></li>';
+                }
+                echo '</ul>';
+            } else {
+                echo '<p>No business categories found.</p>';
+            }
+            ?>
+        </div>
+        <?php endif; ?>
+    </div>
+    <?php
+    return ob_get_clean();
+}
+add_shortcode('directory_home', 'lbd_directory_home_shortcode'); 

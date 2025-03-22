@@ -25,7 +25,7 @@
             <?php endif; ?>
             
         <?php else : ?>
-            <p class="no-businesses">No businesses found in this category. Check back soon or <a href="<?php echo home_url(); ?>">browse other categories</a>.</p>
+            <p class="no-businesses">No businesses found in this category. Check back soon or <a href="<?php echo home_url('/directory/'); ?>">browse other categories</a>.</p>
         <?php endif; ?>
     </div>
 </div>

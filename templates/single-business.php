@@ -57,7 +57,7 @@
                     if ($areas && !is_wp_error($areas)) {
                         $links = array();
                         foreach ($categories as $category) {
-                            $area_category_link = home_url('/' . $areas[0]->slug . '/' . $category->slug . '/');
+                            $area_category_link = home_url('/directory/' . $areas[0]->slug . '/' . $category->slug . '/');
                             $links[] = '<a href="' . esc_url($area_category_link) . '">' . esc_html($category->name) . '</a>';
                         }
                         echo implode(', ', $links);
