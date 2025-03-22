@@ -184,7 +184,30 @@ function lbd_search_results_shortcode() {
 
     // Search term filter
     if (isset($_GET['s']) && !empty($_GET['s'])) {
-        $args['s'] = sanitize_text_field($_GET['s']);
+        $search_term = sanitize_text_field($_GET['s']);
+        
+        // Main search query
+        $args['s'] = $search_term;
+        
+        // Enhanced search: Look in meta fields too for the search term
+        add_filter('posts_join', function($join) {
+            global $wpdb;
+            $join .= " LEFT JOIN $wpdb->postmeta ON ($wpdb->posts.ID = $wpdb->postmeta.post_id) ";
+            return $join;
+        });
+        
+        add_filter('posts_where', function($where) use ($search_term) {
+            global $wpdb;
+            $where .= $wpdb->prepare(
+                " OR ($wpdb->postmeta.meta_key IN ('lbd_phone', 'lbd_address', 'lbd_email', 'lbd_website') AND $wpdb->postmeta.meta_value LIKE %s) ",
+                '%' . $wpdb->esc_like($search_term) . '%'
+            );
+            return $where;
+        });
+        
+        add_filter('posts_distinct', function($distinct) {
+            return "DISTINCT";
+        });
     }
 
     // Category filter
@@ -211,6 +234,14 @@ function lbd_search_results_shortcode() {
     }
 
     $query = new WP_Query($args);
+    
+    // Clean up filters to avoid affecting other queries
+    if (isset($_GET['s']) && !empty($_GET['s'])) {
+        remove_all_filters('posts_join');
+        remove_all_filters('posts_where');
+        remove_all_filters('posts_distinct');
+    }
+    
     ob_start();
     
     // Build the search description
@@ -663,6 +694,15 @@ function lbd_add_star_rating_styles() {
     
     .business-search-form.horizontal button {
         flex: 0 0 auto;
+        margin-bottom: 10px;
+    }
+    
+    /* Make sure button is aligned with inputs in horizontal layout */
+    .business-search-form.horizontal .search-field,
+    .business-search-form.horizontal .area-field,
+    .business-search-form.horizontal .category-field,
+    .business-search-form.horizontal button {
+        margin-bottom: 0;
     }
     
     /* Button Styles */
