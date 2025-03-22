@@ -49,7 +49,7 @@ add_action( 'admin_init', 'lbd_detect_permalink_changes' );
 function lbd_activate() {
     // Create custom post type
     lbd_register_post_type();
-    lbd_register_taxonomies();
+    lbd_register_taxonomy();
     
     // Flush rewrite rules
     flush_rewrite_rules();
@@ -65,18 +65,40 @@ function lbd_deactivation() {
 }
 register_deactivation_hook( __FILE__, 'lbd_deactivation' );
 
+// Force rebuild rewrite rules
+function lbd_force_rebuild_rules() {
+    global $wp_rewrite;
+    
+    // Remove all rules first
+    $wp_rewrite->rules = array();
+    
+    // Recreate post type and taxonomies
+    lbd_register_post_type();
+    lbd_register_taxonomy();
+    
+    // Flush rules - hard flush
+    $wp_rewrite->flush_rules(true);
+    
+    // Update success message
+    add_action('admin_notices', function() {
+        echo '<div class="notice notice-success is-dismissible"><p>Local Business Directory: Permalink rules have been rebuilt. All pages should now be accessible.</p></div>';
+    });
+}
+
 // Rewrite flush on plugin update
 function lbd_plugin_loaded() {
     // Check if we need to flush rules (on version change or first install)
-    $current_version = '1.1'; // Update this when making permalink-affecting changes
+    $current_version = '1.2'; // Increment version
     $saved_version = get_option('lbd_plugin_version');
     
     if ($saved_version !== $current_version) {
-        // This is either a new install or an update, flush rules
-        add_action('wp_loaded', function() use ($current_version) {
-            flush_rewrite_rules();
-            update_option('lbd_plugin_version', $current_version);
-        });
+        // Force rebuilding rules on next admin page load
+        if (is_admin()) {
+            add_action('admin_init', function() use ($current_version) {
+                lbd_force_rebuild_rules();
+                update_option('lbd_plugin_version', $current_version);
+            });
+        }
     }
 }
 add_action('plugins_loaded', 'lbd_plugin_loaded'); 

@@ -39,7 +39,31 @@ add_action( 'init', 'lbd_register_taxonomy' );
 
 // Add custom rewrite rules for business areas
 function lbd_add_rewrite_rules() {
-    // Get all business areas for specific matching instead of capturing all URLs
+    // List of known WordPress pages/paths that should be excluded from business area rules
+    $excluded_paths = array(
+        'submit-review',    // Review submission page
+        'wp-admin',         // Admin area
+        'wp-content',       // Content directory
+        'wp-includes',      // Includes directory
+        'sitemap',          // Sitemap
+        'feed',             // RSS feeds
+        'wp-json',          // REST API
+    );
+    
+    // Get any published WordPress pages to exclude their slugs
+    $wp_pages = get_posts(array(
+        'post_type' => 'page',
+        'post_status' => 'publish',
+        'posts_per_page' => -1,
+        'fields' => 'ids',
+    ));
+    
+    // Get their slugs
+    foreach ($wp_pages as $page_id) {
+        $excluded_paths[] = get_post_field('post_name', $page_id);
+    }
+    
+    // Get all business areas for specific matching
     $business_areas = get_terms(array(
         'taxonomy' => 'business_area',
         'hide_empty' => false,
@@ -47,25 +71,27 @@ function lbd_add_rewrite_rules() {
     ));
 
     if (!empty($business_areas) && !is_wp_error($business_areas)) {
-        // Create regex pattern from area slugs: (area1|area2|area3)
-        $areas_pattern = '(' . implode('|', array_map('preg_quote', $business_areas)) . ')';
-
-        // Rewrite for area pages - only match known business areas
-        add_rewrite_rule(
-            '^' . $areas_pattern . '/?$',
-            'index.php?business_area=$matches[1]',
-            'top'
-        );
+        // Filter out any business areas that match excluded paths
+        $business_areas = array_diff($business_areas, $excluded_paths);
         
-        // Rewrite for area-specific category pages - only for known areas
-        add_rewrite_rule(
-            '^' . $areas_pattern . '/([^/]+)/?$',
-            'index.php?business_area=$matches[1]&business_category=$matches[2]',
-            'top'
-        );
-    } else {
-        // Fallback for if no areas exist yet - don't add the rules
-        // This prevents capturing all URLs when no business areas are defined
+        if (!empty($business_areas)) {
+            // Create regex pattern from area slugs: (area1|area2|area3)
+            $areas_pattern = '(' . implode('|', array_map('preg_quote', $business_areas)) . ')';
+    
+            // Rewrite for area pages - only match known business areas
+            add_rewrite_rule(
+                '^' . $areas_pattern . '/?$',
+                'index.php?business_area=$matches[1]',
+                'top'
+            );
+            
+            // Rewrite for area-specific category pages - only for known areas
+            add_rewrite_rule(
+                '^' . $areas_pattern . '/([^/]+)/?$',
+                'index.php?business_area=$matches[1]&business_category=$matches[2]',
+                'top'
+            );
+        }
     }
     
     // Add rewrite tags
