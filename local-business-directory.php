@@ -252,10 +252,13 @@ add_action('pre_get_posts', 'lbd_light_search_modification');
  * Simple function to customize search results - uses minimal processing
  */
 function lbd_light_customize_results($content) {
-    // Only modify business search results
-    if (!is_search() || !is_main_query() || !in_the_loop() || get_post_type() !== 'business') {
+    // Only modify business search results and prevent recursion
+    static $is_processing = false;
+    if ($is_processing || !is_search() || !is_main_query() || !in_the_loop() || get_post_type() !== 'business') {
         return $content;
     }
+    
+    $is_processing = true;
     
     // Get post ID once to minimize function calls
     $post_id = get_the_ID();
@@ -263,32 +266,28 @@ function lbd_light_customize_results($content) {
     // Build a simple output - no complex data processing
     $output = '<div class="business-search-result">';
     
-    // Basic premium badge
-    if (get_post_meta($post_id, 'lbd_premium', true)) {
-        $output .= '<span class="premium-badge">Premium</span>';
-    }
-    
-    // Add title with permalink
-    $output .= '<h2><a href="' . get_permalink() . '">' . get_the_title() . '</a></h2>';
-    
     // Get the first term of each taxonomy - no complex processing
     $areas = get_the_terms($post_id, 'business_area');
     $categories = get_the_terms($post_id, 'business_category');
     
-    $output .= '<div class="business-meta">';
+    // Marketing heading for the business
+    $output .= '<h3>' . esc_html(get_the_title()) . '</h3>';
     
     // Display category and area if they exist
+    $meta_content = '';
     if (!empty($categories) && !is_wp_error($categories)) {
         $category = reset($categories);
-        $output .= '<span class="business-category">' . esc_html($category->name) . '</span>';
+        $meta_content .= '<span class="business-category">' . esc_html($category->name) . '</span>';
     }
     
     if (!empty($areas) && !is_wp_error($areas)) {
         $area = reset($areas);
-        $output .= ' in <span class="business-area">' . esc_html($area->name) . '</span>';
+        $meta_content .= ' in <span class="business-area">' . esc_html($area->name) . '</span>';
     }
     
-    $output .= '</div>';
+    if (!empty($meta_content)) {
+        $output .= '<div class="business-meta">' . $meta_content . '</div>';
+    }
     
     // Get description with fallback to excerpt
     $description = get_post_meta($post_id, 'lbd_description', true);
@@ -306,6 +305,7 @@ function lbd_light_customize_results($content) {
     
     $output .= '</div>';
     
+    $is_processing = false;
     return $output;
 }
 add_filter('the_content', 'lbd_light_customize_results');
@@ -328,102 +328,55 @@ function lbd_add_search_results_styles() {
         margin-bottom: 25px;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         transition: all 0.2s ease;
-        position: relative;
-        overflow: hidden;
     }
     
     .business-search-result:hover {
         box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        transform: translateY(-3px);
     }
     
-    /* Hide post author in search results */
+    /* Hide post author, title and default elements in search results */
     .business-search-result .author,
     .business-search-result .entry-meta .author,
     .business-search-result .post-author,
     .search article.business .entry-meta .author,
-    .search article.business .byline {
+    .search article.business .byline,
+    .search article.business .entry-title,
+    .search .business-post-title {
         display: none !important;
     }
     
-    .premium-badge {
-        position: absolute;
-        top: 0;
-        right: 0;
-        background: #FFD700;
+    /* Hide specific theme elements that might be showing the title */
+    .search .post-title,
+    .search .entry-header,
+    .search article.business h2.entry-title,
+    .business-search-result h2 {
+        display: none !important;
+    }
+    
+    .business-search-result h3 {
+        margin: 0 0 10px 0;
+        font-size: 1.4em;
         color: #333;
-        font-size: 0.8em;
-        padding: 5px 10px;
-        font-weight: bold;
+        font-weight: 600;
     }
     
     .business-meta {
         font-size: 0.9em;
         color: #666;
         margin-bottom: 15px;
-        border-bottom: 1px solid #f0f0f0;
         padding-bottom: 10px;
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 15px;
+        border-bottom: 1px solid #eee;
     }
     
-    .business-category-area,
     .business-category,
     .business-area {
         font-weight: 500;
     }
     
-    .business-category-area a,
-    .business-category a,
-    .business-area a {
-        color: #0073aa;
-        text-decoration: none;
-    }
-    
-    .business-category-area a:hover,
-    .business-category a:hover,
-    .business-area a:hover {
-        text-decoration: underline;
-    }
-    
-    /* Star rating styling */
-    .business-rating {
-        display: inline-flex;
-        align-items: center;
-    }
-    
-    .star-rating {
-        color: #FFD700;
-        position: relative;
-        display: inline-block;
-        letter-spacing: 2px;
-    }
-    
-    .star-rating .star {
-        display: inline-block;
-    }
-    
-    .star-rating .half-star {
-        position: relative;
-        opacity: 0.5;
-    }
-    
-    .star-rating .empty-star {
-        color: #ccc;
-    }
-    
-    .review-count {
-        margin-left: 5px;
-        color: #666;
-        font-size: 0.85em;
-    }
-    
     /* Description */
     .business-description {
         margin-bottom: 15px;
-        color: #333;
+        color: #666;
         line-height: 1.6;
     }
     
@@ -460,6 +413,22 @@ function lbd_add_search_results_styles() {
             align-items: flex-start;
             gap: 8px;
         }
+    }
+    
+    /* Force the business search layout to be horizontal on search pages */
+    .search .business-search-form .search-inputs {
+        flex-direction: row !important;
+        flex-wrap: wrap;
+        align-items: flex-start;
+    }
+    
+    .search .business-search-form .search-field {
+        max-width: 300px;
+    }
+    
+    .search .business-search-form .area-field,
+    .search .business-search-form .category-field {
+        max-width: 225px;
     }
     </style>
     <?php
@@ -521,92 +490,117 @@ function lbd_modify_search_title($title) {
 // add_filter('pre_get_document_title', 'lbd_modify_search_title', 15);
 
 /**
- * Add the search form to the top of search results pages for business searches
+ * Add search form to the top of search results using template_redirect
  */
-function lbd_add_search_form_to_search_page($content) {
-    // Temporarily return content unmodified to troubleshoot 500 error
-    return $content;
-    
-    /* Original code - commented out temporarily
-    // Only add to search pages and only if it's a business search
+function lbd_add_search_form_to_results() {
+    // Only run on search pages for businesses
     if (!is_search() || !isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
-        return $content;
+        return;
     }
     
-    // Only add to the first post and only if in the main loop
-    static $search_form_added = false;
-    if ($search_form_added || !in_the_loop() || !is_main_query()) {
-        return $content;
+    // Add the form before the loop starts
+    add_action('loop_start', function($query) {
+        if ($query->is_main_query() && !isset($GLOBALS['lbd_form_added'])) {
+            // Force horizontal layout for search results page
+            echo do_shortcode('[business_search layout="horizontal" show_filters="yes"]');
+            $GLOBALS['lbd_form_added'] = true;
+        }
+    });
+}
+add_action('template_redirect', 'lbd_add_search_form_to_results');
+
+/**
+ * Create a simple search form shortcode with minimal database queries
+ */
+function lbd_simple_search_form_shortcode($atts) {
+    static $form_id = 0;
+    $form_id++;
+    
+    $atts = shortcode_atts(array(
+        'layout' => 'horizontal',
+        'placeholder' => 'Search for businesses...',
+        'show_filters' => 'yes'
+    ), $atts);
+    
+    // Prepare CSS classes
+    $form_classes = 'business-search-form';
+    if ($atts['layout'] === 'horizontal') {
+        $form_classes .= ' horizontal';
     }
     
-    // Mark as added to avoid duplicate forms
-    $search_form_added = true;
+    // Get current values
+    $current_search = get_search_query();
+    $current_area = isset($_GET['area']) ? sanitize_text_field($_GET['area']) : '';
+    $current_category = isset($_GET['category']) ? sanitize_text_field($_GET['category']) : '';
     
-    // Get current search parameters
-    $search_term = get_search_query();
-    $area = isset($_GET['area']) ? sanitize_text_field($_GET['area']) : '';
-    $category = isset($_GET['category']) ? sanitize_text_field($_GET['category']) : '';
-    
-    // Get the search form using basic HTML instead of shortcode for better performance
-    $form_html = '<div class="business-search-header">
-        <h2>Business Directory Search</h2>
-        <p>Refine your search or browse businesses by area and category.</p>
-        <div class="business-search-form horizontal">
-            <form role="search" method="get" action="' . esc_url(home_url('/')) . '" class="search-form">
-                <input type="hidden" name="post_type" value="business" />
+    // Build the form directly without complex logic
+    ob_start();
+    ?>
+    <div class="<?php echo esc_attr($form_classes); ?>" id="business-search-<?php echo $form_id; ?>">
+        <form role="search" method="get" action="<?php echo esc_url(home_url('/')); ?>" class="search-form">
+            <input type="hidden" name="post_type" value="business" />
+            
+            <div class="search-inputs">
+                <div class="input-container search-field">
+                    <input type="text" name="s" placeholder="<?php echo esc_attr($atts['placeholder']); ?>" value="<?php echo esc_attr($current_search); ?>" />
+                </div>
                 
-                <div class="search-inputs">
-                    <div class="input-container search-field">
-                        <input type="text" name="s" placeholder="Search businesses..." value="' . esc_attr($search_term) . '" />
-                    </div>';
-    
-    // Add area dropdown with cached terms
-    $form_html .= '<div class="input-container area-field">
+                <?php if ($atts['show_filters'] !== 'no'): ?>
+                    <div class="input-container area-field">
                         <select name="area">
-                            <option value="">All Areas</option>';
-    
-    // Get cached areas
-    $areas = lbd_get_cached_terms('business_area');
-    
-    if (!empty($areas) && !is_wp_error($areas)) {
-        foreach ($areas as $term) {
-            $selected = $area === $term->slug ? ' selected="selected"' : '';
-            $form_html .= '<option value="' . esc_attr($term->slug) . '"' . $selected . '>' . esc_html($term->name) . '</option>';
-        }
-    }
-    
-    $form_html .= '</select>
-                    </div>';
-    
-    // Add category dropdown with cached terms
-    $form_html .= '<div class="input-container category-field">
-                        <select name="category">
-                            <option value="">All Categories</option>';
-    
-    // Get cached categories
-    $categories = lbd_get_cached_terms('business_category');
-    
-    if (!empty($categories) && !is_wp_error($categories)) {
-        foreach ($categories as $term) {
-            $selected = $category === $term->slug ? ' selected="selected"' : '';
-            $form_html .= '<option value="' . esc_attr($term->slug) . '"' . $selected . '>' . esc_html($term->name) . '</option>';
-        }
-    }
-    
-    $form_html .= '</select>
+                            <option value="">All Areas</option>
+                            <?php
+                            // Get areas using get_terms - more efficient than a full query
+                            $areas = get_terms(array(
+                                'taxonomy' => 'business_area',
+                                'hide_empty' => false,
+                                'orderby' => 'name',
+                                'order' => 'ASC',
+                                'number' => 50, // Limit to prevent memory issues
+                            ));
+                            
+                            if (!empty($areas) && !is_wp_error($areas)) {
+                                foreach ($areas as $term) {
+                                    $selected = ($current_area === $term->slug) ? ' selected="selected"' : '';
+                                    echo '<option value="' . esc_attr($term->slug) . '"' . $selected . '>' . esc_html($term->name) . '</option>';
+                                }
+                            }
+                            ?>
+                        </select>
                     </div>
                     
-                    <button type="submit" class="search-button pill-button">Search</button>
-                </div>
-            </form>
-        </div>
-    </div>';
-    
-    return $form_html . $content;
-    */
+                    <div class="input-container category-field">
+                        <select name="category">
+                            <option value="">All Categories</option>
+                            <?php
+                            // Get categories using get_terms - more efficient than a full query
+                            $categories = get_terms(array(
+                                'taxonomy' => 'business_category',
+                                'hide_empty' => false,
+                                'orderby' => 'name',
+                                'order' => 'ASC',
+                                'number' => 50, // Limit to prevent memory issues
+                            ));
+                            
+                            if (!empty($categories) && !is_wp_error($categories)) {
+                                foreach ($categories as $term) {
+                                    $selected = ($current_category === $term->slug) ? ' selected="selected"' : '';
+                                    echo '<option value="' . esc_attr($term->slug) . '"' . $selected . '>' . esc_html($term->name) . '</option>';
+                                }
+                            }
+                            ?>
+                        </select>
+                    </div>
+                <?php endif; ?>
+                
+                <button type="submit" class="search-button pill-button">Search</button>
+            </div>
+        </form>
+    </div>
+    <?php
+    return ob_get_clean();
 }
-// Temporarily uncomment this hook to disable the search form at the top of search results
-// add_filter('the_content', 'lbd_add_search_form_to_search_page', 5);
+add_shortcode('business_search', 'lbd_simple_search_form_shortcode');
 
 /**
  * Get cached taxonomy terms
@@ -842,89 +836,4 @@ function lbd_get_preloaded_terms($post_id, $taxonomy) {
     // Fall back to regular get_the_terms
     return get_the_terms($post_id, $taxonomy);
     */
-}
-
-/**
- * Create a simple search form shortcode with minimal database queries
- */
-function lbd_simple_search_form_shortcode($atts) {
-    $atts = shortcode_atts(array(
-        'layout' => 'horizontal',
-        'placeholder' => 'Search for businesses...',
-        'show_filters' => 'yes'
-    ), $atts);
-    
-    // Prepare CSS classes
-    $form_classes = 'business-search-form';
-    if ($atts['layout'] === 'horizontal') {
-        $form_classes .= ' horizontal';
-    }
-    
-    // Build the form directly without complex logic
-    ob_start();
-    ?>
-    <div class="<?php echo esc_attr($form_classes); ?>">
-        <form role="search" method="get" action="<?php echo esc_url(home_url('/')); ?>" class="search-form">
-            <input type="hidden" name="post_type" value="business" />
-            
-            <div class="search-inputs">
-                <div class="input-container search-field">
-                    <input type="text" name="s" placeholder="<?php echo esc_attr($atts['placeholder']); ?>" value="<?php echo esc_attr(get_search_query()); ?>" />
-                </div>
-                
-                <?php if ($atts['show_filters'] !== 'no'): ?>
-                    <div class="input-container area-field">
-                        <select name="area">
-                            <option value="">All Areas</option>
-                            <?php
-                            // Get areas using get_terms - more efficient than a full query
-                            $areas = get_terms(array(
-                                'taxonomy' => 'business_area',
-                                'hide_empty' => false,
-                                'orderby' => 'name',
-                                'order' => 'ASC',
-                                'number' => 50, // Limit to prevent memory issues
-                            ));
-                            
-                            if (!empty($areas) && !is_wp_error($areas)) {
-                                foreach ($areas as $term) {
-                                    $selected = (isset($_GET['area']) && $_GET['area'] === $term->slug) ? ' selected="selected"' : '';
-                                    echo '<option value="' . esc_attr($term->slug) . '"' . $selected . '>' . esc_html($term->name) . '</option>';
-                                }
-                            }
-                            ?>
-                        </select>
-                    </div>
-                    
-                    <div class="input-container category-field">
-                        <select name="category">
-                            <option value="">All Categories</option>
-                            <?php
-                            // Get categories using get_terms - more efficient than a full query
-                            $categories = get_terms(array(
-                                'taxonomy' => 'business_category',
-                                'hide_empty' => false,
-                                'orderby' => 'name',
-                                'order' => 'ASC',
-                                'number' => 50, // Limit to prevent memory issues
-                            ));
-                            
-                            if (!empty($categories) && !is_wp_error($categories)) {
-                                foreach ($categories as $term) {
-                                    $selected = (isset($_GET['category']) && $_GET['category'] === $term->slug) ? ' selected="selected"' : '';
-                                    echo '<option value="' . esc_attr($term->slug) . '"' . $selected . '>' . esc_html($term->name) . '</option>';
-                                }
-                            }
-                            ?>
-                        </select>
-                    </div>
-                <?php endif; ?>
-                
-                <button type="submit" class="search-button pill-button">Search</button>
-            </div>
-        </form>
-    </div>
-    <?php
-    return ob_get_clean();
-}
-add_shortcode('business_search', 'lbd_simple_search_form_shortcode'); 
+} 
