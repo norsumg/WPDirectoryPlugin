@@ -308,10 +308,10 @@
                         }
                         
                         echo '</div>';
-                        echo '<p class="site-reviews-cta">Be the first to leave a review on our site!</p>';
+                        echo '<p class="site-reviews-cta"><a href="' . esc_url(home_url('/submit-review/?business_id=' . get_the_ID())) . '">Be the first to review ' . esc_html(get_the_title()) . ' on our site!</a></p>';
                         echo '</div>';
                     } else {
-                        echo '<p>No reviews yet. Be the first to leave a review!</p>';
+                        echo '<p>No reviews yet. <a href="' . esc_url(home_url('/submit-review/?business_id=' . get_the_ID())) . '">Be the first to review ' . esc_html(get_the_title()) . '!</a></p>';
                     }
                 }
             } else {
@@ -319,6 +319,14 @@
                 comments_template();
             }
             ?>
+            
+            <?php if ($reviews && !empty($reviews)) : ?>
+                <div class="leave-review-cta">
+                    <a href="<?php echo esc_url(home_url('/submit-review/?business_id=' . get_the_ID())); ?>" class="btn-leave-review">
+                        Leave <?php echo esc_html(get_the_title()); ?> a review!
+                    </a>
+                </div>
+            <?php endif; ?>
         </section>
         
         <!-- Photos Section -->
