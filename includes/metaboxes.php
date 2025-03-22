@@ -27,7 +27,7 @@ function lbd_metaboxes() {
         'id'   => 'lbd_cover_photo',
         'type' => 'file',
         'options' => array(
-            'url' => false,
+            'url' => true, // Allow URL storage for more reliable retrieval
         ),
         'preview_size' => 'medium',
         'text' => array(

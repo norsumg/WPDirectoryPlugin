@@ -6,8 +6,18 @@
             <?php 
             $cover_photo_id = get_post_meta(get_the_ID(), 'lbd_cover_photo', true);
             if ($cover_photo_id) {
-                $cover_photo_url = wp_get_attachment_image_url($cover_photo_id, 'full');
-                echo '<div class="cover-photo-image" style="background-image: url(' . esc_url($cover_photo_url) . ');"></div>';
+                // Check if it's an attachment ID or direct URL
+                if (is_numeric($cover_photo_id)) {
+                    $cover_photo_url = wp_get_attachment_image_url($cover_photo_id, 'full');
+                } else {
+                    $cover_photo_url = $cover_photo_id; // It's already a URL
+                }
+                
+                if ($cover_photo_url) {
+                    echo '<div class="cover-photo-image" style="background-image: url(' . esc_url($cover_photo_url) . ');"></div>';
+                } else {
+                    echo '<div class="cover-photo-placeholder"></div>';
+                }
             } else {
                 echo '<div class="cover-photo-placeholder"></div>';
             }
