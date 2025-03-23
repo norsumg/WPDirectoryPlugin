@@ -258,14 +258,22 @@ function lbd_add_search_results_styles() {
     
     ?>
     <style>
-    /* Hide unwanted theme elements in search results */
+    /* Completely hide theme content for business post types */
+    body.search article.business .entry-content > *:not(h2):not(.button) {
+        display: none !important;
+    }
+    
+    /* Hide specific theme elements by class */
     body.search article.business .entry-header,
     body.search article.business .entry-title,
     body.search article.business .post-thumbnail,
     body.search article.business .ast-blog-featured-section,
+    body.search article.business .ast-excerpt-container,
     body.search article.business .entry-meta,
     body.search article.business .ast-blog-single-element,
-    body.search article.business .more-link {
+    body.search article.business .read-more,
+    body.search article.business .more-link,
+    body.search article.business .ast-read-more-container {
         display: none !important;
     }
     
@@ -273,9 +281,9 @@ function lbd_add_search_results_styles() {
     body.search article.business .button {
         display: inline-block;
         background: #0073aa;
-        color: white;
+        color: white !important;
         padding: 8px 16px;
-        text-decoration: none;
+        text-decoration: none !important;
         border-radius: 4px;
         margin-top: 10px;
     }
@@ -286,7 +294,7 @@ function lbd_add_search_results_styles() {
     </style>
     <?php
 }
-add_action('wp_head', 'lbd_add_search_results_styles', 100);
+add_action('wp_head', 'lbd_add_search_results_styles', 999); // Higher priority to override
 
 /**
  * Simple function to customize search results - uses minimal processing
@@ -303,19 +311,16 @@ function lbd_light_customize_results($content) {
     // Get post ID once to minimize function calls
     $post_id = get_the_ID();
     
-    // Get clean content
+    // Build completely new content that completely replaces the original
     $title = get_the_title();
     $permalink = get_permalink();
     
-    // Get description and clean it
+    // Get description from meta directly - don't use excerpts
     $description = get_post_meta($post_id, 'lbd_description', true);
-    // Remove business name and View Business text that might be in the description
-    $description = str_replace($title, '', $description);
-    $description = str_replace('View Business', '', $description);
-    $description = trim($description);
     
-    // Build completely new content with minimal formatting
-    $output = '<h2><a href="' . esc_url($permalink) . '">' . esc_html($title) . '</a></h2>';
+    // Build a very basic HTML structure
+    $output = '';
+    $output .= '<h2><a href="' . esc_url($permalink) . '">' . esc_html($title) . '</a></h2>';
     
     if (!empty($description)) {
         $output .= '<p>' . esc_html($description) . '</p>';
@@ -323,10 +328,24 @@ function lbd_light_customize_results($content) {
     
     $output .= '<a href="' . esc_url($permalink) . '" class="button">View Business</a>';
     
+    // Return only our custom output
     $is_processing = false;
     return $output;
 }
-add_filter('the_content', 'lbd_light_customize_results');
+add_filter('the_content', 'lbd_light_customize_results', 999);
+
+/**
+ * Force replace the excerpt to prevent theme injection
+ */
+function lbd_force_replace_excerpt($excerpt) {
+    if (!is_search() || get_post_type() !== 'business') {
+        return $excerpt;
+    }
+    
+    // Return empty to prevent default excerpt display
+    return '';
+}
+add_filter('the_excerpt', 'lbd_force_replace_excerpt', 999);
 
 /**
  * Modify search result title to be more specific for business searches
