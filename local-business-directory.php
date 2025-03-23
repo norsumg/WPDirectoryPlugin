@@ -431,10 +431,34 @@ function lbd_light_customize_results($content) {
     
     $output .= '</div>';
     
-    // For the description, ONLY use the lbd_description field directly
-    // DO NOT use WordPress excerpts which might contain auto-generated content
-    $description = get_post_meta($post_id, 'lbd_description', true);
-    $output .= '<div class="business-description">' . wpautop($description) . '</div>';
+    // IMPORTANT: Debug what's actually in the description field
+    $raw_description = get_post_meta($post_id, 'lbd_description', true);
+    
+    // Clean up the description - remove business name, and "View Business" text
+    $business_name = get_the_title();
+    $clean_description = $raw_description;
+    
+    // Remove business name if present
+    $clean_description = str_replace($business_name, '', $clean_description);
+    
+    // Remove category and area if present
+    if (!empty($categories) && !is_wp_error($categories) && !empty($areas) && !is_wp_error($areas)) {
+        $category = reset($categories);
+        $area = reset($areas);
+        $meta_text = $category->name . ' in ' . $area->name;
+        $clean_description = str_replace($meta_text, '', $clean_description);
+    }
+    
+    // Remove "View Business" text if present
+    $clean_description = str_replace('View Business', '', $clean_description);
+    
+    // Clean up any leading/trailing non-alphabetic characters
+    $clean_description = trim($clean_description);
+    $clean_description = preg_replace('/^[^a-zA-Z0-9]+/', '', $clean_description);
+    $clean_description = preg_replace('/[^a-zA-Z0-9.!?\s]+$/', '', $clean_description);
+    
+    // Display the cleaned description
+    $output .= '<div class="business-description">' . wpautop($clean_description) . '</div>';
     
     // Add view button
     $output .= '<div class="search-view-business">';
