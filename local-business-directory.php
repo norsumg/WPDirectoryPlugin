@@ -342,4 +342,46 @@ function lbd_get_cached_terms($taxonomy) {
     }
     
     return $cached_terms;
-} 
+}
+
+/**
+ * Add minimal CSS to hide author information in search results
+ */
+function lbd_hide_author_in_search() {
+    if (!is_search()) {
+        return;
+    }
+    
+    // Only add CSS if we're searching for businesses
+    if (!isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
+        return;
+    }
+    
+    ?>
+    <style>
+    /* Hide author information in business search results */
+    body.search .post-type-business .entry-meta,
+    body.search .post-type-business .byline,
+    body.search .post-type-business .author,
+    body.search .post-type-business .posted-by,
+    body.search article.business .entry-meta,
+    body.search article.business .byline,
+    body.search article.business .author,
+    body.search article.business .posted-by,
+    body.search .business .author-info,
+    body.search .business .author-avatar,
+    body.search .business .author-bio,
+    body.search .business .entry-meta a[rel="author"],
+    /* Additional common author classes */
+    body.search .business .entry-meta .author,
+    body.search .business .post-author,
+    body.search .business .meta-author,
+    body.search .business .post-by,
+    body.search .business .author-name,
+    body.search .business .author-link {
+        display: none !important;
+    }
+    </style>
+    <?php
+}
+add_action('wp_head', 'lbd_hide_author_in_search', 999); 
