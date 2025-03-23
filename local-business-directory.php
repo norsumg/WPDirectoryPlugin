@@ -406,66 +406,126 @@ function lbd_hide_author_in_search() {
 add_action('wp_head', 'lbd_hide_author_in_search', 999);
 
 /**
- * Add review ratings to business titles in search results
+ * Add review ratings to business titles in search results using JavaScript
+ * This approach works better across different themes
  */
-function lbd_add_ratings_to_search_titles($title, $post_id = null) {
-    // Only modify business search results
+function lbd_add_ratings_to_search_titles_js() {
+    // Only add on search pages for businesses
     if (!is_search() || !isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
-        return $title;
+        return;
     }
     
-    // Make sure we have a post ID
-    if (!$post_id) {
-        global $post;
-        if (isset($post->ID)) {
-            $post_id = $post->ID;
-        } else {
-            return $title;
+    // Collect all business posts in this search with their ratings
+    global $wp_query;
+    $ratings_data = array();
+    
+    foreach ($wp_query->posts as $post) {
+        if ($post->post_type !== 'business') {
+            continue;
+        }
+        
+        $review_average = get_post_meta($post->ID, 'lbd_review_average', true);
+        $review_count = get_post_meta($post->ID, 'lbd_review_count', true);
+        
+        if (!empty($review_average)) {
+            $ratings_data[$post->ID] = array(
+                'average' => floatval($review_average),
+                'count' => !empty($review_count) ? intval($review_count) : 0
+            );
         }
     }
     
-    // Check if this is a business post type
-    if (get_post_type($post_id) !== 'business') {
-        return $title;
+    // If no ratings found, exit
+    if (empty($ratings_data)) {
+        return;
     }
     
-    // Get review data
-    $review_average = get_post_meta($post_id, 'lbd_review_average', true);
-    $review_count = get_post_meta($post_id, 'lbd_review_count', true);
-    
-    // If no reviews, just return the title
-    if (empty($review_average)) {
-        return $title;
-    }
-    
-    // Format the rating
-    $rating_html = '<span class="business-rating">';
-    $rating_html .= '<span class="stars-container">';
-    
-    // Add star icons based on rating
-    $full_stars = floor($review_average);
-    $half_star = ($review_average - $full_stars) >= 0.5;
-    
-    for ($i = 1; $i <= 5; $i++) {
-        if ($i <= $full_stars) {
-            $rating_html .= '★'; // Full star
-        } elseif ($i == $full_stars + 1 && $half_star) {
-            $rating_html .= '½'; // Half star
-        } else {
-            $rating_html .= '☆'; // Empty star
+    // Output the JS with the ratings data
+    ?>
+    <script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function() {
+        // Ratings data for all businesses in this search
+        var ratingsData = <?php echo json_encode($ratings_data); ?>;
+        
+        // Function to create star rating HTML
+        function createRatingHTML(rating, count) {
+            var html = '<span class="business-rating">';
+            html += '<span class="stars-container">';
+            
+            // Create full/half/empty stars
+            var fullStars = Math.floor(rating);
+            var halfStar = (rating - fullStars) >= 0.5;
+            
+            for (var i = 1; i <= 5; i++) {
+                if (i <= fullStars) {
+                    html += '★'; // Full star
+                } else if (i == fullStars + 1 && halfStar) {
+                    html += '½'; // Half star
+                } else {
+                    html += '☆'; // Empty star
+                }
+            }
+            
+            html += '</span>';
+            
+            // Add review count if available
+            if (count > 0) {
+                html += '<span class="rating-count">(' + count + ')</span>';
+            }
+            
+            html += '</span>';
+            return html;
         }
-    }
-    
-    $rating_html .= '</span>';
-    
-    // Add review count if available
-    if (!empty($review_count) && $review_count > 0) {
-        $rating_html .= '<span class="rating-count">(' . intval($review_count) . ')</span>';
-    }
-    
-    $rating_html .= '</span>';
-    
-    // Add the rating after the title
-    return $title . $rating_html;
+        
+        // Get all articles in search results
+        var articles = document.querySelectorAll('body.search article');
+        
+        articles.forEach(function(article) {
+            // Try to get the post ID from various attributes
+            var postId = null;
+            
+            // Check for post ID in CSS classes
+            var classes = article.className.split(' ');
+            for (var i = 0; i < classes.length; i++) {
+                if (classes[i].indexOf('post-') === 0) {
+                    var potentialId = classes[i].replace('post-', '');
+                    if (!isNaN(potentialId)) {
+                        postId = parseInt(potentialId);
+                        break;
+                    }
+                }
+            }
+            
+            // If we have a post ID and ratings for it
+            if (postId && ratingsData[postId]) {
+                var rating = ratingsData[postId];
+                
+                // Find the title element
+                var titleElement = article.querySelector('.entry-title, .post-title, h2 a, h2, h1 a, h1');
+                
+                if (titleElement) {
+                    // Create span for rating
+                    var ratingSpan = document.createElement('span');
+                    ratingSpan.innerHTML = createRatingHTML(rating.average, rating.count);
+                    
+                    // Insert after the title
+                    if (titleElement.tagName.toLowerCase() === 'a') {
+                        // If title is a link, insert after the link
+                        titleElement.insertAdjacentHTML('afterend', ratingSpan.innerHTML);
+                    } else {
+                        // Otherwise insert at the end of the title element
+                        titleElement.insertAdjacentHTML('beforeend', ratingSpan.innerHTML);
+                    }
+                }
+            }
+        });
+    });
+    </script>
+    <?php
 }
-add_filter('the_title', 'lbd_add_ratings_to_search_titles', 10, 2); 
+
+// Remove the previous title filter
+remove_filter('the_title', 'lbd_add_ratings_to_search_titles', 10, 2);
+
+// Add our JavaScript method
+add_action('wp_footer', 'lbd_add_ratings_to_search_titles_js'); 
