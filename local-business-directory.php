@@ -258,27 +258,19 @@ function lbd_add_search_results_styles() {
     
     ?>
     <style>
-    /* Completely hide theme content for business post types */
-    body.search article.business .entry-content > *:not(h2):not(.button) {
+    /* Hide only specific problematic elements */
+    body.search article.business .ast-excerpt-container p {
         display: none !important;
     }
     
-    /* Hide specific theme elements by class */
-    body.search article.business .entry-header,
-    body.search article.business .entry-title,
-    body.search article.business .post-thumbnail,
-    body.search article.business .ast-blog-featured-section,
-    body.search article.business .ast-excerpt-container,
-    body.search article.business .entry-meta,
-    body.search article.business .ast-blog-single-element,
-    body.search article.business .read-more,
-    body.search article.business .more-link,
-    body.search article.business .ast-read-more-container {
-        display: none !important;
+    /* Style our custom elements */
+    body.search article.business .business-simple-description {
+        margin: 15px 0;
+        color: #666;
+        line-height: 1.6;
     }
     
-    /* Basic button styling */
-    body.search article.business .button {
+    body.search article.business .business-view-link {
         display: inline-block;
         background: #0073aa;
         color: white !important;
@@ -288,54 +280,47 @@ function lbd_add_search_results_styles() {
         margin-top: 10px;
     }
     
-    body.search article.business .button:hover {
+    body.search article.business .business-view-link:hover {
         background: #005177;
     }
     </style>
     <?php
 }
-add_action('wp_head', 'lbd_add_search_results_styles', 999); // Higher priority to override
+add_action('wp_head', 'lbd_add_search_results_styles', 999);
 
 /**
  * Simple function to customize search results - uses minimal processing
  */
 function lbd_light_customize_results($content) {
-    // Only modify business search results and prevent recursion
-    static $is_processing = false;
-    if ($is_processing || !is_search() || !is_main_query() || !in_the_loop() || get_post_type() !== 'business') {
+    // Only modify business search results
+    if (!is_search() || !is_main_query() || !in_the_loop() || get_post_type() !== 'business') {
         return $content;
     }
-    
-    $is_processing = true;
     
     // Get post ID once to minimize function calls
     $post_id = get_the_ID();
     
-    // Build completely new content that completely replaces the original
-    $title = get_the_title();
-    $permalink = get_permalink();
-    
-    // Get description from meta directly - don't use excerpts
+    // Get description from meta directly
     $description = get_post_meta($post_id, 'lbd_description', true);
     
-    // Build a very basic HTML structure
-    $output = '';
-    $output .= '<h2><a href="' . esc_url($permalink) . '">' . esc_html($title) . '</a></h2>';
+    // Build our custom content - append to existing content rather than replacing
+    $custom_content = '';
     
+    // Add description if we have one
     if (!empty($description)) {
-        $output .= '<p>' . esc_html($description) . '</p>';
+        $custom_content .= '<div class="business-simple-description">' . wpautop(esc_html($description)) . '</div>';
     }
     
-    $output .= '<a href="' . esc_url($permalink) . '" class="button">View Business</a>';
+    // Add view button
+    $custom_content .= '<a href="' . esc_url(get_permalink()) . '" class="business-view-link">View Business</a>';
     
-    // Return only our custom output
-    $is_processing = false;
-    return $output;
+    // Add our content after the default content
+    return $content . $custom_content;
 }
-add_filter('the_content', 'lbd_light_customize_results', 999);
+add_filter('the_content', 'lbd_light_customize_results');
 
 /**
- * Force replace the excerpt to prevent theme injection
+ * Force replace excerpt with empty value to prevent duplication
  */
 function lbd_force_replace_excerpt($excerpt) {
     if (!is_search() || get_post_type() !== 'business') {
