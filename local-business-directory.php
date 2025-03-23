@@ -403,12 +403,6 @@ function lbd_light_customize_results($content) {
     
     $is_processing = true;
     
-    // Add a fixed class to the body for our CSS targeting
-    add_filter('body_class', function($classes) {
-        $classes[] = 'business-search-active';
-        return $classes;
-    });
-    
     // Get post ID once to minimize function calls
     $post_id = get_the_ID();
     
@@ -437,13 +431,9 @@ function lbd_light_customize_results($content) {
     
     $output .= '</div>';
     
-    // Get description with fallback to excerpt
+    // For the description, ONLY use the lbd_description field directly
+    // DO NOT use WordPress excerpts which might contain auto-generated content
     $description = get_post_meta($post_id, 'lbd_description', true);
-    if (empty($description)) {
-        $description = get_the_excerpt();
-    }
-    
-    // Display description
     $output .= '<div class="business-description">' . wpautop($description) . '</div>';
     
     // Add view button
