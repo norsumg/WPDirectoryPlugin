@@ -63,6 +63,22 @@ function lbd_pre_get_posts( $query ) {
             // Set queried object to the term
             $query->queried_object = $term;
             $query->queried_object_id = $term->term_id;
+            
+            // Check if we also have a category in the URL (for /area-slug/category-slug/ URLs)
+            if ( isset( $query->query['name'] ) && !empty( $query->query['name'] ) ) {
+                $category_slug = $query->query['name'];
+                $category_term = get_term_by( 'slug', $category_slug, 'business_category' );
+                
+                if ( $category_term ) {
+                    // Add the category to the query
+                    $query->set( 'business_category', $category_slug );
+                    
+                    // Update the queried object to be the category instead of the area
+                    // This ensures the right template is loaded and title is displayed
+                    $query->queried_object = $category_term;
+                    $query->queried_object_id = $category_term->term_id;
+                }
+            }
         }
     }
 }
