@@ -426,4 +426,49 @@ function lbd_get_cached_terms($taxonomy) {
     }
     
     return $cached_terms;
-} 
+}
+
+/**
+ * Diagnostic function to inspect the search results and output structure
+ */
+function lbd_diagnostic_search_output($content) {
+    // Only run on search pages for businesses
+    if (!is_search() || !isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
+        return $content;
+    }
+    
+    // Only for logged-in admins
+    if (!current_user_can('administrator')) {
+        return $content;
+    }
+    
+    // Get post info
+    $post_id = get_the_ID();
+    $post_type = get_post_type();
+    
+    // Check what's available
+    $has_excerpt = has_excerpt($post_id);
+    $excerpt = get_the_excerpt();
+    $permalink = get_permalink();
+    $title = get_the_title();
+    
+    // Get custom fields
+    $custom_description = get_post_meta($post_id, 'lbd_description', true);
+    
+    // Add diagnostic info at the bottom of the content
+    $debug = '<div style="margin-top:20px; padding:10px; background:#f8f8f8; border:1px solid #ddd; font-family:monospace; font-size:12px;">';
+    $debug .= '<strong>DIAGNOSTIC INFO:</strong><br>';
+    $debug .= 'Post ID: ' . $post_id . '<br>';
+    $debug .= 'Post Type: ' . $post_type . '<br>';
+    $debug .= 'Has Excerpt: ' . ($has_excerpt ? 'Yes' : 'No') . '<br>';
+    $debug .= 'Excerpt Length: ' . strlen($excerpt) . '<br>';
+    $debug .= 'Has Custom Description: ' . (!empty($custom_description) ? 'Yes' : 'No') . '<br>';
+    $debug .= 'Custom Description Length: ' . strlen($custom_description) . '<br>';
+    $debug .= 'Content Length: ' . strlen($content) . '<br>';
+    $debug .= '</div>';
+    
+    return $content . $debug;
+}
+
+// Add with a lower priority than our customization function
+add_filter('the_content', 'lbd_diagnostic_search_output', 1000); 
