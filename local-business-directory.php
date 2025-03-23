@@ -692,7 +692,6 @@ function lbd_preload_search_results_data() {
     try {
         // 1. Preload all post meta for business posts
         $meta_keys = array(
-            'lbd_premium',
             'lbd_description',
             'lbd_review_count',
             'lbd_review_average'
