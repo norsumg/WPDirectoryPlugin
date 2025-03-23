@@ -252,19 +252,16 @@ add_action('pre_get_posts', 'lbd_light_search_modification');
  * Add styles for business search results
  */
 function lbd_add_search_results_styles() {
+    // Only add styles on search pages
     if (!is_search()) {
         return;
     }
     
     ?>
     <style>
-    /* Hide author and other unwanted elements */
-    body.search article.business .entry-meta,
-    body.search article.business .byline,
-    body.search article.business .posted-by,
-    body.search article.business .entry-meta *[class*="author"],
-    body.search article.business .entry-footer {
-        display: none !important;
+    /* Minimal styling for search results */
+    body.search article.business {
+        margin-bottom: 20px;
     }
     </style>
     <?php
@@ -275,16 +272,8 @@ add_action('wp_head', 'lbd_add_search_results_styles', 999);
  * Simple function to customize search results - uses minimal processing
  */
 function lbd_light_customize_results($content) {
-    // Only modify business search results
-    if (!is_search() || !is_main_query() || !in_the_loop() || get_post_type() !== 'business') {
-        return $content;
-    }
-    
-    // Get post ID once to minimize function calls
-    $post_id = get_the_ID();
-    
-    // Add the content plus a "View Business" link
-    return $content . '<p><a href="' . esc_url(get_permalink()) . '" class="button">View Business</a></p>';
+    // Return content unmodified to restore default search display
+    return $content;
 }
 add_filter('the_content', 'lbd_light_customize_results');
 
@@ -292,7 +281,7 @@ add_filter('the_content', 'lbd_light_customize_results');
  * Force replace excerpt with empty value to prevent duplication
  */
 function lbd_force_replace_excerpt($excerpt) {
-    // Just return the excerpt as is
+    // Just return the excerpt without modification
     return $excerpt;
 }
 add_filter('the_excerpt', 'lbd_force_replace_excerpt', 999);
@@ -301,6 +290,9 @@ add_filter('the_excerpt', 'lbd_force_replace_excerpt', 999);
  * Add search form to the top of search results using template_redirect
  */
 function lbd_add_search_form_to_results() {
+    // Disabled temporarily to test default search behavior
+    return;
+    
     // Only run on search pages for businesses
     if (!is_search() || !isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
         return;
