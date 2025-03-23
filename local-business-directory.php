@@ -406,64 +406,20 @@ function lbd_light_customize_results($content) {
     // Get post ID once to minimize function calls
     $post_id = get_the_ID();
     
-    // Build a simple output - no complex data processing
+    // Build the simplest possible output
     $output = '<div class="business-search-result">';
     
-    // Add title with permalink
+    // 1. Title with permalink
     $output .= '<h2><a href="' . get_permalink() . '">' . get_the_title() . '</a></h2>';
     
-    // Get the first term of each taxonomy - no complex processing
-    $areas = get_the_terms($post_id, 'business_area');
-    $categories = get_the_terms($post_id, 'business_category');
-    
-    $output .= '<div class="business-meta">';
-    
-    // Display category and area if they exist
-    if (!empty($categories) && !is_wp_error($categories)) {
-        $category = reset($categories);
-        $output .= '<span class="business-category">' . esc_html($category->name) . '</span>';
+    // 2. Description from meta field - nothing else
+    $description = get_post_meta($post_id, 'lbd_description', true);
+    if (!empty($description)) {
+        $output .= '<p>' . $description . '</p>';
     }
     
-    if (!empty($areas) && !is_wp_error($areas)) {
-        $area = reset($areas);
-        $output .= ' in <span class="business-area">' . esc_html($area->name) . '</span>';
-    }
-    
-    $output .= '</div>';
-    
-    // IMPORTANT: Debug what's actually in the description field
-    $raw_description = get_post_meta($post_id, 'lbd_description', true);
-    
-    // Clean up the description - remove business name, and "View Business" text
-    $business_name = get_the_title();
-    $clean_description = $raw_description;
-    
-    // Remove business name if present
-    $clean_description = str_replace($business_name, '', $clean_description);
-    
-    // Remove category and area if present
-    if (!empty($categories) && !is_wp_error($categories) && !empty($areas) && !is_wp_error($areas)) {
-        $category = reset($categories);
-        $area = reset($areas);
-        $meta_text = $category->name . ' in ' . $area->name;
-        $clean_description = str_replace($meta_text, '', $clean_description);
-    }
-    
-    // Remove "View Business" text if present
-    $clean_description = str_replace('View Business', '', $clean_description);
-    
-    // Clean up any leading/trailing non-alphabetic characters
-    $clean_description = trim($clean_description);
-    $clean_description = preg_replace('/^[^a-zA-Z0-9]+/', '', $clean_description);
-    $clean_description = preg_replace('/[^a-zA-Z0-9.!?\s]+$/', '', $clean_description);
-    
-    // Display the cleaned description
-    $output .= '<div class="business-description">' . wpautop($clean_description) . '</div>';
-    
-    // Add view button
-    $output .= '<div class="search-view-business">';
+    // 3. View link
     $output .= '<a href="' . get_permalink() . '" class="business-view-link">View Business</a>';
-    $output .= '</div>';
     
     $output .= '</div>';
     
