@@ -406,126 +406,134 @@ function lbd_hide_author_in_search() {
 add_action('wp_head', 'lbd_hide_author_in_search', 999);
 
 /**
- * Add review ratings to business titles in search results using JavaScript
- * This approach works better across different themes
+ * Add review ratings to business content in search results
+ * Direct approach using the_content filter
  */
-function lbd_add_ratings_to_search_titles_js() {
-    // Only add on search pages for businesses
+function lbd_add_ratings_to_search_content($content) {
+    // Only modify search results for business post type
     if (!is_search() || !isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
-        return;
+        return $content;
     }
     
-    // Collect all business posts in this search with their ratings
-    global $wp_query;
-    $ratings_data = array();
+    // Get current post ID
+    $post_id = get_the_ID();
     
-    foreach ($wp_query->posts as $post) {
-        if ($post->post_type !== 'business') {
-            continue;
+    // Check if this is a business post
+    if (get_post_type($post_id) !== 'business') {
+        return $content;
+    }
+    
+    // Get review data for this business
+    $review_average = get_post_meta($post_id, 'lbd_review_average', true);
+    $review_count = get_post_meta($post_id, 'lbd_review_count', true);
+    
+    // Debug mode - shows all metadata for admin users
+    if (isset($_GET['debug']) && current_user_can('administrator')) {
+        $meta_data = get_post_meta($post_id);
+        $debug_html = '<div style="background:#f5f5f5; border:1px solid #ddd; padding:10px; margin:10px 0; font-family:monospace;">';
+        $debug_html .= '<strong>DEBUG INFO:</strong><br>';
+        $debug_html .= 'Post ID: ' . $post_id . '<br>';
+        $debug_html .= 'Review Average: ' . ($review_average ? $review_average : 'Not set') . '<br>';
+        $debug_html .= 'Review Count: ' . ($review_count ? $review_count : 'Not set') . '<br>';
+        $debug_html .= '<br><strong>All Meta:</strong><br>';
+        
+        foreach ($meta_data as $key => $values) {
+            if (strpos($key, 'lbd_') === 0) { // Only show plugin meta
+                $debug_html .= $key . ': ' . print_r($values[0], true) . '<br>';
+            }
         }
         
-        $review_average = get_post_meta($post->ID, 'lbd_review_average', true);
-        $review_count = get_post_meta($post->ID, 'lbd_review_count', true);
-        
-        if (!empty($review_average)) {
-            $ratings_data[$post->ID] = array(
-                'average' => floatval($review_average),
-                'count' => !empty($review_count) ? intval($review_count) : 0
-            );
+        $debug_html .= '</div>';
+        $content = $debug_html . $content;
+    }
+    
+    // If no review data, just return the content
+    if (empty($review_average)) {
+        return $content;
+    }
+    
+    // Format stars based on rating
+    $stars_html = '<div class="business-rating" style="display:block; margin:10px 0; color:#f7d032; font-size:1.2em;">';
+    $stars_html .= '<strong>Rating: </strong>';
+    
+    // Add star icons
+    $full_stars = floor($review_average);
+    $half_star = ($review_average - $full_stars) >= 0.5;
+    
+    for ($i = 1; $i <= 5; $i++) {
+        if ($i <= $full_stars) {
+            $stars_html .= '★'; // Full star
+        } elseif ($i == $full_stars + 1 && $half_star) {
+            $stars_html .= '&#189;'; // Half star
+        } else {
+            $stars_html .= '☆'; // Empty star
         }
     }
     
-    // If no ratings found, exit
-    if (empty($ratings_data)) {
-        return;
+    // Add review count
+    if (!empty($review_count) && $review_count > 0) {
+        $stars_html .= ' <span style="color:#666; font-size:0.9em;">(' . intval($review_count) . ' reviews)</span>';
     }
     
-    // Output the JS with the ratings data
-    ?>
-    <script type="text/javascript">
-    document.addEventListener('DOMContentLoaded', function() {
-        // Ratings data for all businesses in this search
-        var ratingsData = <?php echo json_encode($ratings_data); ?>;
-        
-        // Function to create star rating HTML
-        function createRatingHTML(rating, count) {
-            var html = '<span class="business-rating">';
-            html += '<span class="stars-container">';
-            
-            // Create full/half/empty stars
-            var fullStars = Math.floor(rating);
-            var halfStar = (rating - fullStars) >= 0.5;
-            
-            for (var i = 1; i <= 5; i++) {
-                if (i <= fullStars) {
-                    html += '★'; // Full star
-                } else if (i == fullStars + 1 && halfStar) {
-                    html += '½'; // Half star
-                } else {
-                    html += '☆'; // Empty star
-                }
-            }
-            
-            html += '</span>';
-            
-            // Add review count if available
-            if (count > 0) {
-                html += '<span class="rating-count">(' + count + ')</span>';
-            }
-            
-            html += '</span>';
-            return html;
-        }
-        
-        // Get all articles in search results
-        var articles = document.querySelectorAll('body.search article');
-        
-        articles.forEach(function(article) {
-            // Try to get the post ID from various attributes
-            var postId = null;
-            
-            // Check for post ID in CSS classes
-            var classes = article.className.split(' ');
-            for (var i = 0; i < classes.length; i++) {
-                if (classes[i].indexOf('post-') === 0) {
-                    var potentialId = classes[i].replace('post-', '');
-                    if (!isNaN(potentialId)) {
-                        postId = parseInt(potentialId);
-                        break;
-                    }
-                }
-            }
-            
-            // If we have a post ID and ratings for it
-            if (postId && ratingsData[postId]) {
-                var rating = ratingsData[postId];
-                
-                // Find the title element
-                var titleElement = article.querySelector('.entry-title, .post-title, h2 a, h2, h1 a, h1');
-                
-                if (titleElement) {
-                    // Create span for rating
-                    var ratingSpan = document.createElement('span');
-                    ratingSpan.innerHTML = createRatingHTML(rating.average, rating.count);
-                    
-                    // Insert after the title
-                    if (titleElement.tagName.toLowerCase() === 'a') {
-                        // If title is a link, insert after the link
-                        titleElement.insertAdjacentHTML('afterend', ratingSpan.innerHTML);
-                    } else {
-                        // Otherwise insert at the end of the title element
-                        titleElement.insertAdjacentHTML('beforeend', ratingSpan.innerHTML);
-                    }
-                }
-            }
-        });
-    });
-    </script>
-    <?php
+    $stars_html .= '</div>';
+    
+    // Prepend rating to content
+    return $stars_html . $content;
 }
 
-// Remove the previous title filter
-remove_filter('the_title', 'lbd_add_ratings_to_search_titles', 10, 2);
+// Remove JavaScript method 
+remove_action('wp_footer', 'lbd_add_ratings_to_search_titles_js');
 
-// Add our JavaScript method
-add_action('wp_footer', 'lbd_add_ratings_to_search_titles_js'); 
+// Add our content filter
+add_filter('the_content', 'lbd_add_ratings_to_search_content', 5);
+
+/**
+ * Add the review section to excerpts as well - many themes use excerpts in search results
+ */
+function lbd_add_ratings_to_search_excerpt($excerpt) {
+    // Only modify search results for business post type
+    if (!is_search() || !isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
+        return $excerpt;
+    }
+    
+    // Get current post ID
+    $post_id = get_the_ID();
+    
+    // Get review data for this business
+    $review_average = get_post_meta($post_id, 'lbd_review_average', true);
+    $review_count = get_post_meta($post_id, 'lbd_review_count', true);
+    
+    // If no review data, just return the excerpt
+    if (empty($review_average)) {
+        return $excerpt;
+    }
+    
+    // Format stars based on rating
+    $stars_html = '<div class="business-rating" style="display:block; margin:10px 0; color:#f7d032; font-size:1.2em;">';
+    $stars_html .= '<strong>Rating: </strong>';
+    
+    // Add star icons
+    $full_stars = floor($review_average);
+    $half_star = ($review_average - $full_stars) >= 0.5;
+    
+    for ($i = 1; $i <= 5; $i++) {
+        if ($i <= $full_stars) {
+            $stars_html .= '★'; // Full star
+        } elseif ($i == $full_stars + 1 && $half_star) {
+            $stars_html .= '&#189;'; // Half star
+        } else {
+            $stars_html .= '☆'; // Empty star
+        }
+    }
+    
+    // Add review count
+    if (!empty($review_count) && $review_count > 0) {
+        $stars_html .= ' <span style="color:#666; font-size:0.9em;">(' . intval($review_count) . ' reviews)</span>';
+    }
+    
+    $stars_html .= '</div>';
+    
+    // Prepend rating to excerpt
+    return $stars_html . $excerpt;
+}
+add_filter('the_excerpt', 'lbd_add_ratings_to_search_excerpt', 5); 
