@@ -381,7 +381,91 @@ function lbd_hide_author_in_search() {
     body.search .business .author-link {
         display: none !important;
     }
+    
+    /* Style for review ratings */
+    .business-rating {
+        display: inline-block;
+        margin-left: 10px;
+        font-size: 0.9em;
+        color: #f7d032;
+        vertical-align: middle;
+    }
+    
+    .business-rating .rating-count {
+        color: #666;
+        font-size: 0.85em;
+        margin-left: 5px;
+    }
+    
+    .business-rating .stars-container {
+        display: inline-block;
+    }
     </style>
     <?php
 }
-add_action('wp_head', 'lbd_hide_author_in_search', 999); 
+add_action('wp_head', 'lbd_hide_author_in_search', 999);
+
+/**
+ * Add review ratings to business titles in search results
+ */
+function lbd_add_ratings_to_search_titles($title, $post_id = null) {
+    // Only modify business search results
+    if (!is_search() || !isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
+        return $title;
+    }
+    
+    // Make sure we have a post ID
+    if (!$post_id) {
+        global $post;
+        if (isset($post->ID)) {
+            $post_id = $post->ID;
+        } else {
+            return $title;
+        }
+    }
+    
+    // Check if this is a business post type
+    if (get_post_type($post_id) !== 'business') {
+        return $title;
+    }
+    
+    // Get review data
+    $review_average = get_post_meta($post_id, 'lbd_review_average', true);
+    $review_count = get_post_meta($post_id, 'lbd_review_count', true);
+    
+    // If no reviews, just return the title
+    if (empty($review_average)) {
+        return $title;
+    }
+    
+    // Format the rating
+    $rating_html = '<span class="business-rating">';
+    $rating_html .= '<span class="stars-container">';
+    
+    // Add star icons based on rating
+    $full_stars = floor($review_average);
+    $half_star = ($review_average - $full_stars) >= 0.5;
+    
+    for ($i = 1; $i <= 5; $i++) {
+        if ($i <= $full_stars) {
+            $rating_html .= '★'; // Full star
+        } elseif ($i == $full_stars + 1 && $half_star) {
+            $rating_html .= '½'; // Half star
+        } else {
+            $rating_html .= '☆'; // Empty star
+        }
+    }
+    
+    $rating_html .= '</span>';
+    
+    // Add review count if available
+    if (!empty($review_count) && $review_count > 0) {
+        $rating_html .= '<span class="rating-count">(' . intval($review_count) . ')</span>';
+    }
+    
+    $rating_html .= '</span>';
+    
+    // Add the rating after the title
+    return $title . $rating_html;
+}
+add_filter('the_title', 'lbd_add_ratings_to_search_titles', 10, 2); 
