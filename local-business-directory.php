@@ -258,10 +258,18 @@ function lbd_add_search_results_styles() {
     
     ?>
     <style>
-    /* Hide only specific problematic elements */
-    body.search article.business .ast-excerpt-container p {
+    /* Hide author and other unwanted elements */
+    body.search article.business .entry-meta,
+    body.search article.business .byline,
+    body.search article.business .posted-by,
+    body.search article.business .ast-blog-meta-container .author,
+    body.search article.business .ast-blog-meta-container .byline,
+    body.search article.business .entry-meta *[class*="author"],
+    body.search article.business .entry-footer,
+    body.search article.business .ast-read-more {
         display: none !important;
     }
+    
     
     /* Style our custom elements */
     body.search article.business .business-simple-description {
