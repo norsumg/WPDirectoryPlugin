@@ -408,20 +408,29 @@ add_action('wp_head', 'lbd_hide_author_in_search', 999);
 /**
  * Add review ratings to business content in search results
  * Direct approach using the_content filter
+ * 
+ * Currently disabled to prevent duplicate ratings in search results
  */
 function lbd_add_ratings_to_search_content($content) {
+    // We're not modifying content anymore since the excerpt filter works well
+    // This prevents duplicate ratings from appearing
+    return $content;
+}
+
+// Add our content filter
+add_filter('the_content', 'lbd_add_ratings_to_search_content', 5);
+
+/**
+ * Add the review section to excerpts as well - many themes use excerpts in search results
+ */
+function lbd_add_ratings_to_search_excerpt($excerpt) {
     // Only modify search results for business post type
     if (!is_search() || !isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
-        return $content;
+        return $excerpt;
     }
     
     // Get current post ID
     $post_id = get_the_ID();
-    
-    // Check if this is a business post
-    if (get_post_type($post_id) !== 'business') {
-        return $content;
-    }
     
     // First check for native review data
     $review_average = get_post_meta($post_id, 'lbd_review_average', true);
@@ -469,12 +478,12 @@ function lbd_add_ratings_to_search_content($content) {
         }
         
         $debug_html .= '</div>';
-        $content = $debug_html . $content;
+        $excerpt = $debug_html . $excerpt;
     }
     
-    // If no review data at all, just return the content
+    // If no review data at all, just return the excerpt
     if (empty($review_average)) {
-        return $content;
+        return $excerpt;
     }
     
     // Format stars based on rating
@@ -506,24 +515,7 @@ function lbd_add_ratings_to_search_content($content) {
     
     $stars_html .= '</div>';
     
-    // Prepend rating to content
-    return $stars_html . $content;
-}
-
-// Remove JavaScript method 
-remove_action('wp_footer', 'lbd_add_ratings_to_search_titles_js');
-
-// Add our content filter
-add_filter('the_content', 'lbd_add_ratings_to_search_content', 5);
-
-/**
- * Add the review section to excerpts as well - many themes use excerpts in search results
- * 
- * Currently disabled to prevent duplicate ratings in search results
- */
-function lbd_add_ratings_to_search_excerpt($excerpt) {
-    // We're not modifying excerpts anymore since the content filter works well
-    // This prevents duplicate ratings from appearing
-    return $excerpt;
+    // Prepend rating to excerpt
+    return $stars_html . $excerpt;
 }
 add_filter('the_excerpt', 'lbd_add_ratings_to_search_excerpt', 5); 
