@@ -423,9 +423,31 @@ function lbd_add_ratings_to_search_content($content) {
         return $content;
     }
     
-    // Get review data for this business
+    // First check for native review data
     $review_average = get_post_meta($post_id, 'lbd_review_average', true);
     $review_count = get_post_meta($post_id, 'lbd_review_count', true);
+    
+    // If no native reviews, check for Google reviews as fallback
+    $review_source = 'Native';
+    if (empty($review_average)) {
+        // Look for various possible Google review field names
+        $google_rating = get_post_meta($post_id, 'google_rating', true);
+        if (empty($google_rating)) {
+            $google_rating = get_post_meta($post_id, 'lbd_google_rating', true);
+        }
+        
+        $google_review_count = get_post_meta($post_id, 'google_review_count', true);
+        if (empty($google_review_count)) {
+            $google_review_count = get_post_meta($post_id, 'lbd_google_review_count', true);
+        }
+        
+        // If we found Google reviews, use them
+        if (!empty($google_rating)) {
+            $review_average = $google_rating;
+            $review_count = $google_review_count;
+            $review_source = 'Google';
+        }
+    }
     
     // Debug mode - shows all metadata for admin users
     if (isset($_GET['debug']) && current_user_can('administrator')) {
@@ -433,12 +455,15 @@ function lbd_add_ratings_to_search_content($content) {
         $debug_html = '<div style="background:#f5f5f5; border:1px solid #ddd; padding:10px; margin:10px 0; font-family:monospace;">';
         $debug_html .= '<strong>DEBUG INFO:</strong><br>';
         $debug_html .= 'Post ID: ' . $post_id . '<br>';
-        $debug_html .= 'Review Average: ' . ($review_average ? $review_average : 'Not set') . '<br>';
-        $debug_html .= 'Review Count: ' . ($review_count ? $review_count : 'Not set') . '<br>';
+        $debug_html .= 'Native Review Average: ' . (get_post_meta($post_id, 'lbd_review_average', true) ? get_post_meta($post_id, 'lbd_review_average', true) : 'Not set') . '<br>';
+        $debug_html .= 'Native Review Count: ' . (get_post_meta($post_id, 'lbd_review_count', true) ? get_post_meta($post_id, 'lbd_review_count', true) : 'Not set') . '<br>';
+        $debug_html .= 'Google Rating: ' . (get_post_meta($post_id, 'google_rating', true) ? get_post_meta($post_id, 'google_rating', true) : 'Not set') . '<br>';
+        $debug_html .= 'Google Review Count: ' . (get_post_meta($post_id, 'google_review_count', true) ? get_post_meta($post_id, 'google_review_count', true) : 'Not set') . '<br>';
+        $debug_html .= 'Using Review Source: ' . $review_source . '<br>';
         $debug_html .= '<br><strong>All Meta:</strong><br>';
         
         foreach ($meta_data as $key => $values) {
-            if (strpos($key, 'lbd_') === 0) { // Only show plugin meta
+            if (strpos($key, 'lbd_') === 0 || strpos($key, 'google_') === 0) { // Show plugin and Google meta
                 $debug_html .= $key . ': ' . print_r($values[0], true) . '<br>';
             }
         }
@@ -447,14 +472,18 @@ function lbd_add_ratings_to_search_content($content) {
         $content = $debug_html . $content;
     }
     
-    // If no review data, just return the content
+    // If no review data at all, just return the content
     if (empty($review_average)) {
         return $content;
     }
     
     // Format stars based on rating
     $stars_html = '<div class="business-rating" style="display:block; margin:10px 0; color:#f7d032; font-size:1.2em;">';
-    $stars_html .= '<strong>Rating: </strong>';
+    if ($review_source === 'Google') {
+        $stars_html .= '<strong>Google Rating: </strong>';
+    } else {
+        $stars_html .= '<strong>Rating: </strong>';
+    }
     
     // Add star icons
     $full_stars = floor($review_average);
@@ -499,18 +528,44 @@ function lbd_add_ratings_to_search_excerpt($excerpt) {
     // Get current post ID
     $post_id = get_the_ID();
     
-    // Get review data for this business
+    // First check for native review data
     $review_average = get_post_meta($post_id, 'lbd_review_average', true);
     $review_count = get_post_meta($post_id, 'lbd_review_count', true);
     
-    // If no review data, just return the excerpt
+    // If no native reviews, check for Google reviews as fallback
+    $review_source = 'Native';
+    if (empty($review_average)) {
+        // Look for various possible Google review field names
+        $google_rating = get_post_meta($post_id, 'google_rating', true);
+        if (empty($google_rating)) {
+            $google_rating = get_post_meta($post_id, 'lbd_google_rating', true);
+        }
+        
+        $google_review_count = get_post_meta($post_id, 'google_review_count', true);
+        if (empty($google_review_count)) {
+            $google_review_count = get_post_meta($post_id, 'lbd_google_review_count', true);
+        }
+        
+        // If we found Google reviews, use them
+        if (!empty($google_rating)) {
+            $review_average = $google_rating;
+            $review_count = $google_review_count;
+            $review_source = 'Google';
+        }
+    }
+    
+    // If no review data at all, just return the excerpt
     if (empty($review_average)) {
         return $excerpt;
     }
     
     // Format stars based on rating
     $stars_html = '<div class="business-rating" style="display:block; margin:10px 0; color:#f7d032; font-size:1.2em;">';
-    $stars_html .= '<strong>Rating: </strong>';
+    if ($review_source === 'Google') {
+        $stars_html .= '<strong>Google Rating: </strong>';
+    } else {
+        $stars_html .= '<strong>Rating: </strong>';
+    }
     
     // Add star icons
     $full_stars = floor($review_average);
