@@ -262,34 +262,9 @@ function lbd_add_search_results_styles() {
     body.search article.business .entry-meta,
     body.search article.business .byline,
     body.search article.business .posted-by,
-    body.search article.business .ast-blog-meta-container .author,
-    body.search article.business .ast-blog-meta-container .byline,
     body.search article.business .entry-meta *[class*="author"],
-    body.search article.business .entry-footer,
-    body.search article.business .ast-read-more {
+    body.search article.business .entry-footer {
         display: none !important;
-    }
-    
-    
-    /* Style our custom elements */
-    body.search article.business .business-simple-description {
-        margin: 15px 0;
-        color: #666;
-        line-height: 1.6;
-    }
-    
-    body.search article.business .business-view-link {
-        display: inline-block;
-        background: #0073aa;
-        color: white !important;
-        padding: 8px 16px;
-        text-decoration: none !important;
-        border-radius: 4px;
-        margin-top: 10px;
-    }
-    
-    body.search article.business .business-view-link:hover {
-        background: #005177;
     }
     </style>
     <?php
@@ -308,42 +283,8 @@ function lbd_light_customize_results($content) {
     // Get post ID once to minimize function calls
     $post_id = get_the_ID();
     
-    // Get description from meta directly
-    $description = get_post_meta($post_id, 'lbd_description', true);
-    
-    // If description is empty, try to use the post content or excerpt
-    if (empty($description)) {
-        global $post;
-        
-        // First try to get the excerpt 
-        if (has_excerpt($post_id)) {
-            $description = get_the_excerpt();
-            
-            // Clean up the excerpt by removing the business name and "View Business" text
-            $business_name = get_the_title();
-            $description = str_replace($business_name, '', $description);
-            $description = str_replace('View Business', '', $description);
-            $description = trim($description);
-        } 
-        // If no excerpt, try to use the post content
-        else if (!empty($post->post_content)) {
-            $description = wp_trim_words($post->post_content, 30);
-        }
-    }
-    
-    // Build our custom content - append to existing content rather than replacing
-    $custom_content = '';
-    
-    // Add description if we have one
-    if (!empty($description)) {
-        $custom_content .= '<div class="business-simple-description">' . wpautop(esc_html($description)) . '</div>';
-    }
-    
-    // Add view button
-    $custom_content .= '<a href="' . esc_url(get_permalink()) . '" class="business-view-link">View Business</a>';
-    
-    // Add our content after the default content
-    return $content . $custom_content;
+    // Add the content plus a "View Business" link
+    return $content . '<p><a href="' . esc_url(get_permalink()) . '" class="button">View Business</a></p>';
 }
 add_filter('the_content', 'lbd_light_customize_results');
 
@@ -351,12 +292,8 @@ add_filter('the_content', 'lbd_light_customize_results');
  * Force replace excerpt with empty value to prevent duplication
  */
 function lbd_force_replace_excerpt($excerpt) {
-    if (!is_search() || get_post_type() !== 'business') {
-        return $excerpt;
-    }
-    
-    // Return empty to prevent default excerpt display
-    return '';
+    // Just return the excerpt as is
+    return $excerpt;
 }
 add_filter('the_excerpt', 'lbd_force_replace_excerpt', 999);
 
