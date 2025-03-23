@@ -518,77 +518,12 @@ add_filter('the_content', 'lbd_add_ratings_to_search_content', 5);
 
 /**
  * Add the review section to excerpts as well - many themes use excerpts in search results
+ * 
+ * Currently disabled to prevent duplicate ratings in search results
  */
 function lbd_add_ratings_to_search_excerpt($excerpt) {
-    // Only modify search results for business post type
-    if (!is_search() || !isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
-        return $excerpt;
-    }
-    
-    // Get current post ID
-    $post_id = get_the_ID();
-    
-    // First check for native review data
-    $review_average = get_post_meta($post_id, 'lbd_review_average', true);
-    $review_count = get_post_meta($post_id, 'lbd_review_count', true);
-    
-    // If no native reviews, check for Google reviews as fallback
-    $review_source = 'Native';
-    if (empty($review_average)) {
-        // Look for various possible Google review field names
-        $google_rating = get_post_meta($post_id, 'google_rating', true);
-        if (empty($google_rating)) {
-            $google_rating = get_post_meta($post_id, 'lbd_google_rating', true);
-        }
-        
-        $google_review_count = get_post_meta($post_id, 'google_review_count', true);
-        if (empty($google_review_count)) {
-            $google_review_count = get_post_meta($post_id, 'lbd_google_review_count', true);
-        }
-        
-        // If we found Google reviews, use them
-        if (!empty($google_rating)) {
-            $review_average = $google_rating;
-            $review_count = $google_review_count;
-            $review_source = 'Google';
-        }
-    }
-    
-    // If no review data at all, just return the excerpt
-    if (empty($review_average)) {
-        return $excerpt;
-    }
-    
-    // Format stars based on rating
-    $stars_html = '<div class="business-rating" style="display:block; margin:10px 0; color:#f7d032; font-size:1.2em;">';
-    if ($review_source === 'Google') {
-        $stars_html .= '<strong>Google Rating: </strong>';
-    } else {
-        $stars_html .= '<strong>Rating: </strong>';
-    }
-    
-    // Add star icons
-    $full_stars = floor($review_average);
-    $half_star = ($review_average - $full_stars) >= 0.5;
-    
-    for ($i = 1; $i <= 5; $i++) {
-        if ($i <= $full_stars) {
-            $stars_html .= '★'; // Full star
-        } elseif ($i == $full_stars + 1 && $half_star) {
-            $stars_html .= '&#189;'; // Half star
-        } else {
-            $stars_html .= '☆'; // Empty star
-        }
-    }
-    
-    // Add review count
-    if (!empty($review_count) && $review_count > 0) {
-        $stars_html .= ' <span style="color:#666; font-size:0.9em;">(' . intval($review_count) . ' reviews)</span>';
-    }
-    
-    $stars_html .= '</div>';
-    
-    // Prepend rating to excerpt
-    return $stars_html . $excerpt;
+    // We're not modifying excerpts anymore since the content filter works well
+    // This prevents duplicate ratings from appearing
+    return $excerpt;
 }
 add_filter('the_excerpt', 'lbd_add_ratings_to_search_excerpt', 5); 
