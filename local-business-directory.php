@@ -258,133 +258,30 @@ function lbd_add_search_results_styles() {
     
     ?>
     <style>
-    /* Reset business search result styling */
-    .business-search-result {
-        border: 1px solid #eee;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 25px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        transition: all 0.2s ease;
-    }
-    
-    .business-search-result:hover {
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-    
-    /* Hide theme elements in search results */
+    /* Hide unwanted theme elements in search results */
     body.search article.business .entry-header,
-    body.search .author,
-    body.search .entry-meta .author,
-    body.search .post-author,
-    body.search article.business .entry-meta .author,
-    body.search article.business .byline,
+    body.search article.business .entry-title,
+    body.search article.business .post-thumbnail,
+    body.search article.business .ast-blog-featured-section,
+    body.search article.business .entry-meta,
+    body.search article.business .ast-blog-single-element,
     body.search article.business .more-link {
         display: none !important;
     }
     
-    /* But ensure our custom business title is visible */
-    .business-search-result h2 {
-        display: block !important;
-        margin: 0 0 10px 0;
-        font-size: 1.4em;
-    }
-    
-    .business-search-result h2 a {
-        color: #333;
-        text-decoration: none;
-    }
-    
-    .business-search-result h2 a:hover {
-        color: #0073aa;
-    }
-    
-    .business-meta {
-        font-size: 0.9em;
-        color: #666;
-        margin-bottom: 15px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #eee;
-    }
-    
-    .business-category,
-    .business-area {
-        font-weight: 500;
-    }
-    
-    /* Description */
-    .business-description {
-        margin-bottom: 15px;
-        color: #666;
-        line-height: 1.6;
-    }
-    
-    /* View business button */
-    .search-view-business {
-        margin-top: 15px;
-    }
-    
-    .business-view-link {
+    /* Basic button styling */
+    body.search article.business .button {
         display: inline-block;
         background: #0073aa;
-        color: white !important;
+        color: white;
         padding: 8px 16px;
-        text-decoration: none !important;
+        text-decoration: none;
         border-radius: 4px;
-        font-size: 0.9em;
-        transition: background 0.2s ease;
+        margin-top: 10px;
     }
     
-    .business-view-link:hover {
+    body.search article.business .button:hover {
         background: #005177;
-        color: white !important;
-        text-decoration: none !important;
-    }
-    
-    /* Force horizontal form on search results */
-    body.search .business-search-form {
-        margin-bottom: 30px;
-    }
-    
-    body.search .business-search-form .search-inputs {
-        flex-direction: row !important;
-        flex-wrap: wrap;
-        align-items: flex-start;
-    }
-    
-    body.search .business-search-form .search-field {
-        max-width: 300px;
-    }
-    
-    body.search .business-search-form .area-field,
-    body.search .business-search-form .category-field {
-        max-width: 225px;
-    }
-    
-    body.search .business-search-form button {
-        height: 40px;
-        margin-top: 0;
-        align-self: flex-start;
-    }
-    
-    /* Additional fix for themes */
-    body.search .entry-content,
-    body.search .entry {
-        overflow: visible;
-    }
-    
-    /* Handle mobile responsiveness */
-    @media (max-width: 768px) {
-        body.search .business-search-form .search-inputs {
-            flex-direction: column !important;
-        }
-        
-        body.search .business-search-form .search-field,
-        body.search .business-search-form .area-field,
-        body.search .business-search-form .category-field {
-            max-width: 100%;
-            width: 100%;
-        }
     }
     </style>
     <?php
@@ -406,22 +303,25 @@ function lbd_light_customize_results($content) {
     // Get post ID once to minimize function calls
     $post_id = get_the_ID();
     
-    // Build the simplest possible output
-    $output = '<div class="business-search-result">';
+    // Get clean content
+    $title = get_the_title();
+    $permalink = get_permalink();
     
-    // 1. Title with permalink
-    $output .= '<h2><a href="' . get_permalink() . '">' . get_the_title() . '</a></h2>';
-    
-    // 2. Description from meta field - nothing else
+    // Get description and clean it
     $description = get_post_meta($post_id, 'lbd_description', true);
+    // Remove business name and View Business text that might be in the description
+    $description = str_replace($title, '', $description);
+    $description = str_replace('View Business', '', $description);
+    $description = trim($description);
+    
+    // Build completely new content with minimal formatting
+    $output = '<h2><a href="' . esc_url($permalink) . '">' . esc_html($title) . '</a></h2>';
+    
     if (!empty($description)) {
-        $output .= '<p>' . $description . '</p>';
+        $output .= '<p>' . esc_html($description) . '</p>';
     }
     
-    // 3. View link
-    $output .= '<a href="' . get_permalink() . '" class="business-view-link">View Business</a>';
-    
-    $output .= '</div>';
+    $output .= '<a href="' . esc_url($permalink) . '" class="button">View Business</a>';
     
     $is_processing = false;
     return $output;
