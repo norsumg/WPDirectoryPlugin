@@ -200,7 +200,7 @@ if (!defined('LBD_PLUGIN_DIR')) {
 }
 
 /**
- * Lightweight search modification that uses WordPress's native functionality
+ * Basic search filter - only keeps the post type filter
  */
 function lbd_light_search_modification($query) {
     // Only modify search queries on the front end
@@ -215,7 +215,6 @@ function lbd_light_search_modification($query) {
     if ($search_businesses) {
         // Only search business post type
         $query->set('post_type', 'business');
-        $query->set('posts_per_page', 20); // Limit to prevent memory issues
         
         // Set up tax query if needed
         $tax_query = array();
@@ -249,100 +248,25 @@ function lbd_light_search_modification($query) {
 add_action('pre_get_posts', 'lbd_light_search_modification');
 
 /**
- * Add styles for business search results
- */
-function lbd_add_search_results_styles() {
-    // Only add styles on search pages
-    if (!is_search()) {
-        return;
-    }
-    
-    ?>
-    <style>
-    /* Minimal styling for search results */
-    body.search article.business {
-        margin-bottom: 20px;
-    }
-    </style>
-    <?php
-}
-add_action('wp_head', 'lbd_add_search_results_styles', 999);
-
-/**
- * Simple function to customize search results - uses minimal processing
- */
-function lbd_light_customize_results($content) {
-    // Return content unmodified to restore default search display
-    return $content;
-}
-add_filter('the_content', 'lbd_light_customize_results');
-
-/**
- * Force replace excerpt with empty value to prevent duplication
- */
-function lbd_force_replace_excerpt($excerpt) {
-    // Just return the excerpt without modification
-    return $excerpt;
-}
-add_filter('the_excerpt', 'lbd_force_replace_excerpt', 999);
-
-/**
- * Add search form to the top of search results using template_redirect
- */
-function lbd_add_search_form_to_results() {
-    // Disabled temporarily to test default search behavior
-    return;
-    
-    // Only run on search pages for businesses
-    if (!is_search() || !isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
-        return;
-    }
-    
-    // Add the form before the loop starts
-    add_action('loop_start', function($query) {
-        if ($query->is_main_query() && !isset($GLOBALS['lbd_form_added'])) {
-            // Force horizontal layout for search results page
-            echo do_shortcode('[business_search layout="horizontal" show_filters="yes"]');
-            $GLOBALS['lbd_form_added'] = true;
-        }
-    });
-}
-add_action('template_redirect', 'lbd_add_search_form_to_results');
-
-/**
- * Create a simple search form shortcode with minimal database queries
+ * Create a simple search form shortcode
  */
 function lbd_simple_search_form_shortcode($atts) {
-    static $form_id = 0;
-    $form_id++;
-    
     $atts = shortcode_atts(array(
         'layout' => 'horizontal',
         'placeholder' => 'Search for businesses...',
         'show_filters' => 'yes'
     ), $atts);
     
-    // Prepare CSS classes
-    $form_classes = 'business-search-form';
-    if ($atts['layout'] === 'horizontal') {
-        $form_classes .= ' horizontal';
-    }
-    
-    // Get current values
-    $current_search = get_search_query();
-    $current_area = isset($_GET['area']) ? sanitize_text_field($_GET['area']) : '';
-    $current_category = isset($_GET['category']) ? sanitize_text_field($_GET['category']) : '';
-    
-    // Build the form directly without complex logic
+    // Build form HTML
     ob_start();
     ?>
-    <div class="<?php echo esc_attr($form_classes); ?>" id="business-search-<?php echo $form_id; ?>">
-        <form role="search" method="get" action="<?php echo esc_url(home_url('/')); ?>" class="search-form">
+    <div class="business-search-form <?php echo esc_attr($atts['layout']); ?>">
+        <form role="search" method="get" action="<?php echo esc_url(home_url('/')); ?>">
             <input type="hidden" name="post_type" value="business" />
             
             <div class="search-inputs">
                 <div class="input-container search-field">
-                    <input type="text" name="s" placeholder="<?php echo esc_attr($atts['placeholder']); ?>" value="<?php echo esc_attr($current_search); ?>" />
+                    <input type="text" name="s" placeholder="<?php echo esc_attr($atts['placeholder']); ?>" value="<?php echo esc_attr(get_search_query()); ?>" />
                 </div>
                 
                 <?php if ($atts['show_filters'] !== 'no'): ?>
@@ -350,19 +274,15 @@ function lbd_simple_search_form_shortcode($atts) {
                         <select name="area">
                             <option value="">All Areas</option>
                             <?php
-                            // Get areas using get_terms - more efficient than a full query
                             $areas = get_terms(array(
                                 'taxonomy' => 'business_area',
                                 'hide_empty' => false,
-                                'orderby' => 'name',
-                                'order' => 'ASC',
-                                'number' => 50, // Limit to prevent memory issues
+                                'number' => 50, 
                             ));
                             
                             if (!empty($areas) && !is_wp_error($areas)) {
                                 foreach ($areas as $term) {
-                                    $selected = ($current_area === $term->slug) ? ' selected="selected"' : '';
-                                    echo '<option value="' . esc_attr($term->slug) . '"' . $selected . '>' . esc_html($term->name) . '</option>';
+                                    echo '<option value="' . esc_attr($term->slug) . '">' . esc_html($term->name) . '</option>';
                                 }
                             }
                             ?>
@@ -373,19 +293,15 @@ function lbd_simple_search_form_shortcode($atts) {
                         <select name="category">
                             <option value="">All Categories</option>
                             <?php
-                            // Get categories using get_terms - more efficient than a full query
                             $categories = get_terms(array(
                                 'taxonomy' => 'business_category',
                                 'hide_empty' => false,
-                                'orderby' => 'name',
-                                'order' => 'ASC',
-                                'number' => 50, // Limit to prevent memory issues
+                                'number' => 50,
                             ));
                             
                             if (!empty($categories) && !is_wp_error($categories)) {
                                 foreach ($categories as $term) {
-                                    $selected = ($current_category === $term->slug) ? ' selected="selected"' : '';
-                                    echo '<option value="' . esc_attr($term->slug) . '"' . $selected . '>' . esc_html($term->name) . '</option>';
+                                    echo '<option value="' . esc_attr($term->slug) . '">' . esc_html($term->name) . '</option>';
                                 }
                             }
                             ?>
@@ -393,7 +309,7 @@ function lbd_simple_search_form_shortcode($atts) {
                     </div>
                 <?php endif; ?>
                 
-                <button type="submit" class="search-button pill-button">Search</button>
+                <button type="submit" class="search-button">Search</button>
             </div>
         </form>
     </div>
@@ -426,49 +342,4 @@ function lbd_get_cached_terms($taxonomy) {
     }
     
     return $cached_terms;
-}
-
-/**
- * Diagnostic function to inspect the search results and output structure
- */
-function lbd_diagnostic_search_output($content) {
-    // Only run on search pages for businesses
-    if (!is_search() || !isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
-        return $content;
-    }
-    
-    // Only for logged-in admins
-    if (!current_user_can('administrator')) {
-        return $content;
-    }
-    
-    // Get post info
-    $post_id = get_the_ID();
-    $post_type = get_post_type();
-    
-    // Check what's available
-    $has_excerpt = has_excerpt($post_id);
-    $excerpt = get_the_excerpt();
-    $permalink = get_permalink();
-    $title = get_the_title();
-    
-    // Get custom fields
-    $custom_description = get_post_meta($post_id, 'lbd_description', true);
-    
-    // Add diagnostic info at the bottom of the content
-    $debug = '<div style="margin-top:20px; padding:10px; background:#f8f8f8; border:1px solid #ddd; font-family:monospace; font-size:12px;">';
-    $debug .= '<strong>DIAGNOSTIC INFO:</strong><br>';
-    $debug .= 'Post ID: ' . $post_id . '<br>';
-    $debug .= 'Post Type: ' . $post_type . '<br>';
-    $debug .= 'Has Excerpt: ' . ($has_excerpt ? 'Yes' : 'No') . '<br>';
-    $debug .= 'Excerpt Length: ' . strlen($excerpt) . '<br>';
-    $debug .= 'Has Custom Description: ' . (!empty($custom_description) ? 'Yes' : 'No') . '<br>';
-    $debug .= 'Custom Description Length: ' . strlen($custom_description) . '<br>';
-    $debug .= 'Content Length: ' . strlen($content) . '<br>';
-    $debug .= '</div>';
-    
-    return $content . $debug;
-}
-
-// Add with a lower priority than our customization function
-add_filter('the_content', 'lbd_diagnostic_search_output', 1000); 
+} 
