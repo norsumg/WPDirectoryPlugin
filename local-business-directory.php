@@ -311,6 +311,26 @@ function lbd_light_customize_results($content) {
     // Get description from meta directly
     $description = get_post_meta($post_id, 'lbd_description', true);
     
+    // If description is empty, try to use the post content or excerpt
+    if (empty($description)) {
+        global $post;
+        
+        // First try to get the excerpt 
+        if (has_excerpt($post_id)) {
+            $description = get_the_excerpt();
+            
+            // Clean up the excerpt by removing the business name and "View Business" text
+            $business_name = get_the_title();
+            $description = str_replace($business_name, '', $description);
+            $description = str_replace('View Business', '', $description);
+            $description = trim($description);
+        } 
+        // If no excerpt, try to use the post content
+        else if (!empty($post->post_content)) {
+            $description = wp_trim_words($post->post_content, 30);
+        }
+    }
+    
     // Build our custom content - append to existing content rather than replacing
     $custom_content = '';
     
