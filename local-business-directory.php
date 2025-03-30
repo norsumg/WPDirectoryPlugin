@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Local Business Directory
  * Description: A directory plugin for local businesses with categories, search, and premium listings.
- * Version: 1.0
- * Author: Your Name
+ * Version: 0.6.1
+ * Author: Norsu Media
  */
 
 // Prevent direct access
@@ -179,7 +179,7 @@ function lbd_plugin_loaded() {
     $current_version = get_option('lbd_version', '0');
     
     // Current plugin version
-    $plugin_version = '1.5'; // Increment to force rebuild of rewrite rules
+    $plugin_version = '0.6.1'; // Update version number here
     
     // Check if version has changed
     if (version_compare($current_version, $plugin_version, '!=')) {
@@ -200,7 +200,7 @@ if (!defined('LBD_PLUGIN_DIR')) {
 }
 
 /**
- * Basic search filter - only keeps the post type filter
+ * Modify search queries to handle filtering by business areas and categories
  */
 function lbd_light_search_modification($query) {
     // Only modify search queries on the front end
@@ -209,7 +209,8 @@ function lbd_light_search_modification($query) {
     }
     
     // Check if we're explicitly searching for businesses
-    $search_businesses = isset($_GET['post_type']) && $_GET['post_type'] === 'business';
+    $post_type = isset($_GET['post_type']) ? sanitize_key($_GET['post_type']) : '';
+    $search_businesses = $post_type === 'business';
     
     // If this is a business-specific search
     if ($search_businesses) {
@@ -219,20 +220,32 @@ function lbd_light_search_modification($query) {
         // Set up tax query if needed
         $tax_query = array();
         
-        if (isset($_GET['category']) && !empty($_GET['category'])) {
-            $tax_query[] = array(
-                'taxonomy' => 'business_category',
-                'field' => 'slug',
-                'terms' => sanitize_text_field($_GET['category'])
-            );
+        // Get and validate category
+        $category = isset($_GET['category']) ? sanitize_key($_GET['category']) : '';
+        if ($category) {
+            // Verify the term exists in the taxonomy
+            $term = get_term_by('slug', $category, 'business_category');
+            if ($term && !is_wp_error($term)) {
+                $tax_query[] = array(
+                    'taxonomy' => 'business_category',
+                    'field' => 'slug',
+                    'terms' => $category
+                );
+            }
         }
         
-        if (isset($_GET['area']) && !empty($_GET['area'])) {
-            $tax_query[] = array(
-                'taxonomy' => 'business_area',
-                'field' => 'slug',
-                'terms' => sanitize_text_field($_GET['area'])
-            );
+        // Get and validate area
+        $area = isset($_GET['area']) ? sanitize_key($_GET['area']) : '';
+        if ($area) {
+            // Verify the term exists in the taxonomy
+            $term = get_term_by('slug', $area, 'business_area');
+            if ($term && !is_wp_error($term)) {
+                $tax_query[] = array(
+                    'taxonomy' => 'business_area',
+                    'field' => 'slug',
+                    'terms' => $area
+                );
+            }
         }
         
         if (!empty($tax_query)) {
@@ -353,7 +366,8 @@ function lbd_hide_author_in_search() {
     }
     
     // Only add CSS if we're searching for businesses
-    if (!isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
+    $post_type = isset($_GET['post_type']) ? sanitize_key($_GET['post_type']) : '';
+    if ($post_type !== 'business') {
         return;
     }
     
@@ -425,7 +439,8 @@ add_filter('the_content', 'lbd_add_ratings_to_search_content', 5);
  */
 function lbd_add_ratings_to_search_excerpt($excerpt) {
     // Only modify search results for business post type
-    if (!is_search() || !isset($_GET['post_type']) || $_GET['post_type'] !== 'business') {
+    $post_type = isset($_GET['post_type']) ? sanitize_key($_GET['post_type']) : '';
+    if (!is_search() || $post_type !== 'business') {
         return $excerpt;
     }
     
@@ -459,7 +474,8 @@ function lbd_add_ratings_to_search_excerpt($excerpt) {
     }
     
     // Debug mode - shows all metadata for admin users
-    if (isset($_GET['debug']) && current_user_can('administrator')) {
+    $debug_mode = isset($_GET['debug']) ? (bool)sanitize_key($_GET['debug']) : false;
+    if ($debug_mode && current_user_can('administrator')) {
         $meta_data = get_post_meta($post_id);
         $debug_html = '<div style="background:#f5f5f5; border:1px solid #ddd; padding:10px; margin:10px 0; font-family:monospace;">';
         $debug_html .= '<strong>DEBUG INFO:</strong><br>';
