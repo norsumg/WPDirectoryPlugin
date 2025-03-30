@@ -361,12 +361,12 @@ function lbd_review_form_shortcode($atts) {
                         $rating,
                         'manual', // Source is 'manual' for user-submitted reviews
                         '', // No source ID for manual reviews
-                        $approved // Set to false to require approval
+                        $approved, // Set to false to require approval
+                        $reviewer_email // Pass the reviewer's email to be stored in the table
                     );
                     
-                    // Save the email as post meta if the review was added successfully
+                    // If the review was added successfully
                     if ($result) {
-                        update_post_meta($result, 'reviewer_email', $reviewer_email);
                         $form_success = true;
                         
                         // Set rate limiting transient (5 minutes)

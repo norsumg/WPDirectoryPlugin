@@ -28,6 +28,7 @@ function lbd_create_reviews_table() {
             id bigint(20) NOT NULL AUTO_INCREMENT,
             business_id bigint(20) NOT NULL,
             reviewer_name varchar(100) NOT NULL,
+            reviewer_email varchar(255) DEFAULT '',
             review_text text NOT NULL,
             rating tinyint(1) NOT NULL,
             review_date datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -48,6 +49,31 @@ function lbd_create_reviews_table() {
 add_action('lbd_activation', 'lbd_create_reviews_table');
 
 /**
+ * Update existing reviews table with new columns
+ * This is run when the plugin version is updated
+ */
+function lbd_update_reviews_table_structure() {
+    global $wpdb;
+    
+    // Table name with prefix
+    $table_name = $wpdb->prefix . 'lbd_reviews';
+    
+    // Check if table exists
+    $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name)) === $table_name;
+    
+    if ($table_exists) {
+        // Check if reviewer_email column exists
+        $column_exists = $wpdb->get_var("SHOW COLUMNS FROM {$table_name} LIKE 'reviewer_email'");
+        
+        // If the column doesn't exist, add it
+        if (!$column_exists) {
+            $wpdb->query("ALTER TABLE {$table_name} ADD COLUMN reviewer_email varchar(255) DEFAULT '' AFTER reviewer_name");
+        }
+    }
+}
+add_action('plugins_loaded', 'lbd_update_reviews_table_structure');
+
+/**
  * Add a review to the database
  * 
  * @param int $business_id The business post ID
@@ -57,9 +83,10 @@ add_action('lbd_activation', 'lbd_create_reviews_table');
  * @param string $source Source of the review (e.g., 'google', 'manual')
  * @param string $source_id ID from the source system if applicable
  * @param bool $approved Whether the review is approved for display
+ * @param string $reviewer_email Email of the reviewer
  * @return int|false The review ID or false on failure
  */
-function lbd_add_review($business_id, $reviewer_name, $review_text, $rating, $source = 'google', $source_id = '', $approved = true) {
+function lbd_add_review($business_id, $reviewer_name, $review_text, $rating, $source = 'google', $source_id = '', $approved = true, $reviewer_email = '') {
     global $wpdb;
     
     $table_name = $wpdb->prefix . 'lbd_reviews';
@@ -69,13 +96,14 @@ function lbd_add_review($business_id, $reviewer_name, $review_text, $rating, $so
         array(
             'business_id' => $business_id,
             'reviewer_name' => $reviewer_name,
+            'reviewer_email' => $reviewer_email,
             'review_text' => $review_text,
             'rating' => $rating,
             'source' => $source,
             'source_id' => $source_id,
             'approved' => $approved ? 1 : 0
         ),
-        array('%d', '%s', '%s', '%d', '%s', '%s', '%d')
+        array('%d', '%s', '%s', '%s', '%d', '%s', '%s', '%d')
     );
     
     if ($result) {

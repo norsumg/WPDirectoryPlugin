@@ -1023,7 +1023,7 @@ function lbd_reviews_page() {
                         <th scope="row"><label for="lbd_reviews_file">CSV File</label></th>
                         <td>
                             <input type="file" name="lbd_reviews_file" id="lbd_reviews_file" accept=".csv" required>
-                            <p class="description">File must be a CSV with headers: business_id, reviewer_name, review_text, rating, review_date, source_id</p>
+                            <p class="description">File must be a CSV with headers: business_id, reviewer_name, reviewer_email, review_text, rating, review_date, source_id</p>
                         </td>
                     </tr>
                 </table>
@@ -1064,6 +1064,13 @@ function lbd_reviews_page() {
                         <th scope="row"><label for="lbd_reviewer_name">Reviewer Name</label></th>
                         <td>
                             <input type="text" name="lbd_reviewer_name" id="lbd_reviewer_name" class="regular-text" required>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="lbd_reviewer_email">Reviewer Email</label></th>
+                        <td>
+                            <input type="email" name="lbd_reviewer_email" id="lbd_reviewer_email" class="regular-text">
+                            <p class="description">Optional. Email will not be displayed publicly.</p>
                         </td>
                     </tr>
                     <tr>
@@ -1119,6 +1126,7 @@ function lbd_reviews_page() {
                 echo '<tr>';
                 echo '<th>Business</th>';
                 echo '<th>Reviewer</th>';
+                echo '<th>Email</th>';
                 echo '<th>Review</th>';
                 echo '<th>Rating</th>';
                 echo '<th>Date</th>';
@@ -1133,6 +1141,7 @@ function lbd_reviews_page() {
                     echo '<tr>';
                     echo '<td>' . esc_html($review->business_name) . '</td>';
                     echo '<td>' . esc_html($review->reviewer_name) . '</td>';
+                    echo '<td>' . esc_html($review->reviewer_email) . '</td>';
                     echo '<td>' . esc_html(wp_trim_words($review->review_text, 15)) . '</td>';
                     echo '<td>' . esc_html($review->rating) . ' / 5</td>';
                     echo '<td>' . esc_html(date('M j, Y', strtotime($review->review_date))) . '</td>';
@@ -1178,6 +1187,7 @@ function lbd_handle_add_review() {
     // Get form data
     $business_id = isset($_POST['lbd_business_id']) ? intval($_POST['lbd_business_id']) : 0;
     $reviewer_name = isset($_POST['lbd_reviewer_name']) ? sanitize_text_field($_POST['lbd_reviewer_name']) : '';
+    $reviewer_email = isset($_POST['lbd_reviewer_email']) ? sanitize_email($_POST['lbd_reviewer_email']) : '';
     $review_text = isset($_POST['lbd_review_text']) ? sanitize_textarea_field($_POST['lbd_review_text']) : '';
     $rating = isset($_POST['lbd_rating']) ? intval($_POST['lbd_rating']) : 5;
     $source = isset($_POST['lbd_source']) ? sanitize_text_field($_POST['lbd_source']) : 'manual';
@@ -1189,7 +1199,7 @@ function lbd_handle_add_review() {
     }
     
     // Add the review
-    $result = lbd_add_review($business_id, $reviewer_name, $review_text, $rating, $source);
+    $result = lbd_add_review($business_id, $reviewer_name, $review_text, $rating, $source, '', true, $reviewer_email);
     
     if ($result) {
         // Redirect to avoid form resubmission
@@ -1285,6 +1295,7 @@ function lbd_handle_reviews_import() {
         // Add the review
         $business_id = intval($data['business_id']);
         $reviewer_name = sanitize_text_field($data['reviewer_name']);
+        $reviewer_email = !empty($data['reviewer_email']) ? sanitize_email($data['reviewer_email']) : '';
         $review_text = sanitize_textarea_field($data['review_text']);
         $rating = intval($data['rating']);
         $source = !empty($data['source']) ? sanitize_text_field($data['source']) : 'google';
@@ -1301,7 +1312,7 @@ function lbd_handle_reviews_import() {
         }
         
         // Add the review using our function from activation.php
-        $result = lbd_add_review($business_id, $reviewer_name, $review_text, $rating, $source, $source_id);
+        $result = lbd_add_review($business_id, $reviewer_name, $review_text, $rating, $source, $source_id, true, $reviewer_email);
         
         if ($result) {
             // If review date was provided, update it directly in the database
