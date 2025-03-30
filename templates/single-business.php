@@ -157,8 +157,11 @@
             );
 
             foreach ($days as $day_id => $day_name) {
-                // Check if there are hours set for this day
-                $day_group = get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id . '_group', true);
+                // Check if there are hours set for this day using the helper function
+                $day_group = function_exists('lbd_get_business_hours') 
+                    ? lbd_get_business_hours(get_the_ID(), $day_id) 
+                    : get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id . '_group', true);
+                
                 if (!empty($day_group)) {
                     $has_hours = true;
                     break;
@@ -175,7 +178,10 @@
             <?php else : ?>
                 <table class="hours-table">
                     <?php foreach ($days as $day_id => $day_name) : 
-                        $day_group = get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id . '_group', true);
+                        // Get hours data using the helper function
+                        $day_group = function_exists('lbd_get_business_hours') 
+                            ? lbd_get_business_hours(get_the_ID(), $day_id) 
+                            : get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id . '_group', true);
                         
                         if (empty($day_group)) {
                             $hours_display = 'Hours not specified';

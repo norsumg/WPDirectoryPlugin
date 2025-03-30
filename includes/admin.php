@@ -190,14 +190,14 @@ function lbd_export_businesses_to_csv() {
             get_post_meta($business->ID, 'lbd_email', true),
             get_post_meta($business->ID, 'lbd_facebook', true),
             get_post_meta($business->ID, 'lbd_instagram', true),
-            get_post_meta($business->ID, 'lbd_hours_24', true),
-            get_post_meta($business->ID, 'lbd_hours_monday', true),
-            get_post_meta($business->ID, 'lbd_hours_tuesday', true),
-            get_post_meta($business->ID, 'lbd_hours_wednesday', true),
-            get_post_meta($business->ID, 'lbd_hours_thursday', true),
-            get_post_meta($business->ID, 'lbd_hours_friday', true),
-            get_post_meta($business->ID, 'lbd_hours_saturday', true),
-            get_post_meta($business->ID, 'lbd_hours_sunday', true),
+            get_post_meta($business->ID, 'lbd_hours_24', true) ? 'yes' : 'no',
+            lbd_format_hours_for_export(lbd_get_business_hours($business->ID, 'monday')),
+            lbd_format_hours_for_export(lbd_get_business_hours($business->ID, 'tuesday')),
+            lbd_format_hours_for_export(lbd_get_business_hours($business->ID, 'wednesday')),
+            lbd_format_hours_for_export(lbd_get_business_hours($business->ID, 'thursday')),
+            lbd_format_hours_for_export(lbd_get_business_hours($business->ID, 'friday')),
+            lbd_format_hours_for_export(lbd_get_business_hours($business->ID, 'saturday')),
+            lbd_format_hours_for_export(lbd_get_business_hours($business->ID, 'sunday')),
             get_post_meta($business->ID, 'lbd_payments', true),
             get_post_meta($business->ID, 'lbd_parking', true),
             get_post_meta($business->ID, 'lbd_amenities', true),
@@ -465,6 +465,156 @@ function lbd_handle_csv_import() {
 }
 
 /**
+ * Parse text-based opening hours to structured array format
+ * 
+ * @param string $hours_text Text representation of opening hours (e.g., "9 am–5 pm" or "Closed")
+ * @return array Structured array with open, close, and closed status
+ */
+function lbd_parse_hours_from_text($hours_text) {
+    $hours_text = trim($hours_text);
+    $result = array(
+        'open' => '',
+        'close' => '',
+        'closed' => ''
+    );
+    
+    // Check if it's closed
+    if (empty($hours_text) || strtolower($hours_text) === 'closed') {
+        $result['closed'] = 'on';
+        return $result;
+    }
+    
+    // Try to parse the hours
+    // Common formats: "9 am–5 pm", "9:00 AM - 5:00 PM", "9-5", etc.
+    $patterns = array(
+        // 9 am–5 pm (en dash)
+        '/([0-9]{1,2})(?::([0-9]{2}))?\s*([aApP][mM])?(?:–|-)([0-9]{1,2})(?::([0-9]{2}))?\s*([aApP][mM])?/',
+        // 9:00 AM - 5:00 PM (hyphen)
+        '/([0-9]{1,2})(?::([0-9]{2}))?\s*([aApP][mM])?\s*(?:-|to)\s*([0-9]{1,2})(?::([0-9]{2}))?\s*([aApP][mM])?/',
+    );
+    
+    $matched = false;
+    foreach ($patterns as $pattern) {
+        if (preg_match($pattern, $hours_text, $matches)) {
+            $matched = true;
+            
+            // Parse opening hours
+            $open_hour = isset($matches[1]) ? $matches[1] : '';
+            $open_minutes = isset($matches[2]) ? $matches[2] : '00';
+            $open_ampm = isset($matches[3]) ? strtoupper($matches[3]) : '';
+            
+            // Parse closing hours
+            $close_hour = isset($matches[4]) ? $matches[4] : '';
+            $close_minutes = isset($matches[5]) ? $matches[5] : '00';
+            $close_ampm = isset($matches[6]) ? strtoupper($matches[6]) : '';
+            
+            // If AM/PM not specified, infer based on hours
+            if (empty($open_ampm) && empty($close_ampm)) {
+                // If open hour is 12 or less, assume AM
+                $open_ampm = ($open_hour <= 12) ? 'AM' : 'PM';
+                // If close hour is 12 or less and less than open hour, assume PM
+                $close_ampm = ($close_hour <= 12 && $close_hour < $open_hour) ? 'PM' : $open_ampm;
+            } else if (empty($open_ampm)) {
+                $open_ampm = $close_ampm;
+            } else if (empty($close_ampm)) {
+                $close_ampm = $open_ampm;
+            }
+            
+            // Format the time in the expected CMB2 format (g:i A)
+            $result['open'] = sprintf('%d:%02d %s', $open_hour, (int)$open_minutes, $open_ampm);
+            $result['close'] = sprintf('%d:%02d %s', $close_hour, (int)$close_minutes, $close_ampm);
+            break;
+        }
+    }
+    
+    // If no pattern matched, store the raw text in the open field
+    if (!$matched) {
+        $result['open'] = $hours_text;
+    }
+    
+    return $result;
+}
+
+/**
+ * Convert structured hours array to text format for CSV export
+ * 
+ * @param array $hours_data Structured array with open, close, and closed status
+ * @return string Text representation of opening hours
+ */
+function lbd_format_hours_for_export($hours_data) {
+    // If no data, return empty
+    if (empty($hours_data) || !is_array($hours_data)) {
+        return '';
+    }
+    
+    // Check if it's the first item in the group
+    $hours_item = $hours_data[0];
+    
+    // If marked as closed, return "Closed"
+    if (isset($hours_item['closed']) && $hours_item['closed']) {
+        return 'Closed';
+    }
+    
+    // If we have both opening and closing times
+    if (!empty($hours_item['open']) && !empty($hours_item['close'])) {
+        return $hours_item['open'] . ' - ' . $hours_item['close'];
+    }
+    
+    // If we only have opening time
+    if (!empty($hours_item['open'])) {
+        return $hours_item['open'];
+    }
+    
+    // Default return empty
+    return '';
+}
+
+/**
+ * Get business hours for a specific day, with backward compatibility
+ * 
+ * @param int $post_id Business post ID
+ * @param string $day Day of the week (monday, tuesday, etc.)
+ * @return array|null Hours data array or null if not found
+ */
+function lbd_get_business_hours($post_id, $day) {
+    // Try to get the new structured format first
+    $hours_group = get_post_meta($post_id, 'lbd_hours_' . $day . '_group', true);
+    
+    // If we have data in the new format, return it
+    if (!empty($hours_group) && is_array($hours_group)) {
+        return $hours_group;
+    }
+    
+    // Try the old format
+    $old_hours = get_post_meta($post_id, 'lbd_hours_' . $day, true);
+    
+    // If we have old format data, convert it
+    if (!empty($old_hours)) {
+        // Parse the old format
+        $hours_data = lbd_parse_hours_from_text($old_hours);
+        
+        // Store it in the new format
+        $group_data = array($hours_data);
+        update_post_meta($post_id, 'lbd_hours_' . $day . '_group', $group_data);
+        
+        // Return the converted data
+        return $group_data;
+    }
+    
+    return null;
+}
+
+// Make the function available outside of admin
+add_action('init', function() {
+    if (!function_exists('lbd_get_business_hours')) {
+        function lbd_get_business_hours($post_id, $day) {
+            // Call the admin function
+            return \lbd_get_business_hours($post_id, $day);
+        }
+    }
+});
+
+/**
  * Create a business post from CSV data
  *
  * @param array $data CSV row data
@@ -532,7 +682,17 @@ function lbd_create_business_from_csv($data) {
     $days = array('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday');
     foreach ($days as $day) {
         if (isset($data['business_hours_' . $day])) {
-            update_post_meta($post_id, 'lbd_hours_' . $day, sanitize_text_field($data['business_hours_' . $day]));
+            $hours_text = sanitize_text_field($data['business_hours_' . $day]);
+            
+            // Parse hours text into structured format
+            $hours_data = lbd_parse_hours_from_text($hours_text);
+            
+            // Store in the CMB2 group format
+            $group_data = array($hours_data); // Just one entry for now
+            update_post_meta($post_id, 'lbd_hours_' . $day . '_group', $group_data);
+            
+            // Remove old format data if it exists
+            delete_post_meta($post_id, 'lbd_hours_' . $day);
         }
     }
 
