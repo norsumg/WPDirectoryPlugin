@@ -946,7 +946,12 @@ function lbd_reviews_page() {
             <h2>Manage Reviews</h2>
             <?php
             $table_name = $wpdb->prefix . 'lbd_reviews';
-            $reviews = $wpdb->get_results("SELECT r.*, p.post_title AS business_name FROM {$table_name} r JOIN {$wpdb->posts} p ON r.business_id = p.ID ORDER BY r.review_date DESC");
+            $reviews = $wpdb->get_results($wpdb->prepare(
+                "SELECT r.*, p.post_title AS business_name 
+                FROM {$table_name} r 
+                JOIN {$wpdb->posts} p ON r.business_id = p.ID 
+                ORDER BY r.review_date DESC"
+            ));
             
             if ($reviews) {
                 echo '<table class="wp-list-table widefat fixed striped">';
