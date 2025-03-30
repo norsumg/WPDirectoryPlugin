@@ -359,8 +359,8 @@ function lbd_review_form_shortcode($atts) {
                         $reviewer_name,
                         $review_text,
                         $rating,
-                        'manual', // Source is 'manual' for user-submitted reviews
-                        '', // No source ID for manual reviews
+                        'review form', // Source is 'review form' for user-submitted reviews
+                        '', // No source ID for reviews from the form
                         $approved, // Set to false to require approval
                         $reviewer_email // Pass the reviewer's email to be stored in the table
                     );
