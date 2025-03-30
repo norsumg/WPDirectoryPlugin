@@ -25,6 +25,7 @@
 /* Business profile styles */
 .business-profile {
     max-width: 1024px;
+    min-width: 750px!important;
     margin: 0 auto;
     background: #fff;
     border-radius: 8px;

@@ -711,7 +711,7 @@ function lbd_create_business_from_csv($data) {
             if (empty($photo_url)) continue;
             
             $photo_url = trim($photo_url);
-            $attachment_id = lbd_import_image_from_url($photo_url, $post_id, $data['business_name'] . ' - Photo');
+            $attachment_id = lbd_import_image($photo_url, $post_id, $data['business_name'] . ' - Photo', true);
             
             if (!is_wp_error($attachment_id)) {
                 $photos[$attachment_id] = wp_get_attachment_url($attachment_id);
@@ -732,7 +732,7 @@ function lbd_create_business_from_csv($data) {
             foreach ($accreditations as $key => $accreditation) {
                 if (!empty($accreditation['logo_url'])) {
                     $logo_url = $accreditation['logo_url'];
-                    $attachment_id = lbd_import_image_from_url($logo_url, $post_id, $accreditation['name'] . ' - Logo');
+                    $attachment_id = lbd_import_image($logo_url, $post_id, $accreditation['name'] . ' - Logo', true);
                     
                     if (!is_wp_error($attachment_id)) {
                         $accreditations[$key]['logo'] = $attachment_id;
@@ -747,29 +747,25 @@ function lbd_create_business_from_csv($data) {
         }
     }
     
-    // Set featured image if URL is provided
+    // Set featured image if one was provided
     if (!empty($data['business_image_url'])) {
         $image_url = esc_url_raw($data['business_image_url']);
-        $image_id = lbd_set_featured_image_from_url($image_url, $post_id, $data['business_name']);
-        
-        if (is_wp_error($image_id)) {
-            // Log the error but continue with the import
-            error_log('Error importing image for ' . $data['business_name'] . ': ' . $image_id->get_error_message());
-        }
+        $image_id = lbd_import_image($image_url, $post_id, $data['business_name'], true);
     }
     
     return $post_id;
 }
 
 /**
- * Set a featured image from a URL
- *
- * @param string $image_url The URL of the image
+ * Import an image from a URL and optionally set as featured image
+ * 
+ * @param string $image_url The URL of the image to import
  * @param int $post_id The post ID to attach the image to
- * @param string $title The title for the image
+ * @param string $title The title to use for the attachment
+ * @param bool $set_featured Whether to set the image as the featured image
  * @return int|WP_Error The attachment ID or WP_Error
  */
-function lbd_set_featured_image_from_url($image_url, $post_id, $title = '') {
+function lbd_import_image($image_url, $post_id, $title = '', $set_featured = false) {
     // Check if this image has already been uploaded
     $existing_attachment = get_posts(array(
         'post_type' => 'attachment',
@@ -780,7 +776,12 @@ function lbd_set_featured_image_from_url($image_url, $post_id, $title = '') {
     
     if (!empty($existing_attachment)) {
         $attach_id = $existing_attachment[0]->ID;
-        set_post_thumbnail($post_id, $attach_id);
+        
+        // Set as featured image if requested
+        if ($set_featured) {
+            set_post_thumbnail($post_id, $attach_id);
+        }
+        
         return $attach_id;
     }
     
@@ -823,69 +824,36 @@ function lbd_set_featured_image_from_url($image_url, $post_id, $title = '') {
     // Save the source URL as post meta for future reference
     update_post_meta($attach_id, '_lbd_source_url', $image_url);
     
-    // Set as featured image
-    set_post_thumbnail($post_id, $attach_id);
+    // Set as featured image if requested
+    if ($set_featured) {
+        set_post_thumbnail($post_id, $attach_id);
+    }
     
     return $attach_id;
 }
 
 /**
- * Import an image from a URL and attach it to a post
- * Similar to lbd_set_featured_image_from_url but doesn't set as featured image
+ * Set featured image from URL (wrapper for backward compatibility)
+ * 
+ * @param string $image_url The URL of the image to import
+ * @param int $post_id The post ID to attach the image to
+ * @param string $title The title to use for the attachment
+ * @return int|WP_Error The attachment ID or WP_Error
+ */
+function lbd_set_featured_image_from_url($image_url, $post_id, $title = '') {
+    return lbd_import_image($image_url, $post_id, $title, true);
+}
+
+/**
+ * Import image from URL (wrapper for backward compatibility)
+ * 
+ * @param string $image_url The URL of the image to import
+ * @param int $post_id The post ID to attach the image to
+ * @param string $title The title to use for the attachment
+ * @return int|WP_Error The attachment ID or WP_Error
  */
 function lbd_import_image_from_url($image_url, $post_id, $title = '') {
-    // Check if this image has already been uploaded
-    $existing_attachment = get_posts(array(
-        'post_type' => 'attachment',
-        'meta_key' => '_lbd_source_url',
-        'meta_value' => $image_url,
-        'posts_per_page' => 1,
-    ));
-    
-    if (!empty($existing_attachment)) {
-        return $existing_attachment[0]->ID;
-    }
-    
-    // Include necessary files for media handling
-    require_once(ABSPATH . 'wp-admin/includes/media.php');
-    require_once(ABSPATH . 'wp-admin/includes/file.php');
-    require_once(ABSPATH . 'wp-admin/includes/image.php');
-    
-    // Download the image
-    $tmp = download_url($image_url);
-    
-    if (is_wp_error($tmp)) {
-        return $tmp;
-    }
-    
-    // Prepare file parameters
-    $file_array = array(
-        'name' => basename($image_url),
-        'tmp_name' => $tmp,
-    );
-    
-    // If the URL has no extension, add one
-    if (!preg_match('/\.(jpg|jpeg|png|gif)$/i', $file_array['name'])) {
-        $file_array['name'] .= '.jpg';
-    }
-    
-    // Add a timestamp to the file name to avoid duplicates
-    $file_array['name'] = time() . '-' . $file_array['name'];
-    
-    // Upload the image and attach it to the post
-    $attach_id = media_handle_sideload($file_array, $post_id, $title);
-    
-    // Remove the temporary file
-    @unlink($tmp);
-    
-    if (is_wp_error($attach_id)) {
-        return $attach_id;
-    }
-    
-    // Save the source URL as post meta for future reference
-    update_post_meta($attach_id, '_lbd_source_url', $image_url);
-    
-    return $attach_id;
+    return lbd_import_image($image_url, $post_id, $title, false);
 }
 
 /**

@@ -28,6 +28,7 @@ lbd_include_file('includes/shortcodes.php');
 lbd_include_file('includes/templates.php');
 lbd_include_file('includes/admin.php');
 lbd_include_file('includes/activation.php');
+lbd_include_file('includes/reviews.php');
 
 /**
  * Enqueue frontend styles and scripts
@@ -288,77 +289,6 @@ function lbd_light_search_modification($query) {
 add_action('pre_get_posts', 'lbd_light_search_modification');
 
 /**
- * Create a simple search form shortcode
- */
-function lbd_simple_search_form_shortcode($atts) {
-    $atts = shortcode_atts(array(
-        'layout' => 'horizontal',
-        'placeholder' => 'Search for businesses...',
-        'show_filters' => 'yes'
-    ), $atts);
-    
-    // Build form HTML
-    ob_start();
-    ?>
-    <div class="business-search-form <?php echo esc_attr($atts['layout']); ?>">
-        <form role="search" method="get" action="<?php echo esc_url(home_url('/')); ?>">
-            <input type="hidden" name="post_type" value="business" />
-            
-            <div class="search-inputs">
-                <div class="input-container search-field">
-                    <input type="text" name="s" placeholder="<?php echo esc_attr($atts['placeholder']); ?>" value="<?php echo esc_attr(get_search_query()); ?>" />
-                </div>
-                
-                <?php if ($atts['show_filters'] !== 'no'): ?>
-                    <div class="input-container area-field">
-                        <select name="area">
-                            <option value="">All Areas</option>
-                            <?php
-                            $areas = get_terms(array(
-                                'taxonomy' => 'business_area',
-                                'hide_empty' => false,
-                                'number' => 50, 
-                            ));
-                            
-                            if (!empty($areas) && !is_wp_error($areas)) {
-                                foreach ($areas as $term) {
-                                    echo '<option value="' . esc_attr($term->slug) . '">' . esc_html($term->name) . '</option>';
-                                }
-                            }
-                            ?>
-                        </select>
-                    </div>
-                    
-                    <div class="input-container category-field">
-                        <select name="category">
-                            <option value="">All Categories</option>
-                            <?php
-                            $categories = get_terms(array(
-                                'taxonomy' => 'business_category',
-                                'hide_empty' => false,
-                                'number' => 50,
-                            ));
-                            
-                            if (!empty($categories) && !is_wp_error($categories)) {
-                                foreach ($categories as $term) {
-                                    echo '<option value="' . esc_attr($term->slug) . '">' . esc_html($term->name) . '</option>';
-                                }
-                            }
-                            ?>
-                        </select>
-                    </div>
-                <?php endif; ?>
-                
-                <button type="submit" class="search-button">Search</button>
-            </div>
-        </form>
-    </div>
-    <?php
-    return ob_get_clean();
-}
-add_shortcode('business_search', 'lbd_simple_search_form_shortcode');
-
-/**
  * Get cached taxonomy terms
  */
 function lbd_get_cached_terms($taxonomy) {
@@ -477,7 +407,13 @@ function lbd_add_ratings_to_search_excerpt($excerpt) {
         return $excerpt;
     }
     
-    // Format stars based on rating
+    // Use our consolidated star rating function if available
+    if (function_exists('lbd_get_star_rating_html')) {
+        $stars_html = lbd_get_star_rating_html($review_average, $review_count, $review_source);
+        return $stars_html . $excerpt;
+    }
+    
+    // Fallback to old method if function not available
     $stars_html = '<div class="business-rating" style="display:block; margin:10px 0; color:#f7d032; font-size:1.2em;">';
     if ($review_source === 'Google') {
         $stars_html .= '<strong>Google Rating: </strong>';

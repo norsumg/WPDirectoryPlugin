@@ -228,24 +228,32 @@
                 if ($average_rating) {
                     echo '<div class="review-summary">';
                     echo '<div class="average-rating">' . esc_html($average_rating) . ' / 5</div>';
-                    echo '<div class="rating-stars">';
-                    // Display stars based on average rating
-                    $full_stars = floor($average_rating);
-                    $half_star = $average_rating - $full_stars >= 0.5;
-                    $empty_stars = 5 - $full_stars - ($half_star ? 1 : 0);
                     
-                    for ($i = 0; $i < $full_stars; $i++) {
-                        echo '<span class="star full-star">★</span>';
+                    // Use the consolidated function if available
+                    if (function_exists('lbd_get_star_rating_html')) {
+                        echo lbd_get_star_rating_html($average_rating, $review_count);
+                    } else {
+                        // Fallback to original code
+                        echo '<div class="rating-stars">';
+                        // Display stars based on average rating
+                        $full_stars = floor($average_rating);
+                        $half_star = $average_rating - $full_stars >= 0.5;
+                        $empty_stars = 5 - $full_stars - ($half_star ? 1 : 0);
+                        
+                        for ($i = 0; $i < $full_stars; $i++) {
+                            echo '<span class="star full-star">★</span>';
+                        }
+                        
+                        if ($half_star) {
+                            echo '<span class="star half-star">★</span>';
+                        }
+                        
+                        for ($i = 0; $i < $empty_stars; $i++) {
+                            echo '<span class="star empty-star">☆</span>';
+                        }
+                        echo '</div>';
                     }
                     
-                    if ($half_star) {
-                        echo '<span class="star half-star">★</span>';
-                    }
-                    
-                    for ($i = 0; $i < $empty_stars; $i++) {
-                        echo '<span class="star empty-star">☆</span>';
-                    }
-                    echo '</div>';
                     echo '<div class="review-count">Based on ' . esc_html($review_count) . ' reviews</div>';
                     echo '</div>';
                 }
