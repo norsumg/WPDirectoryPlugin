@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Local Business Directory
  * Description: A directory plugin for local businesses with categories, search, and premium listings.
- * Version: 0.6.1
+ * Version: 0.6.2
  * Author: Norsu Media
  */
 
@@ -179,7 +179,7 @@ function lbd_plugin_loaded() {
     $current_version = get_option('lbd_version', '0');
     
     // Current plugin version
-    $plugin_version = '0.6.1'; // Update version number here
+    $plugin_version = '0.6.2'; // Update version number here
     
     // Check if version has changed
     if (version_compare($current_version, $plugin_version, '!=')) {
