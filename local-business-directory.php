@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Local Business Directory
  * Description: A directory plugin for local businesses with categories, search, and premium listings.
- * Version: 0.6.3
+ * Version: 0.7.0
  * Author: Norsu Media
  */
 
@@ -29,11 +29,38 @@ lbd_include_file('includes/templates.php');
 lbd_include_file('includes/admin.php');
 lbd_include_file('includes/activation.php');
 
-// Enqueue basic styles
+/**
+ * Enqueue frontend styles and scripts
+ */
 function lbd_enqueue_styles() {
-    wp_enqueue_style( 'lbd-styles', plugin_dir_url( __FILE__ ) . 'assets/css/directory.css' );
+    // Main plugin CSS
+    wp_enqueue_style('lbd-styles', plugin_dir_url(__FILE__) . 'assets/css/directory.css', array(), '0.7.0');
+    
+    // Single business page scripts - only load on business single
+    if (is_singular('business')) {
+        wp_enqueue_script('lbd-single-business', plugin_dir_url(__FILE__) . 'assets/js/single-business.js', array('jquery'), '0.7.0', true);
+    }
 }
-add_action( 'wp_enqueue_scripts', 'lbd_enqueue_styles' );
+add_action('wp_enqueue_scripts', 'lbd_enqueue_styles');
+
+/**
+ * Enqueue admin scripts and styles
+ */
+function lbd_admin_scripts($hook) {
+    $screen = get_current_screen();
+    
+    // Admin CSS for all admin pages related to businesses
+    if (isset($screen->post_type) && $screen->post_type === 'business') {
+        wp_enqueue_style('lbd-admin-styles', plugin_dir_url(__FILE__) . 'assets/css/admin.css', array(), '0.7.0');
+    }
+    
+    // Admin JS for the business edit screen and CSV import page
+    if ((isset($screen->post_type) && $screen->post_type === 'business') || 
+        (isset($_GET['page']) && $_GET['page'] === 'lbd-csv-import')) {
+        wp_enqueue_script('lbd-admin-js', plugin_dir_url(__FILE__) . 'assets/js/admin.js', array('jquery'), '0.7.0', true);
+    }
+}
+add_action('admin_enqueue_scripts', 'lbd_admin_scripts');
 
 // Detect permalink structure changes and flush rules
 function lbd_detect_permalink_changes() {
@@ -179,7 +206,7 @@ function lbd_plugin_loaded() {
     $current_version = get_option('lbd_version', '0');
     
     // Current plugin version
-    $plugin_version = '0.6.3'; // Update version number here
+    $plugin_version = '0.7.0'; // Update version number here
     
     // Check if version has changed
     if (version_compare($current_version, $plugin_version, '!=')) {
@@ -359,63 +386,11 @@ function lbd_get_cached_terms($taxonomy) {
 
 /**
  * Add minimal CSS to hide author information in search results
+ * Now handled via the main CSS file
  */
 function lbd_hide_author_in_search() {
-    if (!is_search()) {
-        return;
-    }
-    
-    // Only add CSS if we're searching for businesses
-    $post_type = isset($_GET['post_type']) ? sanitize_key($_GET['post_type']) : '';
-    if ($post_type !== 'business') {
-        return;
-    }
-    
-    ?>
-    <style>
-    /* Hide author information in business search results */
-    body.search .post-type-business .entry-meta,
-    body.search .post-type-business .byline,
-    body.search .post-type-business .author,
-    body.search .post-type-business .posted-by,
-    body.search article.business .entry-meta,
-    body.search article.business .byline,
-    body.search article.business .author,
-    body.search article.business .posted-by,
-    body.search .business .author-info,
-    body.search .business .author-avatar,
-    body.search .business .author-bio,
-    body.search .business .entry-meta a[rel="author"],
-    /* Additional common author classes */
-    body.search .business .entry-meta .author,
-    body.search .business .post-author,
-    body.search .business .meta-author,
-    body.search .business .post-by,
-    body.search .business .author-name,
-    body.search .business .author-link {
-        display: none !important;
-    }
-    
-    /* Style for review ratings */
-    .business-rating {
-        display: inline-block;
-        margin-left: 10px;
-        font-size: 0.9em;
-        color: #f7d032;
-        vertical-align: middle;
-    }
-    
-    .business-rating .rating-count {
-        color: #666;
-        font-size: 0.85em;
-        margin-left: 5px;
-    }
-    
-    .business-rating .stars-container {
-        display: inline-block;
-    }
-    </style>
-    <?php
+    // Function is now empty but kept for backwards compatibility
+    // Styles have been moved to assets/css/directory.css
 }
 add_action('wp_head', 'lbd_hide_author_in_search', 999);
 

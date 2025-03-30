@@ -117,19 +117,6 @@ function lbd_metaboxes() {
                 'sortable' => false,
                 'closed' => false,
             ),
-            'after_group' => '<style>
-                #lbd_hours_' . $day_id . '_group_repeat .cmb-field-list { display: flex; align-items: center; }
-                #lbd_hours_' . $day_id . '_group_repeat .cmb-row:not(:last-child) { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
-                #lbd_hours_' . $day_id . '_group_repeat .cmb-remove-field-row { display: none; }
-                #lbd_hours_' . $day_id . '_group_repeat .cmb-repeat-group-wrap { background: transparent; padding: 0; border: none; margin: 0; }
-                #lbd_hours_' . $day_id . '_group_repeat .cmb-group-title { display: none; }
-                #lbd_hours_' . $day_id . '_group_repeat .cmb-field-list > .cmb-row { padding: 0 10px; }
-                #lbd_hours_' . $day_id . '_group_repeat .cmb-field-list > .cmb-row:first-child { padding-left: 0; }
-                #lbd_hours_' . $day_id . '_group_repeat .cmb-th { padding: 0; margin-right: 5px; width: auto; font-weight: normal; }
-                #lbd_hours_' . $day_id . '_group_repeat .cmb-th + .cmb-td { float: none; width: auto; }
-                #lbd_hours_' . $day_id . '_group_repeat .cmb-row.cmb-type-checkbox .cmb-td { margin-top: 0; }
-                #lbd_hours_' . $day_id . '_group_repeat .cmb-row.cmb-type-text_time input { width: 100px; }
-            </style>',
         ) );
 
         // Open Time
@@ -333,131 +320,9 @@ function lbd_metaboxes() {
 }
 add_action( 'cmb2_admin_init', 'lbd_metaboxes' );
 
-/**
- * Add JavaScript for 24-hour checkbox functionality
- */
+// Hours admin script is now loaded via admin.js
 function lbd_hours_admin_script() {
-    global $post_type;
-    if ($post_type !== 'business') {
-        return;
-    }
-    ?>
-    <script type="text/javascript">
-    jQuery(document).ready(function($) {
-        var daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-        
-        // Function to update hours fields based on 24-hour checkbox
-        function update24HoursFields() {
-            var is24Hours = $('#lbd_hours_24').prop('checked');
-            
-            // Loop through each day and update the fields
-            daysOfWeek.forEach(function(day) {
-                // Get the group fields
-                var groupContainer = $('#lbd_hours_' + day + '_group_repeat');
-                var closedCheckbox = groupContainer.find('[name*="[closed]"]');
-                var openField = groupContainer.find('[name*="[open]"]');
-                var closeField = groupContainer.find('[name*="[close]"]');
-                
-                if (is24Hours) {
-                    // Store original values
-                    if (!groupContainer.data('original-values')) {
-                        groupContainer.data('original-values', {
-                            closed: closedCheckbox.prop('checked'),
-                            open: openField.val(),
-                            close: closeField.val()
-                        });
-                    }
-                    
-                    // Set to 24 hours and disable fields
-                    closedCheckbox.prop('checked', false).prop('disabled', true);
-                    openField.val('12:00 AM').prop('disabled', true);
-                    closeField.val('11:59 PM').prop('disabled', true);
-                    
-                    // Hide the fields for better UX
-                    groupContainer.css('opacity', '0.5');
-                } else {
-                    // Restore original values if they exist
-                    var originalValues = groupContainer.data('original-values');
-                    if (originalValues) {
-                        closedCheckbox.prop('checked', originalValues.closed);
-                        openField.val(originalValues.open);
-                        closeField.val(originalValues.close);
-                    }
-                    
-                    // Re-enable fields
-                    closedCheckbox.prop('disabled', false);
-                    openField.prop('disabled', false);
-                    closeField.prop('disabled', false);
-                    
-                    // Update visibility
-                    groupContainer.css('opacity', '1');
-                    
-                    // Apply closed state if needed
-                    if (closedCheckbox.prop('checked')) {
-                        openField.prop('disabled', true);
-                        closeField.prop('disabled', true);
-                    }
-                }
-            });
-        }
-        
-        // Function to handle "Closed" checkbox within each day group
-        function setupClosedCheckboxHandlers() {
-            daysOfWeek.forEach(function(day) {
-                var groupContainer = $('#lbd_hours_' + day + '_group_repeat');
-                var closedCheckbox = groupContainer.find('[name*="[closed]"]');
-                var openField = groupContainer.find('[name*="[open]"]');
-                var closeField = groupContainer.find('[name*="[close]"]');
-                
-                closedCheckbox.on('change', function() {
-                    var isChecked = $(this).prop('checked');
-                    
-                    if (isChecked) {
-                        // Store values if not already stored
-                        if (!groupContainer.data('closed-values')) {
-                            groupContainer.data('closed-values', {
-                                open: openField.val(),
-                                close: closeField.val()
-                            });
-                        }
-                        
-                        // Disable time fields
-                        openField.prop('disabled', true);
-                        closeField.prop('disabled', true);
-                    } else {
-                        // Restore values if they were saved
-                        var closedValues = groupContainer.data('closed-values');
-                        if (closedValues) {
-                            openField.val(closedValues.open);
-                            closeField.val(closedValues.close);
-                        }
-                        
-                        // Re-enable time fields
-                        openField.prop('disabled', false);
-                        closeField.prop('disabled', false);
-                    }
-                });
-                
-                // Set initial state
-                if (closedCheckbox.prop('checked')) {
-                    openField.prop('disabled', true);
-                    closeField.prop('disabled', true);
-                }
-            });
-        }
-        
-        // Set initial state for 24-hour checkbox
-        update24HoursFields();
-        
-        // Handle 24-hour checkbox change
-        $('#lbd_hours_24').on('change', function() {
-            update24HoursFields();
-        });
-        
-        // Setup closed checkbox handlers
-        setupClosedCheckboxHandlers();
-    });
-    </script>
-    <?php
+    // Function is now empty but kept for backwards compatibility
+    // Script has been moved to assets/js/admin.js
 }
 add_action('admin_footer', 'lbd_hours_admin_script'); 

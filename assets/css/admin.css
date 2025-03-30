@@ -39,4 +39,111 @@ ul.csv-instructions {
 /* Sample CSV button */
 .button#lbd-sample-csv {
     margin-bottom: 15px;
+}
+
+/* Admin CSS - Backend styles for Local Business Directory plugin */
+
+/* ===== Business Hours Metabox Styles ===== */
+/* Monday */
+#lbd_hours_monday_group_repeat .cmb-field-list { display: flex; align-items: center; }
+#lbd_hours_monday_group_repeat .cmb-row:not(:last-child) { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+#lbd_hours_monday_group_repeat .cmb-remove-field-row { display: none; }
+#lbd_hours_monday_group_repeat .cmb-repeat-group-wrap { background: transparent; padding: 0; border: none; margin: 0; }
+#lbd_hours_monday_group_repeat .cmb-group-title { display: none; }
+#lbd_hours_monday_group_repeat .cmb-field-list > .cmb-row { padding: 0 10px; }
+#lbd_hours_monday_group_repeat .cmb-field-list > .cmb-row:first-child { padding-left: 0; }
+#lbd_hours_monday_group_repeat .cmb-th { padding: 0; margin-right: 5px; width: auto; font-weight: normal; }
+#lbd_hours_monday_group_repeat .cmb-th + .cmb-td { float: none; width: auto; }
+#lbd_hours_monday_group_repeat .cmb-row.cmb-type-checkbox .cmb-td { margin-top: 0; }
+#lbd_hours_monday_group_repeat .cmb-row.cmb-type-text_time input { width: 100px; }
+
+/* Tuesday */
+#lbd_hours_tuesday_group_repeat .cmb-field-list { display: flex; align-items: center; }
+#lbd_hours_tuesday_group_repeat .cmb-row:not(:last-child) { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+#lbd_hours_tuesday_group_repeat .cmb-remove-field-row { display: none; }
+#lbd_hours_tuesday_group_repeat .cmb-repeat-group-wrap { background: transparent; padding: 0; border: none; margin: 0; }
+#lbd_hours_tuesday_group_repeat .cmb-group-title { display: none; }
+#lbd_hours_tuesday_group_repeat .cmb-field-list > .cmb-row { padding: 0 10px; }
+#lbd_hours_tuesday_group_repeat .cmb-field-list > .cmb-row:first-child { padding-left: 0; }
+#lbd_hours_tuesday_group_repeat .cmb-th { padding: 0; margin-right: 5px; width: auto; font-weight: normal; }
+#lbd_hours_tuesday_group_repeat .cmb-th + .cmb-td { float: none; width: auto; }
+#lbd_hours_tuesday_group_repeat .cmb-row.cmb-type-checkbox .cmb-td { margin-top: 0; }
+#lbd_hours_tuesday_group_repeat .cmb-row.cmb-type-text_time input { width: 100px; }
+
+/* Wednesday */
+#lbd_hours_wednesday_group_repeat .cmb-field-list { display: flex; align-items: center; }
+#lbd_hours_wednesday_group_repeat .cmb-row:not(:last-child) { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+#lbd_hours_wednesday_group_repeat .cmb-remove-field-row { display: none; }
+#lbd_hours_wednesday_group_repeat .cmb-repeat-group-wrap { background: transparent; padding: 0; border: none; margin: 0; }
+#lbd_hours_wednesday_group_repeat .cmb-group-title { display: none; }
+#lbd_hours_wednesday_group_repeat .cmb-field-list > .cmb-row { padding: 0 10px; }
+#lbd_hours_wednesday_group_repeat .cmb-field-list > .cmb-row:first-child { padding-left: 0; }
+#lbd_hours_wednesday_group_repeat .cmb-th { padding: 0; margin-right: 5px; width: auto; font-weight: normal; }
+#lbd_hours_wednesday_group_repeat .cmb-th + .cmb-td { float: none; width: auto; }
+#lbd_hours_wednesday_group_repeat .cmb-row.cmb-type-checkbox .cmb-td { margin-top: 0; }
+#lbd_hours_wednesday_group_repeat .cmb-row.cmb-type-text_time input { width: 100px; }
+
+/* Thursday */
+#lbd_hours_thursday_group_repeat .cmb-field-list { display: flex; align-items: center; }
+#lbd_hours_thursday_group_repeat .cmb-row:not(:last-child) { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+#lbd_hours_thursday_group_repeat .cmb-remove-field-row { display: none; }
+#lbd_hours_thursday_group_repeat .cmb-repeat-group-wrap { background: transparent; padding: 0; border: none; margin: 0; }
+#lbd_hours_thursday_group_repeat .cmb-group-title { display: none; }
+#lbd_hours_thursday_group_repeat .cmb-field-list > .cmb-row { padding: 0 10px; }
+#lbd_hours_thursday_group_repeat .cmb-field-list > .cmb-row:first-child { padding-left: 0; }
+#lbd_hours_thursday_group_repeat .cmb-th { padding: 0; margin-right: 5px; width: auto; font-weight: normal; }
+#lbd_hours_thursday_group_repeat .cmb-th + .cmb-td { float: none; width: auto; }
+#lbd_hours_thursday_group_repeat .cmb-row.cmb-type-checkbox .cmb-td { margin-top: 0; }
+#lbd_hours_thursday_group_repeat .cmb-row.cmb-type-text_time input { width: 100px; }
+
+/* Friday */
+#lbd_hours_friday_group_repeat .cmb-field-list { display: flex; align-items: center; }
+#lbd_hours_friday_group_repeat .cmb-row:not(:last-child) { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+#lbd_hours_friday_group_repeat .cmb-remove-field-row { display: none; }
+#lbd_hours_friday_group_repeat .cmb-repeat-group-wrap { background: transparent; padding: 0; border: none; margin: 0; }
+#lbd_hours_friday_group_repeat .cmb-group-title { display: none; }
+#lbd_hours_friday_group_repeat .cmb-field-list > .cmb-row { padding: 0 10px; }
+#lbd_hours_friday_group_repeat .cmb-field-list > .cmb-row:first-child { padding-left: 0; }
+#lbd_hours_friday_group_repeat .cmb-th { padding: 0; margin-right: 5px; width: auto; font-weight: normal; }
+#lbd_hours_friday_group_repeat .cmb-th + .cmb-td { float: none; width: auto; }
+#lbd_hours_friday_group_repeat .cmb-row.cmb-type-checkbox .cmb-td { margin-top: 0; }
+#lbd_hours_friday_group_repeat .cmb-row.cmb-type-text_time input { width: 100px; }
+
+/* Saturday */
+#lbd_hours_saturday_group_repeat .cmb-field-list { display: flex; align-items: center; }
+#lbd_hours_saturday_group_repeat .cmb-row:not(:last-child) { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+#lbd_hours_saturday_group_repeat .cmb-remove-field-row { display: none; }
+#lbd_hours_saturday_group_repeat .cmb-repeat-group-wrap { background: transparent; padding: 0; border: none; margin: 0; }
+#lbd_hours_saturday_group_repeat .cmb-group-title { display: none; }
+#lbd_hours_saturday_group_repeat .cmb-field-list > .cmb-row { padding: 0 10px; }
+#lbd_hours_saturday_group_repeat .cmb-field-list > .cmb-row:first-child { padding-left: 0; }
+#lbd_hours_saturday_group_repeat .cmb-th { padding: 0; margin-right: 5px; width: auto; font-weight: normal; }
+#lbd_hours_saturday_group_repeat .cmb-th + .cmb-td { float: none; width: auto; }
+#lbd_hours_saturday_group_repeat .cmb-row.cmb-type-checkbox .cmb-td { margin-top: 0; }
+#lbd_hours_saturday_group_repeat .cmb-row.cmb-type-text_time input { width: 100px; }
+
+/* Sunday */
+#lbd_hours_sunday_group_repeat .cmb-field-list { display: flex; align-items: center; }
+#lbd_hours_sunday_group_repeat .cmb-row:not(:last-child) { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+#lbd_hours_sunday_group_repeat .cmb-remove-field-row { display: none; }
+#lbd_hours_sunday_group_repeat .cmb-repeat-group-wrap { background: transparent; padding: 0; border: none; margin: 0; }
+#lbd_hours_sunday_group_repeat .cmb-group-title { display: none; }
+#lbd_hours_sunday_group_repeat .cmb-field-list > .cmb-row { padding: 0 10px; }
+#lbd_hours_sunday_group_repeat .cmb-field-list > .cmb-row:first-child { padding-left: 0; }
+#lbd_hours_sunday_group_repeat .cmb-th { padding: 0; margin-right: 5px; width: auto; font-weight: normal; }
+#lbd_hours_sunday_group_repeat .cmb-th + .cmb-td { float: none; width: auto; }
+#lbd_hours_sunday_group_repeat .cmb-row.cmb-type-checkbox .cmb-td { margin-top: 0; }
+#lbd_hours_sunday_group_repeat .cmb-row.cmb-type-text_time input { width: 100px; }
+
+/* ===== CSV Import Page Styles ===== */
+.csv-instructions {
+    margin-left: 20px;
+}
+
+.csv-instructions li {
+    margin-bottom: 5px;
+}
+
+.csv-instructions strong {
+    font-weight: bold;
 } 

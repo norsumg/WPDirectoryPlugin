@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+When using versions, increment the version by 1 for every change you make. For large changes you may suggest a larger increment (e.g moving from 1.0.3 to 1.1.0 instead of 1.0.4)

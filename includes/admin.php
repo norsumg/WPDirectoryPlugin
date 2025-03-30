@@ -220,14 +220,6 @@ function lbd_export_businesses_to_csv() {
 }
 
 /**
- * Enqueue admin styles
- */
-function lbd_admin_styles() {
-    wp_enqueue_style('lbd-admin-styles', plugin_dir_url(dirname(__FILE__)) . 'assets/css/admin.css');
-}
-add_action('admin_enqueue_scripts', 'lbd_admin_styles');
-
-/**
  * Main admin page callback
  */
 function lbd_admin_main_page() {
@@ -328,29 +320,6 @@ function lbd_csv_import_page() {
             <p><a href="#" class="button" id="lbd-sample-csv">Download Sample</a></p>
         </div>
     </div>
-    
-    <script>
-    // Generate and download a sample CSV file
-    document.getElementById('lbd-sample-csv').addEventListener('click', function(e) {
-        e.preventDefault();
-        
-        const headers = 'business_name,business_description,business_excerpt,business_area,business_category,business_phone,business_address,business_website,business_email,business_facebook,business_instagram,business_hours_24,business_hours_monday,business_hours_tuesday,business_hours_wednesday,business_hours_thursday,business_hours_friday,business_hours_saturday,business_hours_sunday,business_payments,business_parking,business_amenities,business_accessibility,business_premium,business_image_url,business_black_owned,business_women_owned,business_lgbtq_friendly,business_google_rating,business_google_review_count,business_google_reviews_url\n';
-        const sampleRow1 = 'ACME Web Design,"We create beautiful websites for small businesses. Our team has over 10 years of experience designing responsive websites that convert visitors into customers.",Web design experts in Ashford area,Ashford,Web Design,01234 567890,"123 Main St, Ashford",https://example.com,info@example.com,https://facebook.com/acmewebdesign,acmewebdesign,no,"9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","9:00 AM - 5:00 PM","10:00 AM - 2:00 PM",Closed,"Cash, Credit Cards, PayPal","Free parking available","Free WiFi, Coffee, Meeting room","Wheelchair accessible entrance, Elevator",yes,https://example.com/sample-image1.jpg,yes,no,yes,4.7,23,https://g.page/acme-web-design\n';
-        const sampleRow2 = 'Smith & Co Accountants,"Professional accounting services for small businesses and individuals. We provide tax preparation, bookkeeping, and financial planning.",Trusted local accountants serving Canterbury since 2005,Canterbury,Accountants,01234 123456,"45 High Street, Canterbury",https://example-accountants.com,contact@example-accountants.com,https://facebook.com/smithcoaccountants,smithcoaccountants,yes,"24 Hours","24 Hours","24 Hours","24 Hours","24 Hours","24 Hours","24 Hours","All major credit cards","Street parking","Private consultation rooms, Tea and coffee","Wheelchair accessible",no,https://example.com/sample-image2.jpg,no,yes,no,4.2,17,https://g.page/smith-co-accountants\n';
-        
-        const csvContent = headers + sampleRow1 + sampleRow2;
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.setAttribute('hidden', '');
-        a.setAttribute('href', url);
-        a.setAttribute('download', 'sample_businesses.csv');
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    });
-    </script>
     <?php
 }
 
