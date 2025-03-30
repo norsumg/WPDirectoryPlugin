@@ -49,10 +49,13 @@ Add these shortcodes to your homepage or any other page:
 
 #### Search Results Page
 
-1. Create a new page called "Search Results"
-2. Add the shortcode: `[business_search_results]`
-3. Publish the page
-4. Make sure the page slug is "search-results" (or update the form action URL in the shortcode)
+The plugin uses WordPress's built-in search functionality for displaying business search results.
+
+1. All search forms (including the `[business_search_form]` shortcode) submit to the standard WordPress search URL
+2. The plugin automatically modifies search queries when `post_type=business` is present in the URL
+3. Results will be displayed using your theme's search.php template
+
+You don't need to create a dedicated search page - simply use the `[business_search_form]` shortcode on any page, and the search results will display correctly using your theme's search template.
 
 ### Viewing Listings
 
@@ -95,16 +98,7 @@ To override the default templates, copy any of these files to your theme:
 - `placeholder`: Custom placeholder text for the search input
 - `submit_text`: Custom text for the submit button
 
-The search widget now smartly directs users to the appropriate pages:
-
-- If a user selects only an area (e.g., "London"), they will be redirected directly to that area page
-- If a user selects an area and category (e.g., "Restaurants in London"), they will be redirected to that specific category-in-area page
-- Only when a search term is entered will they be directed to the search results page
-
-### Search Results
-```
-[business_search_results]
-```
+The search form submits to WordPress's built-in search functionality and the plugin automatically modifies search results when the `post_type=business` parameter is present.
 
 ## Premium Listings
 
@@ -162,6 +156,5 @@ All directory pages now use the `/directory/` namespace to prevent conflicts wit
 - `/directory/london/` - All businesses in the London area
 - `/directory/london/restaurants/` - All restaurants in London
 - `/directory/categories/restaurants/` - All restaurants across all areas
-- `/directory/search/` - Search results page (use the template provided)
 
 This structure ensures that your directory pages won't conflict with regular pages that might have the same slugs. 
