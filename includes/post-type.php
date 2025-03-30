@@ -44,37 +44,62 @@ function lbd_add_rewrite_rules() {
         return;
     }
     
-    // Get all business areas for specific matching
-    $business_areas = get_terms(array(
-        'taxonomy' => 'business_area',
-        'hide_empty' => false,
-        'fields' => 'slugs',
-    ));
-
-    if (!empty($business_areas) && !is_wp_error($business_areas)) {
-        // Create regex pattern from area slugs: (area1|area2|area3)
-        $areas_pattern = '(' . implode('|', array_map('preg_quote', $business_areas)) . ')';
-
-        // Rewrite for area pages - with directory namespace
-        add_rewrite_rule(
-            '^directory/(' . $areas_pattern . ')/?$',
-            'index.php?business_area=$matches[1]',
-            'top'
-        );
-        
-        // Rewrite for area-specific category pages - with directory namespace
-        add_rewrite_rule(
-            '^directory/(' . $areas_pattern . ')/([^/]+)/?$',
-            'index.php?business_area=$matches[1]&business_category=$matches[2]',
-            'top'
-        );
-    }
+    // Generic rewrite rules that will match any slug
+    // Validation of actual term slugs will happen in pre_get_posts
+    
+    // Rewrite for area pages - with directory namespace
+    add_rewrite_rule(
+        '^directory/([^/]+)/?$',
+        'index.php?business_area=$matches[1]',
+        'top'
+    );
+    
+    // Rewrite for area-specific category pages - with directory namespace
+    add_rewrite_rule(
+        '^directory/([^/]+)/([^/]+)/?$',
+        'index.php?business_area=$matches[1]&business_category=$matches[2]',
+        'top'
+    );
     
     // Add rewrite tags
     add_rewrite_tag('%business_area%', '([^/]+)');
     add_rewrite_tag('%business_category%', '([^/]+)');
 }
 add_action('init', 'lbd_add_rewrite_rules');
+
+/**
+ * Validate business area and category slugs in the query
+ * This runs after the rewrite rules have been processed
+ */
+function lbd_validate_taxonomy_slugs($query) {
+    // Only run on the main query and if we're not in the admin
+    if (!$query->is_main_query() || is_admin()) {
+        return;
+    }
+    
+    // Get the area slug from the query
+    $area_slug = $query->get('business_area');
+    $category_slug = $query->get('business_category');
+    
+    // If we have an area slug, validate it
+    if ($area_slug) {
+        $area_term = get_term_by('slug', $area_slug, 'business_area');
+        if (!$area_term || is_wp_error($area_term)) {
+            $query->set_404();
+            return;
+        }
+    }
+    
+    // If we have a category slug, validate it
+    if ($category_slug) {
+        $category_term = get_term_by('slug', $category_slug, 'business_category');
+        if (!$category_term || is_wp_error($category_term)) {
+            $query->set_404();
+            return;
+        }
+    }
+}
+add_action('pre_get_posts', 'lbd_validate_taxonomy_slugs');
 
 // Filter to modify permalinks to include area and category
 function lbd_business_permalink( $permalink, $post, $leavename ) {
