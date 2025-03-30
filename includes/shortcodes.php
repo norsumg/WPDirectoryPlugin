@@ -299,53 +299,81 @@ function lbd_review_form_shortcode($atts) {
         if (!isset($_POST['lbd_review_nonce']) || !wp_verify_nonce($_POST['lbd_review_nonce'], 'lbd_submit_review_action')) {
             $form_errors[] = 'Security check failed. Please try again.';
         } else {
-            // Get and sanitize form data
-            $reviewer_name = isset($_POST['reviewer_name']) ? sanitize_text_field($_POST['reviewer_name']) : '';
-            $reviewer_email = isset($_POST['reviewer_email']) ? sanitize_email($_POST['reviewer_email']) : '';
-            $review_text = isset($_POST['review_text']) ? sanitize_textarea_field($_POST['review_text']) : '';
-            $rating = isset($_POST['rating']) ? intval($_POST['rating']) : 0;
-            
-            // Validate data
-            if (empty($reviewer_name)) {
-                $form_errors[] = 'Please enter your name.';
+            // Check honeypot field
+            if (!empty($_POST['website'])) {
+                // Silently reject the submission
+                $form_success = true;
+                return ob_get_clean();
             }
             
-            if (empty($reviewer_email) || !is_email($reviewer_email)) {
-                $form_errors[] = 'Please enter a valid email address.';
-            }
-            
-            if (empty($review_text)) {
-                $form_errors[] = 'Please enter your review.';
-            }
-            
-            if ($rating < 1 || $rating > 5) {
-                $form_errors[] = 'Please select a rating between 1 and 5 stars.';
-            }
-            
-            // If no errors, submit the review
-            if (empty($form_errors)) {
-                $form_submitted = true;
+            // Check rate limiting
+            $user_ip = $_SERVER['REMOTE_ADDR'];
+            $transient_key = 'lbd_review_' . md5($user_ip . $business_id);
+            if (get_transient($transient_key)) {
+                $form_errors[] = 'Please wait a few minutes before submitting another review.';
+            } else {
+                // Get and sanitize form data
+                $reviewer_name = isset($_POST['reviewer_name']) ? sanitize_text_field($_POST['reviewer_name']) : '';
+                $reviewer_email = isset($_POST['reviewer_email']) ? sanitize_email($_POST['reviewer_email']) : '';
+                $review_text = isset($_POST['review_text']) ? sanitize_textarea_field($_POST['review_text']) : '';
+                $rating = isset($_POST['rating']) ? intval($_POST['rating']) : 0;
                 
-                // Default to requiring approval
-                $approved = false; 
+                // Additional validation for reviewer name
+                if (strlen($reviewer_name) < 2 || strlen($reviewer_name) > 50) {
+                    $form_errors[] = 'Name must be between 2 and 50 characters.';
+                }
                 
-                // Add the review (defined in activation.php)
-                $result = lbd_add_review(
-                    $business_id,
-                    $reviewer_name,
-                    $review_text,
-                    $rating,
-                    'manual', // Source is 'manual' for user-submitted reviews
-                    '', // No source ID for manual reviews
-                    $approved // Set to false to require approval
-                );
+                if (!preg_match('/^[a-zA-Z0-9\s\-\.]+$/', $reviewer_name)) {
+                    $form_errors[] = 'Name can only contain letters, numbers, spaces, hyphens, and periods.';
+                }
                 
-                // Save the email as post meta if the review was added successfully
-                if ($result) {
-                    update_post_meta($result, 'reviewer_email', $reviewer_email);
-                    $form_success = true;
-                } else {
-                    $form_errors[] = 'An error occurred while submitting your review. Please try again.';
+                // Validate email
+                if (empty($reviewer_email) || !is_email($reviewer_email)) {
+                    $form_errors[] = 'Please enter a valid email address.';
+                }
+                
+                // Additional validation for review text
+                if (empty($review_text)) {
+                    $form_errors[] = 'Please enter your review.';
+                } elseif (strlen($review_text) < 10) {
+                    $form_errors[] = 'Review must be at least 10 characters long.';
+                } elseif (strlen($review_text) > 1000) {
+                    $form_errors[] = 'Review cannot exceed 1000 characters.';
+                }
+                
+                // Validate rating
+                if ($rating < 1 || $rating > 5) {
+                    $form_errors[] = 'Please select a rating between 1 and 5 stars.';
+                }
+                
+                // If no errors, submit the review
+                if (empty($form_errors)) {
+                    $form_submitted = true;
+                    
+                    // Default to requiring approval
+                    $approved = false; 
+                    
+                    // Add the review (defined in activation.php)
+                    $result = lbd_add_review(
+                        $business_id,
+                        $reviewer_name,
+                        $review_text,
+                        $rating,
+                        'manual', // Source is 'manual' for user-submitted reviews
+                        '', // No source ID for manual reviews
+                        $approved // Set to false to require approval
+                    );
+                    
+                    // Save the email as post meta if the review was added successfully
+                    if ($result) {
+                        update_post_meta($result, 'reviewer_email', $reviewer_email);
+                        $form_success = true;
+                        
+                        // Set rate limiting transient (5 minutes)
+                        set_transient($transient_key, true, 5 * MINUTE_IN_SECONDS);
+                    } else {
+                        $form_errors[] = 'An error occurred while submitting your review. Please try again.';
+                    }
                 }
             }
         }
@@ -376,14 +404,26 @@ function lbd_review_form_shortcode($atts) {
                 <?php wp_nonce_field('lbd_submit_review_action', 'lbd_review_nonce'); ?>
                 <input type="hidden" name="business_id" value="<?php echo esc_attr($business_id); ?>">
                 
+                <!-- Honeypot field -->
+                <div class="website-field" style="display:none !important;">
+                    <label for="website">Website</label>
+                    <input type="text" name="website" id="website" tabindex="-1" autocomplete="off">
+                </div>
+                
                 <div class="form-field">
                     <label for="reviewer_name">Your Name <span class="required">*</span></label>
-                    <input type="text" name="reviewer_name" id="reviewer_name" required value="<?php echo isset($_POST['reviewer_name']) ? esc_attr($_POST['reviewer_name']) : ''; ?>">
+                    <input type="text" name="reviewer_name" id="reviewer_name" required 
+                           maxlength="50" 
+                           pattern="[a-zA-Z0-9\s\-\.]+"
+                           value="<?php echo isset($_POST['reviewer_name']) ? esc_attr($_POST['reviewer_name']) : ''; ?>">
+                    <small class="form-note">2-50 characters, letters, numbers, spaces, hyphens, and periods only.</small>
                 </div>
                 
                 <div class="form-field">
                     <label for="reviewer_email">Your Email <span class="required">*</span></label>
-                    <input type="email" name="reviewer_email" id="reviewer_email" required value="<?php echo isset($_POST['reviewer_email']) ? esc_attr($_POST['reviewer_email']) : ''; ?>">
+                    <input type="email" name="reviewer_email" id="reviewer_email" required 
+                           maxlength="100"
+                           value="<?php echo isset($_POST['reviewer_email']) ? esc_attr($_POST['reviewer_email']) : ''; ?>">
                     <small class="form-note">Your email won't be displayed publicly, but may be used to verify your review.</small>
                 </div>
                 
@@ -399,7 +439,10 @@ function lbd_review_form_shortcode($atts) {
                 
                 <div class="form-field">
                     <label for="review_text">Your Review <span class="required">*</span></label>
-                    <textarea name="review_text" id="review_text" rows="6" required><?php echo isset($_POST['review_text']) ? esc_textarea($_POST['review_text']) : ''; ?></textarea>
+                    <textarea name="review_text" id="review_text" rows="6" required 
+                              maxlength="1000"
+                              placeholder="Your review must be between 10 and 1000 characters."><?php echo isset($_POST['review_text']) ? esc_textarea($_POST['review_text']) : ''; ?></textarea>
+                    <small class="form-note">10-1000 characters required.</small>
                 </div>
                 
                 <div class="form-field submit-field">
