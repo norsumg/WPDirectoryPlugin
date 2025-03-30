@@ -18,7 +18,7 @@ function lbd_create_reviews_table() {
     $table_name = $wpdb->prefix . 'lbd_reviews';
     
     // Check if table exists
-    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$table_name}'") === $table_name;
+    $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name)) === $table_name;
     
     // Only create table if it doesn't exist
     if (!$table_exists) {
