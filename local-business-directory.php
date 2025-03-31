@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Local Business Directory
  * Description: A directory plugin for local businesses with categories, search, and premium listings.
- * Version: 0.7.0
+ * Version: 0.8.4
  * Author: Norsu Media
  */
 
@@ -378,9 +378,8 @@ function lbd_add_ratings_to_search_excerpt($excerpt) {
         }
     }
     
-    // Debug mode - shows all metadata for admin users
-    $debug_mode = isset($_GET['debug']) ? (bool)sanitize_key($_GET['debug']) : false;
-    if ($debug_mode && current_user_can('administrator')) {
+    // Debug mode - strictly limited to admin users with manage_options capability
+    if (isset($_GET['debug']) && current_user_can('manage_options')) {
         $meta_data = get_post_meta($post_id);
         $debug_html = '<div style="background:#f5f5f5; border:1px solid #ddd; padding:10px; margin:10px 0; font-family:monospace;">';
         $debug_html .= '<strong>DEBUG INFO:</strong><br>';
