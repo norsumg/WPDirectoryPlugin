@@ -34,7 +34,7 @@ function lbd_create_reviews_table() {
             review_date datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
             source varchar(50) DEFAULT 'google' NOT NULL,
             source_id varchar(100) DEFAULT '',
-            approved tinyint(1) DEFAULT 1 NOT NULL,
+            approved tinyint(1) DEFAULT 0 NOT NULL,
             PRIMARY KEY  (id),
             KEY business_id (business_id)
         ) $charset_collate;";
@@ -86,7 +86,7 @@ add_action('plugins_loaded', 'lbd_update_reviews_table_structure');
  * @param string $reviewer_email Email of the reviewer
  * @return int|false The review ID or false on failure
  */
-function lbd_add_review($business_id, $reviewer_name, $review_text, $rating, $source = 'google', $source_id = '', $approved = true, $reviewer_email = '') {
+function lbd_add_review($business_id, $reviewer_name, $review_text, $rating, $source = 'google', $source_id = '', $approved = false, $reviewer_email = '') {
     global $wpdb;
     
     $table_name = $wpdb->prefix . 'lbd_reviews';
