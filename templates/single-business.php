@@ -363,7 +363,7 @@
                     $caption = wp_get_attachment_caption($attachment_id) ?: '';
                     
                     echo '<div class="gallery-item">';
-                    echo '<a href="' . esc_url($full_img_url) . '" class="lightbox-trigger" data-caption="' . esc_attr($caption) . '">';
+                    echo '<a href="' . esc_url($full_img_url) . '" class="glightbox" data-gallery="business-gallery" data-glightbox="title: ' . esc_attr($caption ?: 'Business photo') . '">';
                     echo '<img src="' . esc_url($thumb_img_url) . '" alt="' . esc_attr($caption ?: 'Business photo') . '" loading="lazy">';
                     echo '</a>';
                     echo '</div>';
@@ -500,4 +500,21 @@
     <?php endwhile; ?>
 </div>
 
-<?php get_footer(); ?> 
+<?php
+// Enqueue Lightbox resources
+wp_enqueue_style('glightbox', plugin_dir_url(dirname(__FILE__)) . 'assets/vendor/glightbox/glightbox.min.css', array(), '1.0.0');
+wp_enqueue_script('glightbox', plugin_dir_url(dirname(__FILE__)) . 'assets/vendor/glightbox/glightbox.min.js', array(), '1.0.0', true);
+
+// Initialize Lightbox
+wp_add_inline_script('glightbox', '
+    document.addEventListener("DOMContentLoaded", function() {
+        const lightbox = GLightbox({
+            selector: ".glightbox",
+            touchNavigation: true,
+            loop: true,
+            autoplayVideos: true
+        });
+    });
+');
+
+get_footer(); ?> 

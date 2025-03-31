@@ -104,6 +104,23 @@ The search form submits to WordPress's built-in search functionality and the plu
 
 Businesses marked as "Premium" will appear first in search results and category listings.
 
+## Photo Gallery and Lightbox
+
+The business profile template includes a photo gallery with lightbox functionality that enables visitors to view larger versions of business photos. The gallery features:
+
+- Touch-enabled navigation for mobile devices
+- Support for image captions
+- Keyboard navigation (arrow keys, Escape to close)
+- Responsive design that works on all screen sizes
+
+The lightbox functionality uses GLightbox, which is bundled with the plugin and requires no additional configuration.
+
+To add photos to a business:
+1. Edit the business in the WordPress admin
+2. Scroll to the "Business Photos" meta box
+3. Upload or select images from the media library
+4. Optionally add captions to images in the media library
+
 ## Troubleshooting
 
 ### Permalink Issues

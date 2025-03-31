@@ -70,8 +70,5 @@ jQuery(document).ready(function($) {
         }
     });
     
-    // Initialize lightbox for photo gallery (if using)
-    if (typeof $.fn.lightbox === 'function') {
-        $('.lightbox-trigger').lightbox();
-    }
+    // GLightbox is now included directly in the template
 }); 
