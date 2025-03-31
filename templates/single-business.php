@@ -363,7 +363,12 @@
                     $caption = wp_get_attachment_caption($attachment_id) ?: '';
                     
                     echo '<div class="gallery-item">';
-                    echo '<a href="' . esc_url($full_img_url) . '" class="glightbox" data-gallery="business-gallery" data-glightbox="title: ' . esc_attr($caption ?: 'Business photo') . '">';
+                    // Only add the title attribute if there's a real caption
+                    if (!empty($caption)) {
+                        echo '<a href="' . esc_url($full_img_url) . '" class="glightbox" data-gallery="business-gallery" data-glightbox="title: ' . esc_attr($caption) . '">';
+                    } else {
+                        echo '<a href="' . esc_url($full_img_url) . '" class="glightbox" data-gallery="business-gallery">';
+                    }
                     echo '<img src="' . esc_url($thumb_img_url) . '" alt="' . esc_attr($caption ?: 'Business photo') . '" loading="lazy">';
                     echo '</a>';
                     echo '</div>';
@@ -505,6 +510,20 @@
 wp_enqueue_style('glightbox', plugin_dir_url(dirname(__FILE__)) . 'assets/vendor/glightbox/glightbox.min.css', array(), '1.0.0');
 wp_enqueue_script('glightbox', plugin_dir_url(dirname(__FILE__)) . 'assets/vendor/glightbox/glightbox.min.js', array(), '1.0.0', true);
 
+// Add custom styles for lightbox captions
+wp_add_inline_style('glightbox', '
+    .glightbox-container .gslide-description {
+        background: rgba(0, 0, 0, 0.7);
+    }
+    .glightbox-container .gslide-title {
+        font-size: 16px;
+        color: white;
+        font-weight: 400;
+        padding: 12px 15px;
+        margin: 0;
+    }
+');
+
 // Initialize Lightbox
 wp_add_inline_script('glightbox', '
     document.addEventListener("DOMContentLoaded", function() {
@@ -512,7 +531,10 @@ wp_add_inline_script('glightbox', '
             selector: ".glightbox",
             touchNavigation: true,
             loop: true,
-            autoplayVideos: true
+            autoplayVideos: true,
+            moreText: "+",
+            descPosition: "bottom",
+            closeButton: true
         });
     });
 ');
