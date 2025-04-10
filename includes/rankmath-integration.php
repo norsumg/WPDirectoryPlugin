@@ -43,18 +43,13 @@ function lbd_enhance_rankmath_schema($schema, $data) {
         return $schema;
     }
     
-    // Skip schema with @id that indicates it's being used for navigation, branding or other purposes
-    // Only modify the primary LocalBusiness schema for the actual business
-    if (isset($schema['@id']) && 
-        (strpos($schema['@id'], '#organization') !== false || 
-         strpos($schema['@id'], '#website') !== false || 
-         strpos($schema['@id'], '#breadcrumb') !== false ||
-         strpos($schema['@id'], '#webpage') !== false)) {
-        return $schema;
-    }
-    
     $post_id = get_the_ID();
     lbd_debug_schema_to_file(['schema_before' => $schema], 'Schema before enhancement');
+    
+    // Remove invalid properties that may come from WordPress or Rank Math
+    unset($schema['datePublished']);
+    unset($schema['dateModified']);
+    unset($schema['inLanguage']);
     
     // Always set the type to LocalBusiness or appropriate subtype
     // This ensures we have the right schema type even if it was initially Service
@@ -242,9 +237,7 @@ function lbd_enhance_rankmath_schema($schema, $data) {
             'attorney' => 'Attorney',
             'legal' => 'LegalService',
             'bar' => 'BarOrPub',
-            'pub' => 'BarOrPub',
-            'marketing-agency' => 'ProfessionalService',
-            'marketing' => 'ProfessionalService'
+            'pub' => 'BarOrPub'
             // Add more mappings as needed
         ];
         
@@ -265,33 +258,6 @@ function lbd_enhance_rankmath_schema($schema, $data) {
             $schema['image'] = $image_url;
         }
     }
-    
-    // Add supported date properties for better compatibility
-    $post = get_post($post_id);
-    if ($post) {
-        // Only add these date properties for certain schema types that support them
-        // LocalBusiness doesn't support these properties directly
-        if (!isset($schema['datePublished']) && $schema['@type'] !== 'LocalBusiness') {
-            // Convert to proper ISO 8601 format for better compatibility
-            $schema['datePublished'] = mysql2date('c', $post->post_date);
-        }
-        if (!isset($schema['dateModified']) && $schema['@type'] !== 'LocalBusiness') {
-            $schema['dateModified'] = mysql2date('c', $post->post_modified);
-        }
-    }
-    
-    // Add language only to schema types that support inLanguage
-    // LocalBusiness doesn't support this property directly
-    if (!isset($schema['inLanguage']) && $schema['@type'] !== 'LocalBusiness') {
-        $locale = get_locale();
-        if ($locale) {
-            // Convert WordPress locale (e.g., en_US) to proper language code (e.g., en-US)
-            $lang_code = str_replace('_', '-', $locale);
-            $schema['inLanguage'] = $lang_code;
-        }
-    }
-    
-    // Removed test property now that we know integration is working
     
     lbd_debug_schema_to_file(['schema_after' => $schema], 'Schema after enhancement');
     return $schema;
@@ -318,88 +284,6 @@ function lbd_format_schema_time($time_string) {
 }
 
 /**
- * Process schema graph to ensure we only enhance the primary business instance
- * 
- * @param array $data The schema graph data
- * @return array Modified schema graph
- */
-function lbd_process_json_ld($data) {
-    lbd_debug_schema_to_file($data, 'rank_math/json_ld filter data before');
-    
-    // Check if we're on a business post
-    $post_type = get_post_type();
-    if ($post_type !== 'business' && $post_type !== 'businesses') {
-        return $data;
-    }
-    
-    // Find the main LocalBusiness schema (often the one without an @id or with a specific pattern)
-    $main_schema_found = false;
-    $post_id = get_the_ID();
-    $current_url = get_permalink($post_id);
-    
-    // First pass: look for the schema most likely to be the main business
-    foreach ($data as $id => $schema) {
-        // Look for schema with matching URL or that doesn't have special purpose @id
-        if (isset($schema['@type']) && 
-            ($schema['@type'] === 'LocalBusiness' || $schema['@type'] === 'Service')) {
-            
-            // Skip schema with special purpose @ids
-            if (isset($schema['@id']) && 
-                (strpos($schema['@id'], '#organization') !== false || 
-                 strpos($schema['@id'], '#website') !== false || 
-                 strpos($schema['@id'], '#breadcrumb') !== false ||
-                 strpos($schema['@id'], '#webpage') !== false ||
-                 strpos($schema['@id'], '#logo') !== false ||
-                 strpos($schema['@id'], '#image') !== false)) {
-                continue;
-            }
-            
-            // If this schema has a URL that matches the current post, it's likely the main one
-            if (isset($schema['url']) && $schema['url'] === $current_url) {
-                $data[$id] = lbd_enhance_rankmath_schema($schema, null);
-                $main_schema_found = true;
-                break;
-            }
-            
-            // If no @id at all, this is likely our main schema
-            if (!isset($schema['@id'])) {
-                $data[$id] = lbd_enhance_rankmath_schema($schema, null);
-                $main_schema_found = true;
-                break;
-            }
-        }
-    }
-    
-    // If we didn't find the main schema with specific criteria, fall back to the first eligible one
-    if (!$main_schema_found) {
-        foreach ($data as $id => $schema) {
-            if (isset($schema['@type']) && 
-                ($schema['@type'] === 'LocalBusiness' || $schema['@type'] === 'Service')) {
-                
-                // Skip schema with special purpose @ids
-                if (isset($schema['@id']) && 
-                    (strpos($schema['@id'], '#organization') !== false || 
-                     strpos($schema['@id'], '#website') !== false || 
-                     strpos($schema['@id'], '#breadcrumb') !== false ||
-                     strpos($schema['@id'], '#webpage') !== false ||
-                     strpos($schema['@id'], '#logo') !== false ||
-                     strpos($schema['@id'], '#image') !== false)) {
-                    continue;
-                }
-                
-                // Enhance this schema as our main business schema
-                $data[$id] = lbd_enhance_rankmath_schema($schema, null);
-                $main_schema_found = true;
-                break;
-            }
-        }
-    }
-    
-    lbd_debug_schema_to_file($data, 'rank_math/json_ld filter data after');
-    return $data;
-}
-
-/**
  * Hook into Rank Math's schema filter
  */
 function lbd_register_rankmath_hooks() {
@@ -413,8 +297,39 @@ function lbd_register_rankmath_hooks() {
         // Also hook into LocalBusiness schema type
         add_filter('rank_math/schema/LocalBusiness', 'lbd_enhance_rankmath_schema', 30, 2);
         
-        // Hook into the main snippet filter as a last resort and to process the whole graph
-        add_filter('rank_math/json_ld', 'lbd_process_json_ld', 30);
+        // Hook into the main snippet filter as a last resort
+        add_filter('rank_math/json_ld', function($data, $jsonld) {
+            lbd_debug_schema_to_file($data, 'rank_math/json_ld filter data before');
+            
+            // Check if we're on a business post
+            $post_type = get_post_type();
+            if ($post_type === 'business' || $post_type === 'businesses') {
+                // Look for existing LocalBusiness schema
+                $found_business = false;
+                foreach ($data as $id => $schema) {
+                    if (isset($schema['@type']) && 
+                        (($schema['@type'] === 'LocalBusiness') || 
+                         ($schema['@type'] === 'Service'))) {
+                        // Enhance existing schema
+                        $data[$id] = lbd_enhance_rankmath_schema($schema, null);
+                        $found_business = true;
+                        break; // Only enhance one schema object
+                    }
+                }
+                
+                // If no LocalBusiness schema found, add one
+                if (!$found_business) {
+                    $new_schema = [
+                        '@type' => 'LocalBusiness',
+                        '@id' => get_permalink() . '#localbusiness'
+                    ];
+                    $data[] = lbd_enhance_rankmath_schema($new_schema, null);
+                }
+            }
+            
+            lbd_debug_schema_to_file($data, 'rank_math/json_ld filter data after');
+            return $data;
+        }, 30, 2);
     }
 }
 add_action('plugins_loaded', 'lbd_register_rankmath_hooks'); 
