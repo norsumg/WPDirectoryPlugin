@@ -12,6 +12,22 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * Debug function to help troubleshoot schema issues
+ */
+function lbd_debug_schema_to_file($schema, $message = '') {
+    $debug = get_option('lbd_debug_schema', false);
+    if (!$debug) {
+        return;
+    }
+    
+    $log_file = WP_CONTENT_DIR . '/lbd-schema-debug.log';
+    $data = date('[Y-m-d H:i:s]') . ' ' . $message . "\n";
+    $data .= print_r($schema, true) . "\n\n";
+    
+    file_put_contents($log_file, $data, FILE_APPEND);
+}
+
+/**
  * Enhance LocalBusiness schema with LBD data
  * 
  * @param array $schema The existing schema data from Rank Math
@@ -19,12 +35,31 @@ if (!defined('ABSPATH')) {
  * @return array Modified schema data
  */
 function lbd_enhance_rankmath_schema($schema, $data) {
-    // Only proceed if we're on a business post type
-    if (get_post_type() !== 'business') {
+    // Check for valid post types - check both singular and plural forms
+    $post_type = get_post_type();
+    lbd_debug_schema_to_file(['post_type' => $post_type], 'Post type check');
+    
+    if ($post_type !== 'business' && $post_type !== 'businesses') {
         return $schema;
     }
     
     $post_id = get_the_ID();
+    lbd_debug_schema_to_file(['schema_before' => $schema], 'Schema before enhancement');
+    
+    // Always set the type to LocalBusiness or appropriate subtype
+    // This ensures we have the right schema type even if it was initially Service
+    $schema['@type'] = 'LocalBusiness';
+    
+    // Always add the name property (from post title)
+    $schema['name'] = get_the_title($post_id);
+    
+    // Always add the description property (from excerpt or content)
+    $excerpt = get_the_excerpt($post_id);
+    if (empty($excerpt)) {
+        $post = get_post($post_id);
+        $excerpt = wp_trim_words($post->post_content, 55, '...');
+    }
+    $schema['description'] = $excerpt;
     
     // ===== ADDRESS HANDLING =====
     $address = get_post_meta($post_id, 'lbd_address', true);
@@ -40,6 +75,18 @@ function lbd_enhance_rankmath_schema($schema, $data) {
         if ($areas && !is_wp_error($areas)) {
             $schema['address']['addressLocality'] = $areas[0]->name;
         }
+    }
+    
+    // Add phone number
+    $phone = get_post_meta($post_id, 'lbd_phone', true);
+    if (!empty($phone)) {
+        $schema['telephone'] = $phone;
+    }
+    
+    // Add website URL
+    $website = get_post_meta($post_id, 'lbd_website', true);
+    if (!empty($website)) {
+        $schema['url'] = $website;
     }
     
     // ===== OPENING HOURS =====
@@ -198,6 +245,19 @@ function lbd_enhance_rankmath_schema($schema, $data) {
         }
     }
     
+    // Add image if available
+    $image_id = get_post_thumbnail_id($post_id);
+    if ($image_id) {
+        $image_url = wp_get_attachment_image_url($image_id, 'full');
+        if ($image_url) {
+            $schema['image'] = $image_url;
+        }
+    }
+    
+    // Add a test property to confirm our hook is working
+    $schema['testProperty'] = 'LBD Integration is working';
+    
+    lbd_debug_schema_to_file(['schema_after' => $schema], 'Schema after enhancement');
     return $schema;
 }
 
@@ -225,21 +285,34 @@ function lbd_format_schema_time($time_string) {
  * Hook into Rank Math's schema filter
  */
 function lbd_register_rankmath_hooks() {
+    // Enable debug mode temporarily to troubleshoot
+    update_option('lbd_debug_schema', true);
+    
     if (class_exists('\\RankMath\\Schema\\Schema')) {
-        // Hook into LocalBusiness schema type
-        add_filter('rank_math/schema/LocalBusiness', 'lbd_enhance_rankmath_schema', 10, 2);
+        // Hook into Service schema type (since that's what's set in the screenshot)
+        add_filter('rank_math/schema/Service', 'lbd_enhance_rankmath_schema', 30, 2);
         
-        // Also hook into all potential subtypes that might be used
-        $subtypes = [
-            'Restaurant', 'FoodEstablishment', 'CafeOrCoffeeShop', 
-            'Store', 'Hotel', 'LodgingBusiness', 
-            'BeautySalon', 'HairSalon', 'MedicalBusiness', 
-            'Physician', 'Dentist', 'LegalService'
-        ];
+        // Also hook into LocalBusiness schema type
+        add_filter('rank_math/schema/LocalBusiness', 'lbd_enhance_rankmath_schema', 30, 2);
         
-        foreach ($subtypes as $type) {
-            add_filter("rank_math/schema/{$type}", 'lbd_enhance_rankmath_schema', 10, 2);
-        }
+        // Hook into the main snippet filter as a last resort
+        add_filter('rank_math/json_ld', function($data, $jsonld) {
+            lbd_debug_schema_to_file($data, 'rank_math/json_ld filter data before');
+            
+            // Check if we're on a business post
+            $post_type = get_post_type();
+            if ($post_type === 'business' || $post_type === 'businesses') {
+                // Look for any schema type object to modify
+                foreach ($data as $id => $schema) {
+                    if (isset($schema['@type'])) {
+                        $data[$id] = lbd_enhance_rankmath_schema($schema, null);
+                    }
+                }
+            }
+            
+            lbd_debug_schema_to_file($data, 'rank_math/json_ld filter data after');
+            return $data;
+        }, 30, 2);
     }
 }
 add_action('plugins_loaded', 'lbd_register_rankmath_hooks'); 
