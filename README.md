@@ -174,4 +174,33 @@ All directory pages now use the `/directory/` namespace to prevent conflicts wit
 - `/directory/london/restaurants/` - All restaurants in London
 - `/directory/categories/restaurants/` - All restaurants across all areas
 
-This structure ensures that your directory pages won't conflict with regular pages that might have the same slugs. 
+This structure ensures that your directory pages won't conflict with regular pages that might have the same slugs.
+
+## Rank Math Pro Schema Integration
+
+The Local Business Directory plugin integrates with Rank Math Pro to generate rich LocalBusiness schema for your business listings. This enhances your SEO and enables rich snippets in search results.
+
+### Setup Instructions:
+
+1. Ensure Rank Math Pro is installed and activated
+2. Navigate to Rank Math > Schema Templates
+3. Create a new schema template with these settings:
+   - Title: "LBD Business Schema"
+   - Schema Type: LocalBusiness
+   - Display Conditions: Post Type is business
+
+The integration will automatically:
+
+- Map business data from LBD custom fields to schema properties
+- Format business hours in schema-compliant structure
+- Include business reviews and ratings (up to 3 reviews)
+- Determine specific business types based on business categories
+- Add address, payment, and accessibility information
+
+### Schema Features:
+
+- **Dynamic Business Type**: Automatically uses the appropriate schema.org business type (Restaurant, Store, etc.) based on the business category
+- **Opening Hours**: Correctly formats your business hours in the schema.org openingHoursSpecification format
+- **Reviews**: Includes up to 3 approved reviews with proper rating, author, and date information
+- **Ratings**: Adds aggregate ratings from your native review system or imported Google reviews
+- **Address**: Creates proper PostalAddress formatting from your address field 

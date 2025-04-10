@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Local Business Directory
  * Description: A directory plugin for local businesses with categories, search, and premium listings.
- * Version: 0.8.4
+ * Version: 0.8.5
  * Author: Norsu Media
  */
 
@@ -29,6 +29,7 @@ lbd_include_file('includes/templates.php');
 lbd_include_file('includes/admin.php');
 lbd_include_file('includes/activation.php');
 lbd_include_file('includes/reviews.php');
+lbd_include_file('includes/rankmath-integration.php');
 
 /**
  * Enqueue frontend styles and scripts
