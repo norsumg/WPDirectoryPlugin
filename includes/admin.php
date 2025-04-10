@@ -104,6 +104,11 @@ function lbd_export_businesses_to_csv() {
         'business_category',
         'business_phone',
         'business_address',
+        'business_street_address',
+        'business_city',
+        'business_postcode',
+        'business_latitude',
+        'business_longitude',
         'business_website',
         'business_email',
         'business_facebook',
@@ -121,7 +126,10 @@ function lbd_export_businesses_to_csv() {
         'business_amenities',
         'business_accessibility',
         'business_premium',
+        'business_logo',
         'business_image_url',
+        'business_extra_categories',
+        'business_service_options',
         'business_black_owned',
         'business_women_owned',
         'business_lgbtq_friendly',
@@ -149,8 +157,16 @@ function lbd_export_businesses_to_csv() {
         
         $phone = get_post_meta($business->ID, 'lbd_phone', true);
         $address = get_post_meta($business->ID, 'lbd_address', true);
+        $street_address = get_post_meta($business->ID, 'lbd_street_address', true);
+        $city = get_post_meta($business->ID, 'lbd_city', true);
+        $postcode = get_post_meta($business->ID, 'lbd_postcode', true);
+        $latitude = get_post_meta($business->ID, 'lbd_latitude', true);
+        $longitude = get_post_meta($business->ID, 'lbd_longitude', true);
         $website = get_post_meta($business->ID, 'lbd_website', true);
         $premium = get_post_meta($business->ID, 'lbd_premium', true) ? 'yes' : 'no';
+        
+        // Get logo URL
+        $logo_url = get_post_meta($business->ID, 'lbd_logo', true);
         
         // Get featured image URL
         $image_url = '';
@@ -158,6 +174,10 @@ function lbd_export_businesses_to_csv() {
             $image_id = get_post_thumbnail_id($business->ID);
             $image_url = wp_get_attachment_url($image_id);
         }
+        
+        // Get extra categories and service options
+        $extra_categories = get_post_meta($business->ID, 'lbd_extra_categories', true);
+        $service_options = get_post_meta($business->ID, 'lbd_service_options', true);
         
         // Get photos as comma-separated list of URLs
         $photos = get_post_meta($business->ID, 'lbd_business_photos', true);
@@ -186,6 +206,11 @@ function lbd_export_businesses_to_csv() {
             $category_name,
             $phone,
             $address,
+            $street_address,
+            $city,
+            $postcode,
+            $latitude,
+            $longitude,
             $website,
             get_post_meta($business->ID, 'lbd_email', true),
             get_post_meta($business->ID, 'lbd_facebook', true),
@@ -203,7 +228,10 @@ function lbd_export_businesses_to_csv() {
             get_post_meta($business->ID, 'lbd_amenities', true),
             get_post_meta($business->ID, 'lbd_accessibility', true),
             $premium,
+            $logo_url,
             $image_url,
+            $extra_categories,
+            $service_options,
             get_post_meta($business->ID, 'lbd_black_owned', true),
             get_post_meta($business->ID, 'lbd_women_owned', true),
             get_post_meta($business->ID, 'lbd_lgbtq_friendly', true),
@@ -635,7 +663,14 @@ function lbd_create_business_from_csv($data) {
     // Store business meta data
     update_post_meta($post_id, 'lbd_phone', sanitize_text_field($data['business_phone'] ?? ''));
     update_post_meta($post_id, 'lbd_address', sanitize_text_field($data['business_address'] ?? ''));
+    update_post_meta($post_id, 'lbd_street_address', sanitize_text_field($data['business_street_address'] ?? ''));
+    update_post_meta($post_id, 'lbd_city', sanitize_text_field($data['business_city'] ?? ''));
+    update_post_meta($post_id, 'lbd_postcode', sanitize_text_field($data['business_postcode'] ?? ''));
+    update_post_meta($post_id, 'lbd_latitude', sanitize_text_field($data['business_latitude'] ?? ''));
+    update_post_meta($post_id, 'lbd_longitude', sanitize_text_field($data['business_longitude'] ?? ''));
     update_post_meta($post_id, 'lbd_website', esc_url_raw($data['business_website'] ?? ''));
+    update_post_meta($post_id, 'lbd_extra_categories', sanitize_text_field($data['business_extra_categories'] ?? ''));
+    update_post_meta($post_id, 'lbd_service_options', sanitize_text_field($data['business_service_options'] ?? ''));
 
     // Store new fields
     update_post_meta($post_id, 'lbd_email', sanitize_email($data['business_email'] ?? ''));
@@ -751,6 +786,15 @@ function lbd_create_business_from_csv($data) {
     if (!empty($data['business_image_url'])) {
         $image_url = esc_url_raw($data['business_image_url']);
         $image_id = lbd_import_image($image_url, $post_id, $data['business_name'], true);
+    }
+    
+    // Import logo if provided
+    if (!empty($data['business_logo_url'])) {
+        $logo_url = esc_url_raw($data['business_logo_url']);
+        $logo_id = lbd_import_image($logo_url, $post_id, $data['business_name'] . ' - Logo', false);
+        if (!is_wp_error($logo_id)) {
+            update_post_meta($post_id, 'lbd_logo', wp_get_attachment_url($logo_id));
+        }
     }
     
     return $post_id;

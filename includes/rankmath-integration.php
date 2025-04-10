@@ -67,19 +67,57 @@ function lbd_enhance_rankmath_schema($schema, $data) {
     $schema['description'] = $excerpt;
     
     // ===== ADDRESS HANDLING =====
-    $address = get_post_meta($post_id, 'lbd_address', true);
-    if (!empty($address)) {
-        // Create PostalAddress structure
-        $schema['address'] = [
-            '@type' => 'PostalAddress',
-            'streetAddress' => $address
-        ];
-        
-        // Add area/location data if available
+    $street_address = get_post_meta($post_id, 'lbd_street_address', true);
+    $city = get_post_meta($post_id, 'lbd_city', true);
+    $postcode = get_post_meta($post_id, 'lbd_postcode', true);
+    
+    // Create PostalAddress structure
+    $schema['address'] = [
+        '@type' => 'PostalAddress',
+        'streetAddress' => $street_address ?: get_post_meta($post_id, 'lbd_address', true), // Fallback to old address field
+    ];
+    
+    if (!empty($city)) {
+        $schema['address']['addressLocality'] = $city;
+    } else {
+        // Fallback to area taxonomy
         $areas = get_the_terms($post_id, 'business_area');
         if ($areas && !is_wp_error($areas)) {
             $schema['address']['addressLocality'] = $areas[0]->name;
         }
+    }
+    
+    if (!empty($postcode)) {
+        $schema['address']['postalCode'] = $postcode;
+    }
+    
+    // Add coordinates if available
+    $latitude = get_post_meta($post_id, 'lbd_latitude', true);
+    $longitude = get_post_meta($post_id, 'lbd_longitude', true);
+    if (!empty($latitude) && !empty($longitude)) {
+        $schema['geo'] = [
+            '@type' => 'GeoCoordinates',
+            'latitude' => $latitude,
+            'longitude' => $longitude
+        ];
+    }
+    
+    // Add logo if available
+    $logo_url = get_post_meta($post_id, 'lbd_logo', true);
+    if (!empty($logo_url)) {
+        $schema['logo'] = $logo_url;
+    }
+    
+    // Add extra service categories
+    $extra_categories = get_post_meta($post_id, 'lbd_extra_categories', true);
+    if (!empty($extra_categories)) {
+        $schema['additionalType'] = array_map('trim', explode(',', $extra_categories));
+    }
+    
+    // Add service options
+    $service_options = get_post_meta($post_id, 'lbd_service_options', true);
+    if (!empty($service_options)) {
+        $schema['serviceType'] = array_map('trim', explode(',', $service_options));
     }
     
     // Add phone number

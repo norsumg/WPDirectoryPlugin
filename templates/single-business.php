@@ -78,8 +78,51 @@
             <?php endif; ?>
             
             <div class="business-details">
-                <p><strong>Phone:</strong> <?php echo esc_html( get_post_meta( get_the_ID(), 'lbd_phone', true ) ); ?></p>
-                <p><strong>Address:</strong> <?php echo esc_html( get_post_meta( get_the_ID(), 'lbd_address', true ) ); ?></p>
+                <?php 
+                $logo_url = get_post_meta(get_the_ID(), 'lbd_logo', true);
+                if ($logo_url) : ?>
+                    <div class="business-logo">
+                        <img src="<?php echo esc_url($logo_url); ?>" alt="<?php echo esc_attr(get_the_title()); ?> Logo">
+                    </div>
+                <?php endif; ?>
+
+                <p><strong>Phone:</strong> <?php echo esc_html(get_post_meta(get_the_ID(), 'lbd_phone', true)); ?></p>
+                
+                <?php
+                // Get all address components
+                $street = get_post_meta(get_the_ID(), 'lbd_street_address', true);
+                $city = get_post_meta(get_the_ID(), 'lbd_city', true);
+                $postcode = get_post_meta(get_the_ID(), 'lbd_postcode', true);
+                $old_address = get_post_meta(get_the_ID(), 'lbd_address', true);
+
+                // Use new fields if available, fall back to old address field
+                $address_parts = array();
+                if ($street) {
+                    $address_parts[] = $street;
+                }
+                if ($city) {
+                    $address_parts[] = $city;
+                }
+                if ($postcode) {
+                    $address_parts[] = $postcode;
+                }
+                $full_address = !empty($address_parts) ? implode(', ', $address_parts) : $old_address;
+                ?>
+                <p><strong>Address:</strong> <?php echo esc_html($full_address); ?></p>
+
+                <?php 
+                // Display extra categories if available
+                $extra_categories = get_post_meta(get_the_ID(), 'lbd_extra_categories', true);
+                if ($extra_categories) : ?>
+                    <p><strong>Additional Services:</strong> <?php echo esc_html($extra_categories); ?></p>
+                <?php endif; ?>
+
+                <?php 
+                // Display service options if available
+                $service_options = get_post_meta(get_the_ID(), 'lbd_service_options', true);
+                if ($service_options) : ?>
+                    <p><strong>Service Options:</strong> <?php echo esc_html($service_options); ?></p>
+                <?php endif; ?>
                 
                 <?php 
                 $email = get_post_meta( get_the_ID(), 'lbd_email', true );

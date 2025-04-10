@@ -47,6 +47,74 @@ function lbd_metaboxes() {
         'type' => 'text',
     ) );
 
+    // Add new address fields
+    $cmb->add_field( array(
+        'name' => 'Street Address',
+        'id' => 'lbd_street_address',
+        'type' => 'text',
+        'desc' => 'The street address of the business',
+    ) );
+
+    $cmb->add_field( array(
+        'name' => 'City',
+        'id' => 'lbd_city',
+        'type' => 'text',
+        'desc' => 'The city where the business is located',
+    ) );
+
+    $cmb->add_field( array(
+        'name' => 'Postcode',
+        'id' => 'lbd_postcode',
+        'type' => 'text',
+        'desc' => 'The postal code of the business',
+    ) );
+
+    // Add location coordinates
+    $cmb->add_field( array(
+        'name' => 'Latitude',
+        'id' => 'lbd_latitude',
+        'type' => 'text',
+        'desc' => 'The latitude coordinate of the business location',
+    ) );
+
+    $cmb->add_field( array(
+        'name' => 'Longitude',
+        'id' => 'lbd_longitude',
+        'type' => 'text',
+        'desc' => 'The longitude coordinate of the business location',
+    ) );
+
+    // Add logo field
+    $cmb->add_field( array(
+        'name' => 'Business Logo',
+        'desc' => 'Upload a square logo image for your business',
+        'id'   => 'lbd_logo',
+        'type' => 'file',
+        'options' => array(
+            'url' => true,
+        ),
+        'preview_size' => 'medium',
+        'text' => array(
+            'add_upload_file_text' => 'Add Logo'
+        ),
+    ) );
+
+    // Add extra categories field
+    $cmb->add_field( array(
+        'name' => 'Extra Service Categories',
+        'id' => 'lbd_extra_categories',
+        'type' => 'text',
+        'desc' => 'Additional service categories, comma separated (e.g. "Electrical installation service, Electrician, Service establishment")',
+    ) );
+
+    // Add service options field
+    $cmb->add_field( array(
+        'name' => 'Service Options',
+        'id' => 'lbd_service_options',
+        'type' => 'text',
+        'desc' => 'Available service options, comma separated (e.g. "On-site services, Online estimates")',
+    ) );
+
     $cmb->add_field( array(
         'name' => 'Website',
         'id' => 'lbd_website',
