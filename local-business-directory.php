@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Local Business Directory
  * Description: A directory of local businesses with reviews and ratings
- * Version: 0.9.1
+ * Version: 0.9.7
  * Author: Norsu Media
  */
 
@@ -30,11 +30,16 @@ lbd_include_file('includes/admin.php');
 lbd_include_file('includes/activation.php');
 lbd_include_file('includes/reviews.php');
 lbd_include_file('includes/rankmath-integration.php');
+lbd_include_file('includes/duplicates.php');
 
-// Include debug tools if admin and debug mode requested
-if (current_user_can('manage_options') && isset($_GET['lbd_debug'])) {
-    lbd_include_file('includes/debug.php');
+// Include debug tools after WordPress is fully loaded
+function lbd_maybe_include_debug() {
+    // Only load debug file if admin with proper permissions has requested it
+    if (is_admin() && current_user_can('manage_options') && isset($_GET['lbd_debug'])) {
+        lbd_include_file('includes/debug.php');
+    }
 }
+add_action('plugins_loaded', 'lbd_maybe_include_debug', 20);
 
 /**
  * Enqueue frontend styles and scripts
@@ -235,7 +240,7 @@ if (!defined('LBD_PLUGIN_DIR')) {
 
 /**
  * Comprehensive search function for business directory
- * Handles both taxonomy filtering and meta field searching
+ * Handles taxonomy filtering for business searches
  */
 function lbd_search_modification($query) {
     // Only modify search queries on the front end
@@ -251,9 +256,6 @@ function lbd_search_modification($query) {
     if ($search_businesses) {
         // Set post type to business
         $query->set('post_type', 'business');
-        
-        // Get the search term
-        $search_term = $query->get('s');
         
         // Handle taxonomy filters (area and category)
         $tax_query = array();
@@ -294,52 +296,79 @@ function lbd_search_modification($query) {
             $query->set('tax_query', $tax_query);
         }
         
-        // If we have a search term, add meta query to search address fields
-        if (!empty($search_term)) {
-            // Create a meta query for address-related fields
-            $meta_query = array('relation' => 'OR');
-            $search_terms = explode(' ', $search_term);
-            
-            // Search each individual term in address fields
-            foreach ($search_terms as $term) {
-                if (strlen($term) < 2) continue; // Skip very short terms
-                
-                $meta_query[] = array(
-                    'key' => 'lbd_address',
-                    'value' => $term,
-                    'compare' => 'LIKE'
-                );
-                $meta_query[] = array(
-                    'key' => 'lbd_street_address',
-                    'value' => $term,
-                    'compare' => 'LIKE'
-                );
-                $meta_query[] = array(
-                    'key' => 'lbd_city',
-                    'value' => $term,
-                    'compare' => 'LIKE'
-                );
-                $meta_query[] = array(
-                    'key' => 'lbd_postcode',
-                    'value' => $term,
-                    'compare' => 'LIKE'
-                );
-            }
-            
-            // Add the meta query to search terms
-            // The '_search_condition' parameter creates a special OR relationship
-            // between the default title/content search and our meta query
-            $query->set('_search_condition', 'OR');
-            $query->set('meta_query', $meta_query);
-        }
+        // NOTE: Meta query logic has been removed and replaced with direct SQL filters
     }
     
     return $query;
 }
 
-// Remove the old light search modification function and hook in our new one
-remove_action('pre_get_posts', 'lbd_light_search_modification', 9);
+// Check if the old function exists before trying to remove it
+if (function_exists('lbd_light_search_modification')) {
+    remove_action('pre_get_posts', 'lbd_light_search_modification', 9);
+}
+
+// Add our search function
 add_action('pre_get_posts', 'lbd_search_modification', 10);
+
+/**
+ * Modify the search SQL to include OR conditions for meta fields.
+ *
+ * @param string $search SQL search clause.
+ * @param WP_Query $query The WP_Query object.
+ * @return string Modified SQL search clause.
+ */
+function lbd_extend_search_sql($search, $query) {
+    global $wpdb;
+
+    // Only modify the main search query for 'business' post type if 's' is set
+    if ($query->is_main_query() && $query->is_search() && $query->get('post_type') === 'business' && !empty($query->get('s'))) {
+        $search_term = $query->get('s');
+        $search_term_like = '%' . $wpdb->esc_like($search_term) . '%';
+
+        // Add OR conditions for the meta keys
+        $meta_search = $wpdb->prepare(
+            " OR EXISTS (
+                SELECT 1 FROM {$wpdb->postmeta} pm
+                WHERE pm.post_id = {$wpdb->posts}.ID
+                AND (
+                    (pm.meta_key = 'lbd_address' AND pm.meta_value LIKE %s) OR
+                    (pm.meta_key = 'lbd_street_address' AND pm.meta_value LIKE %s) OR
+                    (pm.meta_key = 'lbd_city' AND pm.meta_value LIKE %s) OR
+                    (pm.meta_key = 'lbd_postcode' AND pm.meta_value LIKE %s)
+                )
+            )",
+            $search_term_like, $search_term_like, $search_term_like, $search_term_like
+        );
+
+        // Append the meta search condition with an OR to the existing search SQL
+        if (!empty($search)) {
+            $search = " AND ( " . substr($search, 5) . $meta_search . " ) "; // Replace initial AND, wrap existing, append OR meta
+        } else {
+            // If somehow 's' was set but $search is empty, just use the meta search
+            $search = " AND ( 1=0 " . $meta_search . " ) "; // Fallback
+        }
+    }
+
+    return $search;
+}
+add_filter('posts_search', 'lbd_extend_search_sql', 10, 2);
+
+/**
+ * Ensure results aren't duplicated if a post matches in multiple places
+ *
+ * @param string   $distinct The DISTINCT clause of the query.
+ * @param WP_Query $query The WP_Query instance.
+ * @return string Modified DISTINCT clause.
+ */
+function lbd_extend_search_distinct($distinct, $query) {
+    // Only modify the main search query for 'business' post type if 's' is set
+    if ($query->is_main_query() && $query->is_search() && $query->get('post_type') === 'business' && !empty($query->get('s'))) {
+        return "DISTINCT";
+    }
+    
+    return $distinct;
+}
+add_filter('posts_distinct', 'lbd_extend_search_distinct', 10, 2);
 
 /**
  * Get cached taxonomy terms
