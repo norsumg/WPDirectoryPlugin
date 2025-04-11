@@ -96,7 +96,7 @@ function lbd_export_businesses_to_csv() {
     $output = fopen('php://output', 'w');
     
     // Add CSV headers
-    fputcsv($output, array(
+    $headers = array(
         'business_name',
         'business_description',
         'business_excerpt',
@@ -126,7 +126,7 @@ function lbd_export_businesses_to_csv() {
         'business_amenities',
         'business_accessibility',
         'business_premium',
-        'business_logo',
+        'business_logo_url',
         'business_image_url',
         'business_extra_categories',
         'business_service_options',
@@ -138,7 +138,8 @@ function lbd_export_businesses_to_csv() {
         'business_google_reviews_url',
         'business_photos',
         'business_accreditations'
-    ));
+    );
+    fputcsv($output, $headers);
     
     // Query all businesses
     $businesses = get_posts(array(
@@ -279,7 +280,7 @@ function lbd_csv_import_page() {
         
         <?php
         // Handle CSV upload and processing
-        if (isset($_POST['lbd_csv_import_submit']) && isset($_FILES['lbd_csv_file'])) {
+        if (isset($_POST['submit']) && isset($_FILES['csv_file'])) {
             lbd_handle_csv_import();
         }
         ?>
@@ -292,9 +293,9 @@ function lbd_csv_import_page() {
                 <?php wp_nonce_field('lbd_csv_import_action', 'lbd_csv_import_nonce'); ?>
                 <table class="form-table">
                     <tr>
-                        <th scope="row"><label for="lbd_csv_file">CSV File</label></th>
+                        <th scope="row"><label for="csv_file">CSV File</label></th>
                         <td>
-                            <input type="file" name="lbd_csv_file" id="lbd_csv_file" accept=".csv" required>
+                            <input type="file" name="csv_file" id="csv_file" accept=".csv" required>
                             <p class="description">File must be a valid CSV with headers.</p>
                         </td>
                     </tr>
@@ -337,7 +338,7 @@ function lbd_csv_import_page() {
                 </ul>
                 
                 <p class="submit">
-                    <input type="submit" name="lbd_csv_import_submit" class="button button-primary" value="Import Businesses">
+                    <input type="submit" name="submit" class="button button-primary" value="Import Businesses">
                 </p>
             </form>
         </div>
@@ -355,109 +356,157 @@ function lbd_csv_import_page() {
  * Handle CSV import process
  */
 function lbd_handle_csv_import() {
-    // Check nonce for security
-    if (!isset($_POST['lbd_csv_import_nonce']) || !wp_verify_nonce($_POST['lbd_csv_import_nonce'], 'lbd_csv_import_action')) {
-        echo '<div class="notice notice-error"><p>Security check failed. Please try again.</p></div>';
-        return;
+    if (!current_user_can('manage_options')) {
+        wp_die('You do not have sufficient permissions to access this page.');
     }
     
-    // Get the uploaded file
-    $file = $_FILES['lbd_csv_file'];
+    // Set a longer timeout for large imports
+    set_time_limit(300); // 5 minutes
     
-    // Check for errors
-    if ($file['error'] !== UPLOAD_ERR_OK) {
-        echo '<div class="notice notice-error"><p>Error uploading file. Please try again.</p></div>';
-        return;
-    }
-    
-    // Check file type
-    $file_type = wp_check_filetype(basename($file['name']));
-    if ($file_type['ext'] !== 'csv') {
-        echo '<div class="notice notice-error"><p>Please upload a valid CSV file.</p></div>';
-        return;
-    }
-    
-    // Open the file
-    $handle = fopen($file['tmp_name'], 'r');
-    if (!$handle) {
-        echo '<div class="notice notice-error"><p>Error opening file. Please try again.</p></div>';
-        return;
-    }
-    
-    // Get headers
-    $headers = fgetcsv($handle);
-    if (!$headers) {
+    if (isset($_POST['submit']) && isset($_FILES['csv_file'])) {
+        // Verify nonce
+        check_admin_referer('lbd_csv_import_action', 'lbd_csv_import_nonce');
+        
+        // Start output buffering to prevent premature output
+        ob_start();
+        
+        echo '<div class="wrap">';
+        echo '<h2>Importing Businesses...</h2>';
+        echo '<div id="import-progress" style="margin: 20px 0; padding: 10px; background: #fff; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04);">';
+        
+        // Flush output buffer
+        ob_flush();
+        flush();
+        
+        $file = $_FILES['csv_file'];
+        
+        // Basic validation
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            echo '<div class="error"><p>Error uploading file. Please try again.</p></div>';
+            return;
+        }
+        
+        if ($file['type'] !== 'text/csv') {
+            echo '<div class="error"><p>Please upload a CSV file.</p></div>';
+            return;
+        }
+        
+        // Open the file
+        $handle = fopen($file['tmp_name'], 'r');
+        if ($handle === false) {
+            echo '<div class="error"><p>Error reading file.</p></div>';
+            return;
+        }
+        
+        // Get headers
+        $headers = fgetcsv($handle);
+        if ($headers === false) {
+            echo '<div class="error"><p>Error reading CSV headers.</p></div>';
+            fclose($handle);
+            return;
+        }
+        
+        // Count total rows for progress
+        $total_rows = 0;
+        while (fgetcsv($handle) !== false) {
+            $total_rows++;
+        }
+        rewind($handle);
+        fgetcsv($handle); // Skip headers again
+        
+        echo '<p>Found ' . $total_rows . ' businesses to import.</p>';
+        echo '<div class="progress-bar" style="height: 20px; background: #f0f0f1; margin: 10px 0;">';
+        echo '<div class="progress" style="width: 0%; height: 100%; background: #2271b1; transition: width 0.3s;"></div>';
+        echo '</div>';
+        echo '<p class="status">Processing row 0 of ' . $total_rows . '...</p>';
+        
+        // Flush progress
+        ob_flush();
+        flush();
+        
+        $row = 0;
+        $success = 0;
+        $errors = array();
+        
+        while (($data = fgetcsv($handle)) !== false) {
+            $row++;
+            
+            // Update progress every 5 rows
+            if ($row % 5 === 0) {
+                $progress = ($row / $total_rows) * 100;
+                echo '<script>
+                    document.querySelector(".progress").style.width = "' . $progress . '%";
+                    document.querySelector(".status").textContent = "Processing row ' . $row . ' of ' . $total_rows . '...";
+                </script>';
+                ob_flush();
+                flush();
+            }
+            
+            // Create associative array of data
+            $business_data = array_combine($headers, $data);
+            
+            // Import business
+            $result = lbd_create_business_from_csv($business_data);
+            
+            if (is_wp_error($result)) {
+                $errors[] = 'Row ' . $row . ': ' . $result->get_error_message();
+            } else {
+                $success++;
+            }
+        }
+        
         fclose($handle);
-        echo '<div class="notice notice-error"><p>Error reading CSV headers.</p></div>';
-        return;
-    }
-    
-    // Required fields
-    $required_fields = array('business_name', 'business_area', 'business_category');
-    $missing_fields = array();
-    
-    // Check for required fields
-    foreach ($required_fields as $field) {
-        if (!in_array($field, $headers)) {
-            $missing_fields[] = $field;
-        }
-    }
-    
-    if (!empty($missing_fields)) {
-        fclose($handle);
-        echo '<div class="notice notice-error"><p>Missing required fields: ' . implode(', ', $missing_fields) . '</p></div>';
-        return;
-    }
-    
-    // Start import
-    $imported = 0;
-    $skipped = 0;
-    $errors = array();
-    
-    // Process rows
-    while (($row = fgetcsv($handle)) !== false) {
-        // Skip empty rows
-        if (count($row) <= 1 && empty($row[0])) {
-            continue;
+        
+        // Show final results
+        echo '<h3>Import Complete!</h3>';
+        echo '<p>Successfully imported ' . $success . ' businesses.</p>';
+        
+        if (!empty($errors)) {
+            echo '<h4>Errors:</h4>';
+            echo '<ul style="color: #d63638;">';
+            foreach ($errors as $error) {
+                echo '<li>' . esc_html($error) . '</li>';
+            }
+            echo '</ul>';
         }
         
-        // Create associative array from row
-        $data = array();
-        foreach ($headers as $index => $header) {
-            $data[$header] = isset($row[$index]) ? trim($row[$index]) : '';
-        }
-        
-        // Skip if missing required fields
-        if (empty($data['business_name']) || empty($data['business_area']) || empty($data['business_category'])) {
-            $skipped++;
-            continue;
-        }
-        
-        // Create the business
-        $result = lbd_create_business_from_csv($data);
-        
-        if (is_wp_error($result)) {
-            $errors[] = $data['business_name'] . ': ' . $result->get_error_message();
-        } else {
-            $imported++;
-        }
-    }
-    
-    fclose($handle);
-    
-    // Display results
-    echo '<div class="notice notice-success"><p>Import complete. ' . $imported . ' businesses imported successfully.</p></div>';
-    
-    if ($skipped > 0) {
-        echo '<div class="notice notice-warning"><p>' . $skipped . ' businesses were skipped due to missing required fields.</p></div>';
-    }
-    
-    if (!empty($errors)) {
-        echo '<div class="notice notice-error"><p>Errors:</p><ul>';
-        foreach ($errors as $error) {
-            echo '<li>' . esc_html($error) . '</li>';
-        }
-        echo '</ul></div>';
+        echo '</div></div>';
+    } else {
+        // Display upload form
+        ?>
+        <div class="wrap">
+            <h2>Import Businesses from CSV</h2>
+            
+            <div class="card">
+                <h3>Instructions</h3>
+                <p>Upload a CSV file containing business information. The CSV should have the following columns:</p>
+                <ul style="list-style-type: disc; margin-left: 20px;">
+                    <?php
+                    // Display the headers as a list
+                    foreach ($headers as $header) {
+                        echo '<li>' . esc_html($header) . '</li>';
+                    }
+                    ?>
+                </ul>
+            </div>
+            
+            <form method="post" enctype="multipart/form-data">
+                <?php wp_nonce_field('lbd_csv_import_action', 'lbd_csv_import_nonce'); ?>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><label for="csv_file">Choose CSV File</label></th>
+                        <td>
+                            <input type="file" name="csv_file" id="csv_file" accept=".csv" required>
+                            <p class="description">Select a CSV file to import.</p>
+                        </td>
+                    </tr>
+                </table>
+                <p class="submit">
+                    <input type="submit" name="submit" class="button button-primary" value="Import Businesses">
+                </p>
+            </form>
+        </div>
+        <?php
     }
 }
 
@@ -627,6 +676,23 @@ function lbd_create_business_from_csv($data) {
         'post_type'     => 'business',
     );
     
+    // Check for duplicates
+    $existing_posts = get_posts(array(
+        'post_type' => 'business',
+        'title' => $post_data['post_title'],
+        'meta_query' => array(
+            array(
+                'key' => 'lbd_address',
+                'value' => sanitize_text_field($data['business_address']),
+                'compare' => '='
+            )
+        )
+    ));
+    
+    if (!empty($existing_posts)) {
+        return new WP_Error('duplicate', 'Duplicate business found: ' . $post_data['post_title']);
+    }
+    
     // Insert post
     $post_id = wp_insert_post($post_data, true);
     
@@ -647,17 +713,19 @@ function lbd_create_business_from_csv($data) {
         wp_set_object_terms($post_id, intval($area['term_id']), 'business_area');
     }
     
-    // Add business category
-    $category_name = sanitize_text_field($data['business_category']);
-    $category = term_exists($category_name, 'business_category');
-    
-    if (!$category) {
-        // Create the category if it doesn't exist
-        $category = wp_insert_term($category_name, 'business_category');
-    }
-    
-    if (!is_wp_error($category)) {
-        wp_set_object_terms($post_id, intval($category['term_id']), 'business_category');
+    // Add other areas
+    if (!empty($data['business_other_areas'])) {
+        $other_areas = explode(',', $data['business_other_areas']);
+        foreach ($other_areas as $other_area_name) {
+            $other_area_name = trim($other_area_name);
+            $other_area = term_exists($other_area_name, 'business_area');
+            if (!$other_area) {
+                $other_area = wp_insert_term($other_area_name, 'business_area');
+            }
+            if (!is_wp_error($other_area)) {
+                wp_set_object_terms($post_id, intval($other_area['term_id']), 'business_area', true);
+            }
+        }
     }
     
     // Store business meta data
@@ -1320,4 +1388,109 @@ function lbd_handle_reviews_import() {
     // Redirect with results
     wp_redirect(admin_url('admin.php?page=lbd-reviews&imported=' . $imported . ($skipped > 0 ? '&skipped=' . $skipped : '')));
     exit;
-} 
+}
+
+function lbd_add_ratings_to_search_excerpt($excerpt) {
+    // Only modify search results for business post type
+    $post_type = isset($_GET['post_type']) ? sanitize_key($_GET['post_type']) : '';
+    if (!is_search() || $post_type !== 'business') {
+        return $excerpt;
+    }
+    
+    // Get current post ID
+    $post_id = get_the_ID();
+    
+    // First check for native review data
+    $review_average = get_post_meta($post_id, 'lbd_review_average', true);
+    $review_count = get_post_meta($post_id, 'lbd_review_count', true);
+    
+    // If no native reviews, check for Google reviews as fallback
+    $review_source = 'Native';
+    if (empty($review_average)) {
+        // Look for various possible Google review field names
+        $google_rating = get_post_meta($post_id, 'google_rating', true);
+        if (empty($google_rating)) {
+            $google_rating = get_post_meta($post_id, 'lbd_google_rating', true);
+        }
+        
+        $google_review_count = get_post_meta($post_id, 'google_review_count', true);
+        if (empty($google_review_count)) {
+            $google_review_count = get_post_meta($post_id, 'lbd_google_review_count', true);
+        }
+        
+        // If we found Google reviews, use them
+        if (!empty($google_rating)) {
+            $review_average = $google_rating;
+            $review_count = $google_review_count;
+            $review_source = 'Google';
+        }
+    }
+    
+    // Debug mode - strictly limited to admin users with manage_options capability
+    if (isset($_GET['debug']) && current_user_can('manage_options')) {
+        $meta_data = get_post_meta($post_id);
+        $debug_html = '<div style="background:#f5f5f5; border:1px solid #ddd; padding:10px; margin:10px 0; font-family:monospace;">';
+        $debug_html .= '<strong>DEBUG INFO:</strong><br>';
+        $debug_html .= 'Post ID: ' . $post_id . '<br>';
+        $debug_html .= 'Native Review Average: ' . (get_post_meta($post_id, 'lbd_review_average', true) ? get_post_meta($post_id, 'lbd_review_average', true) : 'Not set') . '<br>';
+        $debug_html .= 'Native Review Count: ' . (get_post_meta($post_id, 'lbd_review_count', true) ? get_post_meta($post_id, 'lbd_review_count', true) : 'Not set') . '<br>';
+        $debug_html .= 'Google Rating: ' . (get_post_meta($post_id, 'google_rating', true) ? get_post_meta($post_id, 'google_rating', true) : 'Not set') . '<br>';
+        $debug_html .= 'Google Review Count: ' . (get_post_meta($post_id, 'google_review_count', true) ? get_post_meta($post_id, 'google_review_count', true) : 'Not set') . '<br>';
+        $debug_html .= 'Using Review Source: ' . $review_source . '<br>';
+        $debug_html .= '<br><strong>All Meta:</strong><br>';
+        
+        foreach ($meta_data as $key => $values) {
+            if (strpos($key, 'lbd_') === 0 || strpos($key, 'google_') === 0) { // Show plugin and Google meta
+                $debug_html .= $key . ': ' . print_r($values[0], true) . '<br>';
+            }
+        }
+        
+        $debug_html .= '</div>';
+        $excerpt = $debug_html . $excerpt;
+    }
+    
+    // If no review data at all, just return the excerpt
+    if (empty($review_average)) {
+        return $excerpt;
+    }
+    
+    // Use our consolidated star rating function if available
+    if (function_exists('lbd_get_star_rating_html')) {
+        $stars_html = lbd_get_star_rating_html($review_average, $review_count, $review_source);
+        return $stars_html . $excerpt;
+    }
+    
+    // Fallback to old method if function not available
+    $stars_html = '<div class="business-rating" style="display:block; margin:10px 0; color:#f7d032; font-size:1.2em;">';
+    if ($review_source === 'Google') {
+        $stars_html .= '<strong>Google Rating: </strong>';
+    } else {
+        $stars_html .= '<strong>Rating: </strong>';
+    }
+    
+    // Add star icons
+    $full_stars = floor($review_average);
+    $half_star = ($review_average - $full_stars) >= 0.5;
+    
+    for ($i = 1; $i <= 5; $i++) {
+        if ($i <= $full_stars) {
+            $stars_html .= '★'; // Full star
+        } elseif ($i == $full_stars + 1 && $half_star) {
+            $stars_html .= '&#189;'; // Half star
+        } else {
+            $stars_html .= '☆'; // Empty star
+        }
+    }
+    
+    // Add review count
+    if (!empty($review_count) && $review_count > 0) {
+        $stars_html .= ' <span style="color:#666; font-size:0.9em;">(' . intval($review_count) . ' reviews)</span>';
+    }
+    
+    $stars_html .= '</div>';
+    
+    // Prepend rating to excerpt
+    return $stars_html . $excerpt;
+}
+
+// Search function has been moved to local-business-directory.php 

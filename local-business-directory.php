@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Local Business Directory
  * Description: A directory of local businesses with reviews and ratings
- * Version: 0.9.0
+ * Version: 0.9.1
  * Author: Norsu Media
  */
 
@@ -30,6 +30,11 @@ lbd_include_file('includes/admin.php');
 lbd_include_file('includes/activation.php');
 lbd_include_file('includes/reviews.php');
 lbd_include_file('includes/rankmath-integration.php');
+
+// Include debug tools if admin and debug mode requested
+if (current_user_can('manage_options') && isset($_GET['lbd_debug'])) {
+    lbd_include_file('includes/debug.php');
+}
 
 /**
  * Enqueue frontend styles and scripts
@@ -229,9 +234,10 @@ if (!defined('LBD_PLUGIN_DIR')) {
 }
 
 /**
- * Modify search queries to handle filtering by business areas and categories
+ * Comprehensive search function for business directory
+ * Handles both taxonomy filtering and meta field searching
  */
-function lbd_light_search_modification($query) {
+function lbd_search_modification($query) {
     // Only modify search queries on the front end
     if (is_admin() || !$query->is_search() || !$query->is_main_query()) {
         return $query;
@@ -243,10 +249,13 @@ function lbd_light_search_modification($query) {
     
     // If this is a business-specific search
     if ($search_businesses) {
-        // Only search business post type
+        // Set post type to business
         $query->set('post_type', 'business');
         
-        // Set up tax query if needed
+        // Get the search term
+        $search_term = $query->get('s');
+        
+        // Handle taxonomy filters (area and category)
         $tax_query = array();
         
         // Get and validate category
@@ -277,17 +286,60 @@ function lbd_light_search_modification($query) {
             }
         }
         
+        // Apply taxonomy query if we have filters
         if (!empty($tax_query)) {
             if (count($tax_query) > 1) {
                 $tax_query['relation'] = 'AND';
             }
             $query->set('tax_query', $tax_query);
         }
+        
+        // If we have a search term, add meta query to search address fields
+        if (!empty($search_term)) {
+            // Create a meta query for address-related fields
+            $meta_query = array('relation' => 'OR');
+            $search_terms = explode(' ', $search_term);
+            
+            // Search each individual term in address fields
+            foreach ($search_terms as $term) {
+                if (strlen($term) < 2) continue; // Skip very short terms
+                
+                $meta_query[] = array(
+                    'key' => 'lbd_address',
+                    'value' => $term,
+                    'compare' => 'LIKE'
+                );
+                $meta_query[] = array(
+                    'key' => 'lbd_street_address',
+                    'value' => $term,
+                    'compare' => 'LIKE'
+                );
+                $meta_query[] = array(
+                    'key' => 'lbd_city',
+                    'value' => $term,
+                    'compare' => 'LIKE'
+                );
+                $meta_query[] = array(
+                    'key' => 'lbd_postcode',
+                    'value' => $term,
+                    'compare' => 'LIKE'
+                );
+            }
+            
+            // Add the meta query to search terms
+            // The '_search_condition' parameter creates a special OR relationship
+            // between the default title/content search and our meta query
+            $query->set('_search_condition', 'OR');
+            $query->set('meta_query', $meta_query);
+        }
     }
     
     return $query;
 }
-add_action('pre_get_posts', 'lbd_light_search_modification');
+
+// Remove the old light search modification function and hook in our new one
+remove_action('pre_get_posts', 'lbd_light_search_modification', 9);
+add_action('pre_get_posts', 'lbd_search_modification', 10);
 
 /**
  * Get cached taxonomy terms
