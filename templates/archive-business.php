@@ -1,13 +1,7 @@
 <?php get_header(); ?>
-<div class="business-category">
-    <h1><?php single_term_title(); ?></h1>
+<div class="business-archive">
+    <h1>Business Directory</h1>
     
-    <?php if ( term_description() ) : ?>
-        <div class="term-description">
-            <?php echo term_description(); ?>
-        </div>
-    <?php endif; ?>
-
     <div class="business-listing">
         <?php if ( have_posts() ) : ?>
             <div class="business-grid">
@@ -29,7 +23,7 @@
             <?php endif; ?>
             
         <?php else : ?>
-            <p class="no-businesses">No businesses found in this category. Check back soon or <a href="<?php echo home_url('/directory/'); ?>">browse other categories</a>.</p>
+            <p>No businesses found. Please check back soon.</p>
         <?php endif; ?>
     </div>
 </div>

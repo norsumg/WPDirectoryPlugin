@@ -39,6 +39,15 @@ function lbd_add_admin_menu() {
         'lbd-reviews',
         'lbd_reviews_page'
     );
+    
+    add_submenu_page(
+        'local-business-directory',
+        'Link Categories',
+        'Link Categories',
+        'manage_options',
+        'lbd-link-categories',
+        'lbd_link_categories_page'
+    );
 }
 add_action('admin_menu', 'lbd_add_admin_menu');
 
@@ -425,7 +434,9 @@ function lbd_handle_csv_import() {
         flush();
         
         $row = 0;
-        $success = 0;
+        $created = 0;
+        $updated = 0;
+        $skipped = 0;
         $errors = array();
         
         while (($data = fgetcsv($handle)) !== false) {
@@ -450,16 +461,31 @@ function lbd_handle_csv_import() {
             
             if (is_wp_error($result)) {
                 $errors[] = 'Row ' . $row . ': ' . $result->get_error_message();
+                $skipped++;
             } else {
-                $success++;
+                // Track created vs updated businesses
+                if ($result['status'] === 'created') {
+                    $created++;
+                } else {
+                    $updated++;
+                }
             }
         }
         
         fclose($handle);
         
+        // Total successfully processed
+        $success = $created + $updated;
+        
         // Show final results
         echo '<h3>Import Complete!</h3>';
-        echo '<p>Successfully imported ' . $success . ' businesses.</p>';
+        echo '<p>' . $success . ' businesses processed successfully:</p>';
+        echo '<ul>';
+        echo '<li><strong>New businesses:</strong> ' . $created . '</li>';
+        echo '<li><strong>Updated businesses:</strong> ' . $updated . '</li>';
+        echo '<li><strong>Skipped:</strong> ' . $skipped . '</li>';
+        echo '<li><strong>Errors:</strong> ' . count($errors) . '</li>';
+        echo '</ul>';
         
         if (!empty($errors)) {
             echo '<h4>Errors:</h4>';
@@ -664,7 +690,7 @@ add_action('init', function() {
  * Create a business post from CSV data
  *
  * @param array $data CSV row data
- * @return int|WP_Error Post ID on success, WP_Error on failure
+ * @return array|WP_Error Array with post_id and status ('created' or 'updated'), or WP_Error on failure
  */
 function lbd_create_business_from_csv($data) {
     // Prepare post data
@@ -689,15 +715,28 @@ function lbd_create_business_from_csv($data) {
         )
     ));
     
+    // Variable to track if this is a new or updated business
+    $status = 'created';
+    
+    // If business already exists, use that ID instead of creating a new one
     if (!empty($existing_posts)) {
-        return new WP_Error('duplicate', 'Duplicate business found: ' . $post_data['post_title']);
-    }
-    
-    // Insert post
-    $post_id = wp_insert_post($post_data, true);
-    
-    if (is_wp_error($post_id)) {
-        return $post_id;
+        $post_id = $existing_posts[0]->ID;
+        $status = 'updated';
+        
+        // Update existing post with new content if needed
+        $update_data = array(
+            'ID'           => $post_id,
+            'post_content' => $post_data['post_content'],
+            'post_excerpt' => $post_data['post_excerpt'],
+        );
+        wp_update_post($update_data);
+    } else {
+        // Insert new post
+        $post_id = wp_insert_post($post_data, true);
+        
+        if (is_wp_error($post_id)) {
+            return $post_id;
+        }
     }
     
     // Add business area
@@ -711,6 +750,49 @@ function lbd_create_business_from_csv($data) {
     
     if (!is_wp_error($area)) {
         wp_set_object_terms($post_id, intval($area['term_id']), 'business_area');
+    }
+    
+    // Add business category
+    if (!empty($data['business_category'])) {
+        $category_name = sanitize_text_field($data['business_category']);
+        
+        // Check if category has a parent/child structure (Parent > Child)
+        if (strpos($category_name, '>') !== false) {
+            $category_parts = array_map('trim', explode('>', $category_name));
+            $parent_name = $category_parts[0];
+            $child_name = $category_parts[1];
+            
+            // Get or create parent category
+            $parent_term = term_exists($parent_name, 'business_category');
+            if (!$parent_term) {
+                $parent_term = wp_insert_term($parent_name, 'business_category');
+            }
+            
+            if (!is_wp_error($parent_term)) {
+                $parent_id = $parent_term['term_id'];
+                
+                // Get or create child category
+                $child_term = term_exists($child_name, 'business_category', $parent_id);
+                if (!$child_term) {
+                    $child_term = wp_insert_term($child_name, 'business_category', array('parent' => $parent_id));
+                }
+                
+                if (!is_wp_error($child_term)) {
+                    // Set the child category for this business
+                    wp_set_object_terms($post_id, intval($child_term['term_id']), 'business_category', false);
+                }
+            }
+        } else {
+            // Simple category (no parent)
+            $category_term = term_exists($category_name, 'business_category');
+            if (!$category_term) {
+                $category_term = wp_insert_term($category_name, 'business_category');
+            }
+            
+            if (!is_wp_error($category_term)) {
+                wp_set_object_terms($post_id, intval($category_term['term_id']), 'business_category', false);
+            }
+        }
     }
     
     // Add other areas
@@ -748,6 +830,8 @@ function lbd_create_business_from_csv($data) {
     // Set 24 hours flag if provided
     if (isset($data['business_hours_24']) && strtolower($data['business_hours_24']) === 'yes') {
         update_post_meta($post_id, 'lbd_hours_24', '1');
+    } else {
+        delete_post_meta($post_id, 'lbd_hours_24'); // Remove if not set in CSV
     }
 
     // Store opening hours
@@ -777,19 +861,27 @@ function lbd_create_business_from_csv($data) {
     // Set premium status
     if (isset($data['business_premium']) && strtolower($data['business_premium']) === 'yes') {
         update_post_meta($post_id, 'lbd_premium', '1');
+    } else {
+        delete_post_meta($post_id, 'lbd_premium'); // Remove if not set in CSV
     }
 
     // Set business attributes
     if (isset($data['business_black_owned']) && strtolower($data['business_black_owned']) === 'yes') {
         update_post_meta($post_id, 'lbd_black_owned', '1');
+    } else {
+        delete_post_meta($post_id, 'lbd_black_owned'); // Remove if not set
     }
 
     if (isset($data['business_women_owned']) && strtolower($data['business_women_owned']) === 'yes') {
         update_post_meta($post_id, 'lbd_women_owned', '1');
+    } else {
+        delete_post_meta($post_id, 'lbd_women_owned'); // Remove if not set
     }
 
     if (isset($data['business_lgbtq_friendly']) && strtolower($data['business_lgbtq_friendly']) === 'yes') {
         update_post_meta($post_id, 'lbd_lgbtq_friendly', '1');
+    } else {
+        delete_post_meta($post_id, 'lbd_lgbtq_friendly'); // Remove if not set
     }
     
     // Store Google Reviews data
@@ -865,7 +957,11 @@ function lbd_create_business_from_csv($data) {
         }
     }
     
-    return $post_id;
+    // Return post ID and status (created or updated)
+    return array(
+        'post_id' => $post_id,
+        'status' => $status
+    );
 }
 
 /**
@@ -1391,3 +1487,598 @@ function lbd_handle_reviews_import() {
 }
 
 // Search function has been moved to local-business-directory.php 
+
+/**
+ * Link Categories admin page callback
+ */
+function lbd_link_categories_page() {
+    // Check user capabilities
+    if (!current_user_can('manage_options')) {
+        wp_die('You do not have sufficient permissions to access this page.');
+    }
+    
+    // Process the form submission if there is one
+    $results = array();
+    $errors = array();
+    $processed = 0;
+    $updated = 0;
+    $skipped = 0;
+    $mapping_method = '';
+    
+    if (isset($_POST['lbd_link_categories_submit']) && isset($_POST['lbd_link_categories_nonce'])) {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['lbd_link_categories_nonce'], 'lbd_link_categories_action')) {
+            $errors[] = 'Security check failed. Please try again.';
+        } else {
+            // Get selected mapping method
+            $mapping_method = isset($_POST['mapping_method']) ? sanitize_text_field($_POST['mapping_method']) : '';
+            
+            // Start batch processing
+            set_time_limit(300); // Give ourselves 5 minutes to run
+            
+            // Process businesses based on mapping method
+            if ($mapping_method === 'name_match') {
+                // Method 1: Match by existing term names
+                $results = lbd_link_categories_by_name_match();
+                $processed = $results['processed'];
+                $updated = $results['updated'];
+                $skipped = $results['skipped'];
+                $errors = $results['errors'];
+            } elseif ($mapping_method === 'csv_upload' && isset($_FILES['mapping_csv'])) {
+                // Method 2: Use CSV mapping file
+                $results = lbd_link_categories_by_csv($_FILES['mapping_csv']);
+                $processed = $results['processed'];
+                $updated = $results['updated'];
+                $skipped = $results['skipped'];
+                $errors = $results['errors'];
+            } elseif ($mapping_method === 'content_analysis') {
+                // Method 3: Analyze business content
+                $results = lbd_link_categories_by_content_analysis();
+                $processed = $results['processed'];
+                $updated = $results['updated'];
+                $skipped = $results['skipped'];
+                $errors = $results['errors'];
+            } else {
+                $errors[] = 'Invalid mapping method selected.';
+            }
+        }
+    }
+    
+    // Display the admin page
+    ?>
+    <div class="wrap">
+        <h1>Link Businesses to Categories</h1>
+        
+        <div class="card">
+            <h2>Important: Backup Your Database First</h2>
+            <p>This tool will modify category relationships for existing businesses. Please backup your database before proceeding.</p>
+        </div>
+        
+        <?php if (!empty($errors)): ?>
+            <div class="notice notice-error">
+                <h3>Errors Occurred:</h3>
+                <ul>
+                    <?php foreach ($errors as $error): ?>
+                        <li><?php echo esc_html($error); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
+        
+        <?php if ($processed > 0): ?>
+            <div class="notice notice-success">
+                <h3>Processing Complete!</h3>
+                <p>Processed <?php echo intval($processed); ?> businesses:</p>
+                <ul>
+                    <li><strong>Updated:</strong> <?php echo intval($updated); ?> businesses</li>
+                    <li><strong>Skipped:</strong> <?php echo intval($skipped); ?> businesses</li>
+                </ul>
+                <?php if (!empty($results['log']) && is_array($results['log'])): ?>
+                    <h4>Processing Log:</h4>
+                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background: #f9f9f9;">
+                        <ul>
+                            <?php foreach ($results['log'] as $log): ?>
+                                <li><?php echo esc_html($log); ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
+        
+        <div class="card">
+            <h2>Choose Linking Method</h2>
+            <p>This tool will help you link existing businesses to the correct categories in the hierarchy.</p>
+            
+            <form method="post" enctype="multipart/form-data">
+                <?php wp_nonce_field('lbd_link_categories_action', 'lbd_link_categories_nonce'); ?>
+                
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">Mapping Method</th>
+                        <td>
+                            <label>
+                                <input type="radio" name="mapping_method" value="name_match" <?php checked($mapping_method, 'name_match'); ?>>
+                                Match by existing term names
+                                <p class="description">Uses the existing category name to find the matching category in the hierarchy.</p>
+                            </label>
+                            <br><br>
+                            
+                            <label>
+                                <input type="radio" name="mapping_method" value="csv_upload" <?php checked($mapping_method, 'csv_upload'); ?>>
+                                Use CSV mapping file
+                                <p class="description">Upload a CSV file with columns: business_id, category_name, parent_category_name (optional)</p>
+                                <input type="file" name="mapping_csv" accept=".csv" style="margin-top: 5px;">
+                            </label>
+                            <br><br>
+                            
+                            <label>
+                                <input type="radio" name="mapping_method" value="content_analysis" <?php checked($mapping_method, 'content_analysis'); ?>>
+                                Analyze business content (less reliable)
+                                <p class="description">Attempts to determine categories based on business name and content.</p>
+                            </label>
+                        </td>
+                    </tr>
+                </table>
+                
+                <p class="submit">
+                    <input type="submit" name="lbd_link_categories_submit" class="button button-primary" value="Link Categories Now">
+                </p>
+            </form>
+        </div>
+        
+        <div class="card">
+            <h2>Available Categories</h2>
+            <p>Review the current category hierarchy to understand available options:</p>
+            
+            <?php
+            // Display the current category hierarchy
+            $categories = get_terms(array(
+                'taxonomy' => 'business_category',
+                'hide_empty' => false,
+                'parent' => 0,
+            ));
+            
+            if (!empty($categories)) {
+                echo '<ul class="category-hierarchy">';
+                foreach ($categories as $category) {
+                    echo '<li><strong>' . esc_html($category->name) . '</strong> (ID: ' . $category->term_id . ')';
+                    
+                    // Get children
+                    $children = get_terms(array(
+                        'taxonomy' => 'business_category',
+                        'hide_empty' => false,
+                        'parent' => $category->term_id,
+                    ));
+                    
+                    if (!empty($children)) {
+                        echo '<ul>';
+                        foreach ($children as $child) {
+                            echo '<li>' . esc_html($child->name) . ' (ID: ' . $child->term_id . ')</li>';
+                        }
+                        echo '</ul>';
+                    }
+                    
+                    echo '</li>';
+                }
+                echo '</ul>';
+            } else {
+                echo '<p>No categories found.</p>';
+            }
+            ?>
+        </div>
+    </div>
+    
+    <style>
+        .category-hierarchy {
+            margin-left: 20px;
+        }
+        .category-hierarchy ul {
+            margin-left: 30px;
+        }
+    </style>
+    <?php
+}
+
+/**
+ * Link categories using name matching
+ * 
+ * @return array Processing results
+ */
+function lbd_link_categories_by_name_match() {
+    $results = array(
+        'processed' => 0,
+        'updated' => 0,
+        'skipped' => 0,
+        'errors' => array(),
+        'log' => array()
+    );
+    
+    // Get all businesses
+    $businesses = get_posts(array(
+        'post_type' => 'business',
+        'posts_per_page' => -1,
+        'post_status' => 'publish',
+    ));
+    
+    if (empty($businesses)) {
+        $results['errors'][] = 'No published businesses found.';
+        return $results;
+    }
+    
+    $results['processed'] = count($businesses);
+    
+    // Get all categories with parent information
+    $all_categories = get_terms(array(
+        'taxonomy' => 'business_category',
+        'hide_empty' => false,
+    ));
+    
+    $category_map = array();
+    $child_categories = array();
+    
+    foreach ($all_categories as $category) {
+        $category_map[$category->term_id] = $category;
+        
+        // Group children by parent
+        if ($category->parent > 0) {
+            if (!isset($child_categories[$category->parent])) {
+                $child_categories[$category->parent] = array();
+            }
+            $child_categories[$category->parent][] = $category;
+        }
+    }
+    
+    // Process each business
+    foreach ($businesses as $business) {
+        // Get current categories for the business
+        $current_terms = wp_get_object_terms($business->ID, 'business_category');
+        
+        if (empty($current_terms)) {
+            $results['log'][] = "Business #{$business->ID} ({$business->post_title}): No existing categories found.";
+            $results['skipped']++;
+            continue;
+        }
+        
+        // Get the first term (primary category)
+        $current_term = $current_terms[0];
+        
+        // Check if this term is already a child category (has a parent)
+        if ($current_term->parent > 0) {
+            $results['log'][] = "Business #{$business->ID} ({$business->post_title}): Already has a parent category. Term: {$current_term->name} (ID: {$current_term->term_id})";
+            $results['skipped']++;
+            continue;
+        }
+        
+        // This is a top-level category. Check if there's a child with the same name
+        if (!isset($child_categories[$current_term->term_id]) || empty($child_categories[$current_term->term_id])) {
+            // No children for this category
+            $results['log'][] = "Business #{$business->ID} ({$business->post_title}): Top-level category with no children. Term: {$current_term->name} (ID: {$current_term->term_id})";
+            $results['skipped']++;
+            continue;
+        }
+        
+        // Find a child with the same name
+        $found_child = null;
+        foreach ($child_categories[$current_term->term_id] as $child) {
+            if (strtolower($child->name) === strtolower($current_term->name)) {
+                $found_child = $child;
+                break;
+            }
+        }
+        
+        if ($found_child) {
+            // Found a child with the same name, update the business
+            wp_set_object_terms($business->ID, $found_child->term_id, 'business_category', false);
+            $results['log'][] = "Business #{$business->ID} ({$business->post_title}): Updated from {$current_term->name} (ID: {$current_term->term_id}) to child category {$found_child->name} (ID: {$found_child->term_id})";
+            $results['updated']++;
+        } else {
+            // No matching child found
+            $results['log'][] = "Business #{$business->ID} ({$business->post_title}): No matching child category found for {$current_term->name} (ID: {$current_term->term_id})";
+            $results['skipped']++;
+        }
+    }
+    
+    return $results;
+}
+
+/**
+ * Link categories using a CSV mapping file
+ * 
+ * @param array $file Uploaded file data
+ * @return array Processing results
+ */
+function lbd_link_categories_by_csv($file) {
+    $results = array(
+        'processed' => 0,
+        'updated' => 0,
+        'skipped' => 0,
+        'errors' => array(),
+        'log' => array()
+    );
+    
+    // Check for errors
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        $results['errors'][] = 'Error uploading file. Please try again.';
+        return $results;
+    }
+    
+    // Check file type
+    $file_type = wp_check_filetype(basename($file['name']));
+    if ($file_type['ext'] !== 'csv') {
+        $results['errors'][] = 'Please upload a valid CSV file.';
+        return $results;
+    }
+    
+    // Open the file
+    $handle = fopen($file['tmp_name'], 'r');
+    if (!$handle) {
+        $results['errors'][] = 'Error opening file. Please try again.';
+        return $results;
+    }
+    
+    // Get headers
+    $headers = fgetcsv($handle);
+    if (!$headers) {
+        fclose($handle);
+        $results['errors'][] = 'Error reading CSV headers.';
+        return $results;
+    }
+    
+    // Required fields
+    $required_fields = array('business_id', 'category_name');
+    $missing_fields = array();
+    
+    // Check for required fields
+    foreach ($required_fields as $field) {
+        if (!in_array($field, $headers)) {
+            $missing_fields[] = $field;
+        }
+    }
+    
+    if (!empty($missing_fields)) {
+        fclose($handle);
+        $results['errors'][] = 'Missing required fields: ' . implode(', ', $missing_fields);
+        return $results;
+    }
+    
+    $parent_category_idx = array_search('parent_category_name', $headers);
+    
+    // Count rows for processed total
+    $row_count = 0;
+    while (fgetcsv($handle) !== false) {
+        $row_count++;
+    }
+    rewind($handle);
+    fgetcsv($handle); // Skip headers
+    
+    $results['processed'] = $row_count;
+    
+    // Process each row
+    $row_number = 1;
+    while (($row = fgetcsv($handle)) !== false) {
+        $row_number++;
+        
+        // Create associative array
+        $data = array();
+        foreach ($headers as $index => $header) {
+            $data[$header] = isset($row[$index]) ? trim($row[$index]) : '';
+        }
+        
+        // Skip if missing required fields
+        if (empty($data['business_id']) || empty($data['category_name'])) {
+            $results['log'][] = "Row {$row_number}: Missing required fields. Skipping.";
+            $results['skipped']++;
+            continue;
+        }
+        
+        $business_id = intval($data['business_id']);
+        $category_name = sanitize_text_field($data['category_name']);
+        $parent_name = ($parent_category_idx !== false && isset($data['parent_category_name'])) ? 
+                      sanitize_text_field($data['parent_category_name']) : '';
+        
+        // Verify business exists
+        $business = get_post($business_id);
+        if (!$business || $business->post_type !== 'business') {
+            $results['log'][] = "Row {$row_number}: Business #{$business_id} not found or not a business post. Skipping.";
+            $results['skipped']++;
+            continue;
+        }
+        
+        // Find the category term
+        $target_term_id = null;
+        
+        if (!empty($parent_name)) {
+            // First, find the parent
+            $parent_term = term_exists($parent_name, 'business_category');
+            
+            if (!$parent_term) {
+                $results['log'][] = "Row {$row_number}: Parent category '{$parent_name}' not found for business #{$business_id}. Skipping.";
+                $results['skipped']++;
+                continue;
+            }
+            
+            // Then find the child category under this parent
+            $child_term = term_exists($category_name, 'business_category', $parent_term['term_id']);
+            
+            if (!$child_term) {
+                $results['log'][] = "Row {$row_number}: Category '{$category_name}' not found under parent '{$parent_name}' for business #{$business_id}. Skipping.";
+                $results['skipped']++;
+                continue;
+            }
+            
+            $target_term_id = $child_term['term_id'];
+        } else {
+            // Look for a top-level category
+            $term = term_exists($category_name, 'business_category');
+            
+            if (!$term) {
+                $results['log'][] = "Row {$row_number}: Category '{$category_name}' not found for business #{$business_id}. Skipping.";
+                $results['skipped']++;
+                continue;
+            }
+            
+            $target_term_id = $term['term_id'];
+        }
+        
+        // Update the business
+        if ($target_term_id) {
+            wp_set_object_terms($business_id, $target_term_id, 'business_category', false);
+            $results['log'][] = "Row {$row_number}: Business #{$business_id} ({$business->post_title}) updated with category '{$category_name}'" . 
+                               (!empty($parent_name) ? " under parent '{$parent_name}'" : '') . ".";
+            $results['updated']++;
+        }
+    }
+    
+    fclose($handle);
+    return $results;
+}
+
+/**
+ * Link categories using content analysis
+ * 
+ * @return array Processing results
+ */
+function lbd_link_categories_by_content_analysis() {
+    $results = array(
+        'processed' => 0,
+        'updated' => 0,
+        'skipped' => 0,
+        'errors' => array(),
+        'log' => array()
+    );
+    
+    // Get all businesses
+    $businesses = get_posts(array(
+        'post_type' => 'business',
+        'posts_per_page' => -1,
+        'post_status' => 'publish',
+    ));
+    
+    if (empty($businesses)) {
+        $results['errors'][] = 'No published businesses found.';
+        return $results;
+    }
+    
+    $results['processed'] = count($businesses);
+    
+    // Get all categories
+    $all_categories = get_terms(array(
+        'taxonomy' => 'business_category',
+        'hide_empty' => false,
+    ));
+    
+    // Group by parent and create keyword maps
+    $parent_categories = array();
+    $child_categories = array();
+    $category_keywords = array();
+    
+    foreach ($all_categories as $category) {
+        // Prepare keywords from category name
+        $keywords = explode(' ', strtolower($category->name));
+        $keywords = array_filter($keywords, function($word) {
+            return strlen($word) > 3; // Only use words with more than 3 characters
+        });
+        
+        // Store in our maps
+        $category_keywords[$category->term_id] = $keywords;
+        
+        if ($category->parent === 0) {
+            $parent_categories[$category->term_id] = $category;
+        } else {
+            if (!isset($child_categories[$category->parent])) {
+                $child_categories[$category->parent] = array();
+            }
+            $child_categories[$category->parent][] = $category;
+        }
+    }
+    
+    // Process each business
+    foreach ($businesses as $business) {
+        // Get content for analysis
+        $content = $business->post_title . ' ' . $business->post_content . ' ' . $business->post_excerpt;
+        $content = strtolower($content);
+        
+        // Check if already has categories
+        $current_terms = wp_get_object_terms($business->ID, 'business_category');
+        
+        // Start with best match as null
+        $best_parent_match = null;
+        $best_parent_score = 0;
+        $best_child_match = null;
+        $best_child_score = 0;
+        
+        // First, find the best parent match
+        foreach ($parent_categories as $parent_id => $parent) {
+            $score = 0;
+            
+            // Check for exact name match (highest priority)
+            if (stripos($content, $parent->name) !== false) {
+                $score += 10;
+            }
+            
+            // Check for keyword matches
+            foreach ($category_keywords[$parent_id] as $keyword) {
+                if (stripos($content, $keyword) !== false) {
+                    $score += 2;
+                }
+            }
+            
+            // Update best match if score is higher
+            if ($score > $best_parent_score) {
+                $best_parent_score = $score;
+                $best_parent_match = $parent;
+            }
+        }
+        
+        // If we found a parent match, look for the best child
+        if ($best_parent_match && isset($child_categories[$best_parent_match->term_id])) {
+            foreach ($child_categories[$best_parent_match->term_id] as $child) {
+                $score = 0;
+                
+                // Check for exact name match (highest priority)
+                if (stripos($content, $child->name) !== false) {
+                    $score += 10;
+                }
+                
+                // Check for keyword matches
+                foreach ($category_keywords[$child->term_id] as $keyword) {
+                    if (stripos($content, $keyword) !== false) {
+                        $score += 2;
+                    }
+                }
+                
+                // Update best match if score is higher
+                if ($score > $best_child_score) {
+                    $best_child_score = $score;
+                    $best_child_match = $child;
+                }
+            }
+        }
+        
+        // Determine which category to use
+        $target_term = null;
+        
+        if ($best_child_match && $best_child_score >= 5) {
+            // Use child if good match found
+            $target_term = $best_child_match;
+            $match_type = "child category {$best_child_match->name} (score: {$best_child_score})";
+        } elseif ($best_parent_match && $best_parent_score >= 5) {
+            // Fallback to parent if good match but no good child match
+            $target_term = $best_parent_match;
+            $match_type = "parent category {$best_parent_match->name} (score: {$best_parent_score})";
+        }
+        
+        if ($target_term) {
+            // Update the business
+            wp_set_object_terms($business->ID, $target_term->term_id, 'business_category', false);
+            $results['log'][] = "Business #{$business->ID} ({$business->post_title}): Updated to {$match_type}";
+            $results['updated']++;
+        } else {
+            $results['log'][] = "Business #{$business->ID} ({$business->post_title}): No good category match found";
+            $results['skipped']++;
+        }
+    }
+    
+    return $results;
+} 

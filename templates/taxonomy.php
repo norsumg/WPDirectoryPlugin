@@ -28,9 +28,26 @@
     <?php endif; ?>
     
     <div class="business-listing">
-        <?php if ( have_posts() ) : while ( have_posts() ) : the_post(); ?>
-            <?php lbd_get_template_part( 'content', 'business' ); ?>
-        <?php endwhile; else: ?>
+        <?php if ( have_posts() ) : ?>
+            <div class="business-items">
+                <?php while ( have_posts() ) : the_post(); ?>
+                    <?php lbd_get_template_part( 'content', 'business' ); ?>
+                <?php endwhile; ?>
+            </div>
+            
+            <?php 
+            // Add pagination options before the pagination
+            do_action('lbd_before_pagination');
+            
+            if ( function_exists('wp_pagenavi') ) : 
+                wp_pagenavi();
+            else : ?>
+                <div class="pagination">
+                    <?php echo paginate_links(); ?>
+                </div>
+            <?php endif; ?>
+            
+        <?php else: ?>
             <p>No businesses found.</p>
         <?php endif; ?>
     </div>

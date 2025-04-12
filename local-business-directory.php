@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Local Business Directory
  * Description: A directory of local businesses with reviews and ratings
- * Version: 0.9.7
+ * Version: 0.9.16
  * Author: Norsu Media
  */
 
@@ -31,6 +31,7 @@ lbd_include_file('includes/activation.php');
 lbd_include_file('includes/reviews.php');
 lbd_include_file('includes/rankmath-integration.php');
 lbd_include_file('includes/duplicates.php');
+lbd_include_file('includes/category-importer.php');
 
 // Include debug tools after WordPress is fully loaded
 function lbd_maybe_include_debug() {
@@ -52,6 +53,42 @@ function lbd_enqueue_styles() {
     if (is_singular('business')) {
         wp_enqueue_script('lbd-single-business', plugin_dir_url(__FILE__) . 'assets/js/single-business.js', array('jquery'), '0.7.0', true);
     }
+    
+    // Add inline CSS for pagination options
+    $pagination_css = "
+        .lbd-pagination-options {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+            gap: 10px;
+            font-size: 14px;
+        }
+        .per-page-label {
+            margin-right: 5px;
+            color: #666;
+        }
+        .per-page-option {
+            display: inline-block;
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            text-decoration: none;
+            color: #333;
+            background: #f5f5f5;
+            transition: all 0.2s ease;
+        }
+        .per-page-option:hover {
+            background: #e5e5e5;
+            color: #000;
+        }
+        .per-page-option.active {
+            background: #2271b1;
+            color: white;
+            border-color: #2271b1;
+        }
+    ";
+    
+    wp_add_inline_style('lbd-styles', $pagination_css);
 }
 add_action('wp_enqueue_scripts', 'lbd_enqueue_styles');
 
@@ -394,6 +431,157 @@ function lbd_get_cached_terms($taxonomy) {
     }
     
     return $cached_terms;
+}
+
+/**
+ * Handle per-page options for business directory
+ * 
+ * @return int Number of posts per page
+ */
+function lbd_get_posts_per_page() {
+    $per_page = isset($_GET['per_page']) ? intval($_GET['per_page']) : 0;
+    
+    // Validate the per_page option
+    if ($per_page !== 50 && $per_page !== 100) {
+        return 0; // Return 0 to use default
+    }
+    
+    return $per_page;
+}
+
+/**
+ * Add pagination options HTML
+ * 
+ * Outputs the HTML for the per-page selection controls
+ */
+function lbd_pagination_options() {
+    // Get current per_page value
+    $current_per_page = isset($_GET['per_page']) ? intval($_GET['per_page']) : 0;
+    
+    // Get current URL without per_page parameter
+    $current_url = remove_query_arg('per_page');
+    
+    echo '<div class="lbd-pagination-options">';
+    echo '<span class="per-page-label">Items per page: </span>';
+    
+    // Default option
+    echo '<a href="' . esc_url($current_url) . '" class="per-page-option' . ($current_per_page === 0 ? ' active' : '') . '">Default</a>';
+    
+    // 50 per page option
+    echo '<a href="' . esc_url(add_query_arg('per_page', 50, $current_url)) . '" class="per-page-option' . ($current_per_page === 50 ? ' active' : '') . '">50</a>';
+    
+    // 100 per page option
+    echo '<a href="' . esc_url(add_query_arg('per_page', 100, $current_url)) . '" class="per-page-option' . ($current_per_page === 100 ? ' active' : '') . '">100</a>';
+    
+    echo '</div>';
+}
+
+/**
+ * Add filter to modify business post queries for pagination
+ */
+function lbd_modify_business_queries($query) {
+    // Only modify on frontend for business-related queries
+    if (is_admin() || !$query->is_main_query()) {
+        return;
+    }
+    
+    // Only apply to business post type or business taxonomies
+    if ($query->is_post_type_archive('business') || 
+        $query->is_tax('business_category') || 
+        $query->is_tax('business_area')) {
+        
+        // Get custom posts per page if set
+        $per_page = lbd_get_posts_per_page();
+        if ($per_page > 0) {
+            $query->set('posts_per_page', $per_page);
+        }
+    }
+}
+add_action('pre_get_posts', 'lbd_modify_business_queries');
+
+/**
+ * Add admin per-page options to business management pages
+ */
+function lbd_add_admin_per_page_options() {
+    $screen = get_current_screen();
+    
+    // Only apply to business post type and business taxonomies admin screens
+    if (!$screen || 
+        ($screen->post_type !== 'business' && 
+         !($screen->id === 'edit-business_category' || $screen->id === 'edit-business_area'))) {
+        return;
+    }
+    
+    // Add dropdown options for admin screens
+    add_filter('edit_posts_per_page', 'lbd_modify_admin_per_page', 10, 2);
+    add_filter('edit_tags_per_page', 'lbd_modify_admin_per_page', 10, 2);
+    
+    // Directly modify the Screen Options dropdown
+    ?>
+    <script type="text/javascript">
+    jQuery(document).ready(function($) {
+        // Wait a short time for Screen Options to be available
+        setTimeout(function() {
+            // Target the Screen Options dropdown specifically
+            var $screenOptionsTab = $('#screen-options-wrap');
+            
+            // Check if Screen Options is available
+            if ($screenOptionsTab.length) {
+                var $perPageInput = $screenOptionsTab.find('input[name="wp_screen_options[value]"]');
+                var $perPageForm = $screenOptionsTab.find('form');
+                
+                if ($perPageInput.length) {
+                    // Create the custom per page options
+                    var $container = $('<div class="lbd-per-page-options" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;"></div>');
+                    $container.append('<p><strong>Quick Select:</strong> Items per page</p>');
+                    
+                    // Create buttons for 20, 50 and 100 items
+                    var $buttons = $('<div class="lbd-buttons" style="display: flex; gap: 8px;"></div>');
+                    
+                    // 20 button
+                    $buttons.append('<button type="button" class="button" data-value="20">20</button>');
+                    
+                    // 50 button
+                    $buttons.append('<button type="button" class="button" data-value="50">50</button>');
+                    
+                    // 100 button
+                    $buttons.append('<button type="button" class="button" data-value="100">100</button>');
+                    
+                    $container.append($buttons);
+                    
+                    // Add after the per page input
+                    $perPageInput.after($container);
+                    
+                    // Handle button clicks
+                    $container.find('button').on('click', function() {
+                        var value = $(this).data('value');
+                        $perPageInput.val(value);
+                        $perPageForm.submit();
+                    });
+                }
+            }
+        }, 500); // Wait 500ms for screen options to be available
+    });
+    </script>
+    <?php
+}
+add_action('admin_footer', 'lbd_add_admin_per_page_options');
+
+/**
+ * Modify the admin per-page setting
+ */
+function lbd_modify_admin_per_page($per_page, $post_type) {
+    // Check if a per_page param is in the URL and is a valid option
+    if (isset($_GET['per_page'])) {
+        $requested_per_page = intval($_GET['per_page']);
+        
+        // Allow 50 and 100 as valid options
+        if ($requested_per_page === 50 || $requested_per_page === 100) {
+            return $requested_per_page;
+        }
+    }
+    
+    return $per_page;
 }
 
 /**

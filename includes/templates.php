@@ -55,4 +55,20 @@ function lbd_get_template_part( $slug, $name = null ) {
     if ( $template ) {
         load_template( $template, false );
     }
-} 
+}
+
+/**
+ * Modify the pagination display to add per-page options
+ */
+function lbd_add_pagination_options() {
+    // Only add to relevant pages
+    if (!is_tax('business_category') && !is_tax('business_area') && !is_post_type_archive('business')) {
+        return;
+    }
+    
+    // Display pagination options before standard pagination
+    echo '<div class="lbd-pagination-wrapper">';
+    lbd_pagination_options();
+    echo '</div>';
+}
+add_action('lbd_before_pagination', 'lbd_add_pagination_options'); 
