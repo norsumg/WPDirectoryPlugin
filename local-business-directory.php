@@ -1,9 +1,12 @@
 <?php
 /**
  * Plugin Name: Local Business Directory
- * Description: A directory of local businesses with reviews and ratings
- * Version: 0.9.16
+ * Plugin URI: https://norsumedia.com/
+ * Description: A directory of local businesses with custom fields, search, and import/export features.
+ * Version: 0.9.29
  * Author: Norsu Media
+ * Author URI: https://norsumedia.com/
+ * Text Domain: local-business-directory
  */
 
 // Prevent direct access
@@ -32,6 +35,7 @@ lbd_include_file('includes/reviews.php');
 lbd_include_file('includes/rankmath-integration.php');
 lbd_include_file('includes/duplicates.php');
 lbd_include_file('includes/category-importer.php');
+lbd_include_file('includes/category-mapper.php');
 
 // Include debug tools after WordPress is fully loaded
 function lbd_maybe_include_debug() {
