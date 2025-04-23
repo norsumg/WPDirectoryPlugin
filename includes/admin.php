@@ -1235,38 +1235,31 @@ function lbd_format_hours_for_export($hours_data) {
 }
 
 /**
- * Get business hours for a specific day, with backward compatibility
+ * Get business hours for a specific day.
  * 
  * @param int $post_id Business post ID
  * @param string $day Day of the week (monday, tuesday, etc.)
- * @return array|null Hours data array or null if not found
+ * @return array|null Hours data array (e.g., [['open'=>'9:00 AM', 'close'=>'5:00 PM', 'closed'=>'']]) or null if not found
  */
 function lbd_get_business_hours($post_id, $day) {
-    // Try to get the new structured format first
+    // ONLY try to get the new structured format.
     $hours_group = get_post_meta($post_id, 'lbd_hours_' . $day . '_group', true);
     
-    // If we have data in the new format, return it
+    // Ensure it's an array and potentially contains the expected structure
     if (!empty($hours_group) && is_array($hours_group)) {
-        return $hours_group;
+        // Ensure it's wrapped in an outer array like CMB2 non-repeatable groups are
+        if (isset($hours_group['open']) || isset($hours_group['close']) || isset($hours_group['closed'])) {
+             // If the data is directly the fields, wrap it
+             return array($hours_group);
+        }
+        // Check if the first element is an array (correct structure)
+        if (isset($hours_group[0]) && is_array($hours_group[0])) {
+            return $hours_group;
+        }
     }
     
-    // Try the old format
-    $old_hours = get_post_meta($post_id, 'lbd_hours_' . $day, true);
-    
-    // If we have old format data, convert it
-    if (!empty($old_hours)) {
-        // Parse the old format
-        $hours_data = lbd_parse_hours_from_text($old_hours);
-        
-        // Store it in the new format
-        $group_data = array($hours_data);
-        update_post_meta($post_id, 'lbd_hours_' . $day . '_group', $group_data);
-        
-        // Return the converted data
-        return $group_data;
-    }
-    
-    return null;
+    // If we didn't find valid data in the expected format, return null.
+    return null; 
 }
 
 // Make the function available outside of admin
@@ -1274,7 +1267,11 @@ add_action('init', function() {
     if (!function_exists('lbd_get_business_hours')) {
         function lbd_get_business_hours($post_id, $day) {
             // Call the admin function
-            return \lbd_get_business_hours($post_id, $day);
+            if (function_exists('\lbd_get_business_hours')) {
+                 return \lbd_get_business_hours($post_id, $day);
+            }
+            // Fallback if the admin function isn't loaded for some reason
+            return get_post_meta($post_id, 'lbd_hours_' . $day . '_group', true);
         }
     }
 });
@@ -1490,171 +1487,141 @@ function lbd_create_business_from_csv($data, $direct_import = false) {
         wp_set_object_terms($post_id, $business_categories, 'business_category');
     }
     
-    // Update business meta data
-    $meta_fields = array(
-        // Contact Information
-        'business_email' => 'sanitize_email',
-        'business_website' => 'esc_url_raw',
-        'business_phone' => 'sanitize_text_field',
-        'business_mobile' => 'sanitize_text_field',
-        'business_fax' => 'sanitize_text_field',
+    // Define the fields we expect from the CSV and their target WP meta keys + sanitizers
+    $field_map = array(
+        // CSV Column Name => array('meta_key' => WP Meta Key, 'sanitize' => Callback or Type)
         
-        // Address Information
-        'business_address' => 'sanitize_text_field',
-        'business_address2' => 'sanitize_text_field',
-        'business_city' => 'sanitize_text_field',
-        'business_county' => 'sanitize_text_field',
-        'business_state' => 'sanitize_text_field',
-        'business_postcode' => 'sanitize_text_field',
-        'business_country' => 'sanitize_text_field',
-        'business_lat' => 'floatval',
-        'business_lng' => 'floatval',
+        // Contact
+        'business_email' => array('meta_key' => 'lbd_email', 'sanitize' => 'sanitize_email'),
+        'business_website' => array('meta_key' => 'lbd_website', 'sanitize' => 'esc_url_raw'),
+        'business_phone' => array('meta_key' => 'lbd_phone', 'sanitize' => 'sanitize_text_field'),
+        'business_mobile' => array('meta_key' => 'lbd_mobile', 'sanitize' => 'sanitize_text_field'),
+        'business_fax' => array('meta_key' => 'lbd_fax', 'sanitize' => 'sanitize_text_field'),
+
+        // Address
+        'business_address' => array('meta_key' => 'lbd_address', 'sanitize' => 'sanitize_text_field'), // Old combined field
+        'business_street_address' => array('meta_key' => 'lbd_street_address', 'sanitize' => 'sanitize_text_field'),
+        'business_city' => array('meta_key' => 'lbd_city', 'sanitize' => 'sanitize_text_field'),
+        'business_county' => array('meta_key' => 'lbd_county', 'sanitize' => 'sanitize_text_field'),
+        'business_state' => array('meta_key' => 'lbd_state', 'sanitize' => 'sanitize_text_field'),
+        'business_postcode' => array('meta_key' => 'lbd_postcode', 'sanitize' => 'sanitize_text_field'),
+        'business_country' => array('meta_key' => 'lbd_country', 'sanitize' => 'sanitize_text_field'),
+        'business_lat' => array('meta_key' => 'lbd_latitude', 'sanitize' => 'floatval'),
+        'business_lng' => array('meta_key' => 'lbd_longitude', 'sanitize' => 'floatval'),
+
+        // Social
+        'business_facebook' => array('meta_key' => 'lbd_facebook', 'sanitize' => 'esc_url_raw'),
+        'business_twitter' => array('meta_key' => 'lbd_twitter', 'sanitize' => 'sanitize_text_field'),
+        'business_linkedin' => array('meta_key' => 'lbd_linkedin', 'sanitize' => 'esc_url_raw'),
+        'business_instagram' => array('meta_key' => 'lbd_instagram', 'sanitize' => 'sanitize_text_field'),
+        'business_youtube' => array('meta_key' => 'lbd_youtube', 'sanitize' => 'esc_url_raw'),
+
+        // Google Reviews
+        'business_google_rating' => array('meta_key' => 'lbd_google_rating', 'sanitize' => 'lbd_sanitize_google_rating'), // Use custom sanitizer
+        'business_google_review_count' => array('meta_key' => 'lbd_google_review_count', 'sanitize' => 'intval'),
+        'business_google_reviews_url' => array('meta_key' => 'lbd_google_reviews_url', 'sanitize' => 'esc_url_raw'),
         
-        // Social Media
-        'business_facebook' => 'esc_url_raw',
-        'business_twitter' => 'sanitize_text_field',
-        'business_linkedin' => 'esc_url_raw',
-        'business_instagram' => 'sanitize_text_field',
-        'business_youtube' => 'esc_url_raw',
-        
-        // Additional Fields
-        'business_established' => 'intval',
-        'business_employees' => 'intval',
-        'business_tagline' => 'sanitize_text_field',
-        
-        // Premium attributes
-        'business_black_owned' => 'sanitize_text_field',
-        'business_women_owned' => 'sanitize_text_field',
-        'business_lgbtq_friendly' => 'sanitize_text_field',
-        'business_google_rating' => 'floatval',
-        'business_google_review_count' => 'intval',
-        'business_google_reviews_url' => 'esc_url_raw',
+        // Other Attributes
+        'business_black_owned' => array('meta_key' => 'lbd_black_owned', 'sanitize' => 'lbd_sanitize_yes_no'),
+        'business_women_owned' => array('meta_key' => 'lbd_women_owned', 'sanitize' => 'lbd_sanitize_yes_no'),
+        'business_lgbtq_friendly' => array('meta_key' => 'lbd_lgbtq_friendly', 'sanitize' => 'lbd_sanitize_yes_no'),
+        'business_premium' => array('meta_key' => 'lbd_premium', 'sanitize' => 'lbd_sanitize_yes_no'), // Handle premium here too
+        'business_is_premium' => array('meta_key' => 'lbd_premium', 'sanitize' => 'lbd_sanitize_yes_no'), // Alternative field name
+
+        // Additional Info
+        'business_payments' => array('meta_key' => 'lbd_payments', 'sanitize' => 'sanitize_text_field'),
+        'business_parking' => array('meta_key' => 'lbd_parking', 'sanitize' => 'sanitize_text_field'),
+        'business_amenities' => array('meta_key' => 'lbd_amenities', 'sanitize' => 'sanitize_textarea_field'),
+        'business_accessibility' => array('meta_key' => 'lbd_accessibility', 'sanitize' => 'sanitize_textarea_field'),
+        'business_established' => array('meta_key' => 'lbd_established', 'sanitize' => 'intval'),
+        'business_employees' => array('meta_key' => 'lbd_employees', 'sanitize' => 'intval'),
+        'business_tagline' => array('meta_key' => 'lbd_tagline', 'sanitize' => 'sanitize_text_field'),
+
+        // Image URLs (will be processed later)
+        'business_logo_url' => array('meta_key' => 'lbd_logo', 'sanitize' => 'esc_url_raw'), // Store URL in lbd_logo meta
+        'business_image_url' => array('meta_key' => 'lbd_featured_image_url', 'sanitize' => 'esc_url_raw'), // Store URL separately
     );
-    
-    // Batch meta updates for better performance
+
     $meta_updates = array();
     
-    foreach ($meta_fields as $field => $sanitize_callback) {
-        if (isset($data[$field]) && !empty($data[$field])) {
-            $value = $data[$field];
+    // Populate meta_updates using the map
+    foreach ($field_map as $csv_column => $details) {
+        if (isset($data[$csv_column]) && $data[$csv_column] !== '') {
+            $value = $data[$csv_column];
+            $sanitize_callback = $details['sanitize'];
+            
             if (is_callable($sanitize_callback)) {
                 $value = call_user_func($sanitize_callback, $value);
+            } elseif ($sanitize_callback === 'floatval') {
+                $value = floatval(str_replace(',', '.', $value)); // Handle comma decimal separators
+            } elseif ($sanitize_callback === 'intval') {
+                $value = intval(preg_replace('/[^0-9]/', '', $value)); // Strip non-digits
             }
-            $meta_updates[$field] = $value;
-        }
-    }
-    
-    // Handle special yes/no fields
-    $boolean_fields = array('business_black_owned', 'business_women_owned', 'business_lgbtq_friendly');
-    foreach ($boolean_fields as $field) {
-        if (isset($data[$field])) {
-            $value = strtolower(trim($data[$field]));
-            if ($value === 'yes' || $value === 'true' || $value === '1') {
-                $meta_updates[$field] = 'yes';
-            } else if ($value === 'no' || $value === 'false' || $value === '0') {
-                $meta_updates[$field] = 'no';
+
+            // Only add if the sanitized value is not considered "empty" 
+            // (allows 0 for count/rating, but not empty strings after sanitization)
+            if ($value !== '' && !is_null($value) && $value !== false) { 
+                $meta_updates[$details['meta_key']] = $value;
             }
         }
     }
-    
-    // Handle opening hours
+
+    // --- Handle Opening Hours Separately ---
     $days = array('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday');
     foreach ($days as $day) {
         $hours_field = "business_hours_{$day}";
-        
-        if (isset($data[$hours_field]) && !empty($data[$hours_field])) {
-            // Parse the hours text
+        if (isset($data[$hours_field]) && $data[$hours_field] !== '') {
             $hours_text = $data[$hours_field];
-            $hours_data = lbd_parse_hours_from_text($hours_text);
-            
-            // Format for stored meta 
-            $hours_group = array($hours_data);
-            $meta_updates["lbd_hours_{$day}_group"] = $hours_group;
-        }
-    }
-    
-    // Handle 24/7 open flag
-    if (isset($data['business_hours_24']) && (
-        strtolower($data['business_hours_24']) === 'yes' || 
-        strtolower($data['business_hours_24']) === 'true' ||
-        $data['business_hours_24'] === '1')) {
-        $meta_updates['business_hours_24'] = 'yes';
-    }
-    
-    // Handle premium status
-    if (isset($data['business_premium']) || isset($data['business_is_premium'])) {
-        $premium_value = isset($data['business_premium']) ? $data['business_premium'] : $data['business_is_premium'];
-        $is_premium = in_array(strtolower($premium_value), array('yes', 'true', '1'));
-        $meta_updates['business_is_premium'] = $is_premium ? 'yes' : 'no';
-        
-        // Set featured until date if premium
-        if ($is_premium && isset($data['business_featured_until']) && !empty($data['business_featured_until'])) {
-            $date = date('Y-m-d', strtotime($data['business_featured_until']));
-            $meta_updates['business_featured_until'] = $date;
-        }
-    }
-    
-    // Handle logo
-    if (isset($data['business_logo_url']) && !empty($data['business_logo_url'])) {
-        $meta_updates['business_logo_url'] = esc_url_raw($data['business_logo_url']);
-        
-        // Also try to import the logo image
-        if (function_exists('lbd_import_image')) {
-            $logo_id = lbd_import_image($data['business_logo_url'], $post_id, $business_name . ' Logo', true);
-            if (!is_wp_error($logo_id)) {
-                $meta_updates['_thumbnail_id'] = $logo_id;
+            $hours_data = lbd_parse_hours_from_text($hours_text); // Use the improved parser
+            // Only update if the parser returned something usable
+            if (!empty($hours_data['open']) || !empty($hours_data['close']) || !empty($hours_data['closed'])) {
+                $meta_updates["lbd_hours_{$day}_group"] = array($hours_data); // Ensure wrapping array
             }
         }
     }
+    // Handle 24/7 flag
+    if (isset($data['business_hours_24'])) {
+        $meta_updates['lbd_hours_24'] = lbd_sanitize_yes_no($data['business_hours_24']);
+    }
+    // --- End Opening Hours ---
+
+    // --- Handle Images Separately ---
+    $logo_url = isset($data['business_logo_url']) ? esc_url_raw($data['business_logo_url']) : '';
+    $image_url = isset($data['business_image_url']) ? esc_url_raw($data['business_image_url']) : '';
     
-    // Handle featured image URL
-    if (isset($data['business_image_url']) && !empty($data['business_image_url'])) {
-        $meta_updates['business_image_url'] = esc_url_raw($data['business_image_url']);
-        
-        // Also try to import the image
+    if ($logo_url) {
+        $meta_updates['lbd_logo'] = $logo_url; // Store the URL itself
+        // Attempt import (function handles check if already imported)
         if (function_exists('lbd_import_image')) {
-            $image_id = lbd_import_image($data['business_image_url'], $post_id, $business_name, true);
-            if (!is_wp_error($image_id)) {
-                $meta_updates['_thumbnail_id'] = $image_id;
-            }
+            lbd_import_image($logo_url, $post_id, $business_name . ' Logo', false); // Don't set as featured
         }
     }
-    
-    // Allow for custom fields via filter
-    $custom_meta = apply_filters('lbd_csv_import_custom_fields', array(), $data, $post_id);
-    foreach ($custom_meta as $meta_key => $meta_value) {
-        $meta_updates[$meta_key] = $meta_value;
+    if ($image_url) {
+        // Store URL for reference if needed
+        // update_post_meta($post_id, 'lbd_featured_image_source_url', $image_url);
+        // Attempt import and set as featured
+        if (function_exists('lbd_import_image')) {
+            $thumb_id = lbd_import_image($image_url, $post_id, $business_name, true); 
+            // lbd_import_image now handles setting the thumbnail if successful
+        }
     }
-    
-    // Apply all meta updates in one go
+    // --- End Images ---
+
+    // Apply all meta updates
     foreach ($meta_updates as $meta_key => $meta_value) {
-        // Map CSV field names to actual meta field names in WordPress
-        $actual_meta_key = $meta_key;
+        // Use maybe_update_meta to avoid redundant writes if value hasn't changed
+        $existing_value = get_post_meta($post_id, $meta_key, true);
         
-        // Handle field name mismatches
-        $field_mappings = array(
-            'business_email' => 'lbd_email',
-            'business_website' => 'lbd_website',
-            'business_phone' => 'lbd_phone',
-            'business_address' => 'lbd_address',
-            'business_city' => 'lbd_city',
-            'business_postcode' => 'lbd_postcode',
-            'business_lat' => 'lbd_latitude',
-            'business_lng' => 'lbd_longitude',
-            // Add more mappings as needed
-        );
-        
-        if (isset($field_mappings[$meta_key])) {
-            $actual_meta_key = $field_mappings[$meta_key];
-            
-            // Also update using the original key for backward compatibility
+        // Compare carefully - handle arrays (like hours groups)
+        if (is_array($existing_value) || is_array($meta_value)) {
+            if ($existing_value !== $meta_value) { // Simple array comparison might be enough for hours
+                update_post_meta($post_id, $meta_key, $meta_value);
+            }
+        } elseif ((string)$existing_value !== (string)$meta_value) { // Cast to string for scalar comparison
             update_post_meta($post_id, $meta_key, $meta_value);
         }
-        
-        // Update with the correct meta key
-        update_post_meta($post_id, $actual_meta_key, $meta_value);
     }
-    
+
     return array(
         'post_id' => $post_id,
         'status' => $status
@@ -2972,4 +2939,64 @@ function lbd_get_or_create_business_category($category_name, $parent_name = '', 
     }
     
     return is_wp_error($term) ? null : $term;
-} 
+}
+
+/**
+ * Custom sanitizer for Google rating to handle potential non-numeric characters
+ */
+if (!function_exists('lbd_sanitize_google_rating')) {
+    function lbd_sanitize_google_rating($value) {
+        // Remove common non-numeric characters except decimal point/comma
+        $value = preg_replace('/[^\d.,]/', '', $value);
+        // Replace comma with dot for float conversion
+        $value = str_replace(',', '.', $value);
+        return floatval($value);
+    }
+}
+
+/**
+ * Custom sanitizer for yes/no fields
+ */
+if (!function_exists('lbd_sanitize_yes_no')) {
+    function lbd_sanitize_yes_no($value) {
+        $value = strtolower(trim($value));
+        if (in_array($value, array('yes', 'true', '1', 'on'))) {
+            return 'on'; // Use 'on' for CMB2 checkbox checked state
+        }
+        // Return empty string for 'no' or anything else, CMB2 treats empty as unchecked
+        return ''; 
+    }
+}
+
+/**
+ * Custom sanitizer for Google ratings - handles different number formats
+ * @param string $rating The rating value from CSV
+ * @return float Sanitized rating as float between 0-5
+ */
+function lbd_sanitize_google_rating($rating) {
+    // Remove all non-numeric characters except for decimal/comma
+    $rating = preg_replace('/[^\d\.,]/', '', $rating);
+    // Convert comma to dot for float conversion
+    $rating = str_replace(',', '.', $rating);
+    $rating = floatval($rating);
+    // Ensure value is between 0-5
+    return min(max(0, $rating), 5);
+}
+
+/**
+ * Sanitizes yes/no fields to a consistent format
+ * @param string $value The input value (yes, no, true, false, 1, 0, etc.)
+ * @return string 'on' for affirmative response, empty string for negative
+ */
+function lbd_sanitize_yes_no($value) {
+    if (empty($value)) {
+        return '';
+    }
+    
+    $value = strtolower(trim($value));
+    if (in_array($value, array('yes', 'true', '1', 'on', 'y'))) {
+        return 'on';
+    }
+    
+    return '';
+}

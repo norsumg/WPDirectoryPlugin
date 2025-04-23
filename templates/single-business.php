@@ -224,28 +224,38 @@
                         // Get hours data using the helper function
                         $day_group = function_exists('lbd_get_business_hours') 
                             ? lbd_get_business_hours(get_the_ID(), $day_id) 
-                            : get_post_meta(get_the_ID(), 'lbd_hours_' . $day_id . '_group', true);
+                            : null; // Default to null if function doesn't exist
                         
-                        if (empty($day_group)) {
-                            $hours_display = 'Hours not specified';
-                        } else {
-                            $is_closed = isset($day_group[0]['closed']) ? $day_group[0]['closed'] : false;
-                            $opening = isset($day_group[0]['open']) ? $day_group[0]['open'] : '';
-                            $closing = isset($day_group[0]['close']) ? $day_group[0]['close'] : '';
+                        // Initialize display string
+                        $hours_display = 'Hours not specified';
+
+                        // Check if we got valid data AND if the first entry exists
+                        if (!empty($day_group) && isset($day_group[0]) && is_array($day_group[0])) {
+                            $hours_item = $day_group[0]; // Get the first (and only) group item
                             
+                            $is_closed = !empty($hours_item['closed']); // Check if 'closed' checkbox is checked
+                            $opening = isset($hours_item['open']) ? trim($hours_item['open']) : '';
+                            $closing = isset($hours_item['close']) ? trim($hours_item['close']) : '';
+                            
+                            // Basic check to see if times look like times (optional, but safer)
+                            $is_opening_time = preg_match('/^\d{1,2}:\d{2}\s*(AM|PM)?$/i', $opening);
+                            $is_closing_time = preg_match('/^\d{1,2}:\d{2}\s*(AM|PM)?$/i', $closing);
+
                             // Format the hours display
                             if ($is_closed) {
                                 $hours_display = 'Closed';
-                            } elseif ($opening && $closing) {
+                            } elseif ($is_opening_time && $is_closing_time) {
+                                // Only display if both look like valid times
                                 $hours_display = esc_html($opening) . ' - ' . esc_html($closing);
-                            } elseif ($opening) {
+                            } elseif ($is_opening_time && empty($closing)) {
+                                // Handle case with only opening time (e.g. appointments)
                                 $hours_display = 'From ' . esc_html($opening);
-                            } elseif ($closing) {
-                                $hours_display = 'Until ' . esc_html($closing);
                             } else {
-                                $hours_display = 'Hours not specified';
+                                // If data exists but is invalid or incomplete for display
+                                $hours_display = 'Check Opening Times'; 
                             }
-                        }
+                        } 
+                        // If $day_group is null or empty, $hours_display remains 'Hours not specified'
                     ?>
                         <tr>
                             <th><?php echo esc_html($day_name); ?></th>
@@ -262,48 +272,43 @@
             <h2 class="section-title">Reviews</h2>
             
             <?php
-            // Get the reviews if the function exists
+            $has_displayed_reviews = false; // Flag to track if we showed anything
+
+            // First, try to get NATIVE reviews from the custom table
             if (function_exists('lbd_get_business_reviews')) {
-                $reviews = lbd_get_business_reviews(get_the_ID());
-                $average_rating = lbd_get_business_average_rating(get_the_ID());
-                $review_count = lbd_get_business_review_count(get_the_ID());
-                
-                if ($average_rating) {
-                    echo '<div class="review-summary">';
-                    echo '<div class="average-rating">' . esc_html($average_rating) . ' / 5</div>';
+                $native_reviews = lbd_get_business_reviews(get_the_ID()); // Get approved native reviews
+                $native_average_rating = lbd_get_business_average_rating(get_the_ID());
+                $native_review_count = lbd_get_business_review_count(get_the_ID());
+
+                // Display native review summary ONLY if there's an average rating
+                if ($native_average_rating) {
+                    echo '<div class="review-summary site-reviews">'; // Added site-reviews class
+                    echo '<div class="average-rating">' . esc_html($native_average_rating) . ' / 5</div>';
                     
-                    // Use the consolidated function if available
                     if (function_exists('lbd_get_star_rating_html')) {
-                        echo lbd_get_star_rating_html($average_rating, $review_count);
+                        // Pass 'Site' as the source explicitly
+                        echo lbd_get_star_rating_html($native_average_rating, $native_review_count, 'Site'); 
                     } else {
-                        // Fallback to original code
+                         // Fallback star display
                         echo '<div class="rating-stars">';
-                        // Display stars based on average rating
-                        $full_stars = floor($average_rating);
-                        $half_star = $average_rating - $full_stars >= 0.5;
+                        $full_stars = floor($native_average_rating);
+                        $half_star = $native_average_rating - $full_stars >= 0.5;
                         $empty_stars = 5 - $full_stars - ($half_star ? 1 : 0);
-                        
-                        for ($i = 0; $i < $full_stars; $i++) {
-                            echo '<span class="star full-star">★</span>';
-                        }
-                        
-                        if ($half_star) {
-                            echo '<span class="star half-star">★</span>';
-                        }
-                        
-                        for ($i = 0; $i < $empty_stars; $i++) {
-                            echo '<span class="star empty-star">☆</span>';
-                        }
+                        for ($i = 0; $i < $full_stars; $i++) echo '<span class="star full-star">★</span>';
+                        if ($half_star) echo '<span class="star half-star">★</span>';
+                        for ($i = 0; $i < $empty_stars; $i++) echo '<span class="star empty-star">☆</span>';
                         echo '</div>';
                     }
                     
-                    echo '<div class="review-count">Based on ' . esc_html($review_count) . ' reviews</div>';
+                    echo '<div class="review-count">Based on ' . esc_html($native_review_count) . ' site reviews</div>';
                     echo '</div>';
+                    $has_displayed_reviews = true; // We displayed the summary
                 }
                 
-                if ($reviews) {
-                    echo '<div class="reviews-list">';
-                    foreach ($reviews as $review) {
+                // Display the LIST of native reviews ONLY if there are reviews
+                if ($native_reviews) {
+                    echo '<div class="reviews-list site-reviews-list">'; // Added site-reviews-list class
+                    foreach ($native_reviews as $review) {
                         echo '<div class="review-item">';
                         echo '<div class="review-header">';
                         echo '<span class="reviewer-name">' . esc_html($review->reviewer_name) . '</span>';
@@ -320,6 +325,7 @@
                         
                         echo '<div class="review-text">' . esc_html($review->review_text) . '</div>';
                         
+                        // Only show source if NOT manual
                         if ($review->source !== 'manual') {
                             echo '<div class="review-source">Source: ' . esc_html(ucfirst($review->source)) . '</div>';
                         }
@@ -327,63 +333,68 @@
                         echo '</div>';
                     }
                     echo '</div>';
-                } else {
-                    // Check for Google Reviews as a fallback
-                    $google_rating = get_post_meta(get_the_ID(), 'lbd_google_rating', true);
-                    $google_review_count = get_post_meta(get_the_ID(), 'lbd_google_review_count', true);
-                    $google_reviews_url = get_post_meta(get_the_ID(), 'lbd_google_reviews_url', true);
-                    
-                    if ($google_rating && $google_review_count) {
-                        echo '<div class="google-reviews-fallback">';
-                        echo '<div class="review-summary">';
-                        echo '<div class="google-badge"><span class="google-icon">G</span> Google</div>';
-                        echo '<div class="average-rating">' . esc_html($google_rating) . ' / 5</div>';
-                        echo '<div class="rating-stars">';
-                        
-                        // Display stars based on Google rating
-                        $full_stars = floor($google_rating);
-                        $half_star = $google_rating - $full_stars >= 0.5;
-                        $empty_stars = 5 - $full_stars - ($half_star ? 1 : 0);
-                        
-                        for ($i = 0; $i < $full_stars; $i++) {
-                            echo '<span class="star full-star">★</span>';
-                        }
-                        
-                        if ($half_star) {
-                            echo '<span class="star half-star">★</span>';
-                        }
-                        
-                        for ($i = 0; $i < $empty_stars; $i++) {
-                            echo '<span class="star empty-star">☆</span>';
-                        }
-                        
-                        echo '</div>';
-                        echo '<div class="review-count">Based on ' . esc_html($google_review_count) . ' Google reviews</div>';
-                        
-                        if ($google_reviews_url) {
-                            echo '<div class="google-reviews-link"><a href="' . esc_url($google_reviews_url) . '" target="_blank" rel="noopener">Read reviews on Google</a></div>';
-                        }
-                        
-                        echo '</div>';
-                        echo '<p class="site-reviews-cta"><a href="' . esc_url(home_url('/submit-review/?business_id=' . get_the_ID())) . '">Be the first to review ' . esc_html(get_the_title()) . ' on our site!</a></p>';
-                        echo '</div>';
-                    } else {
-                        echo '<p>No reviews yet. <a href="' . esc_url(home_url('/submit-review/?business_id=' . get_the_ID())) . '">Be the first to review ' . esc_html(get_the_title()) . '!</a></p>';
-                    }
+                    // Don't set $has_displayed_reviews = true here, summary already did
                 }
-            } else {
-                // Fallback to WordPress comments
-                comments_template();
             }
-            ?>
+
+            // --- Google Fallback ---
+            // Check for Google Reviews IF no native review summary was displayed
+            if (!$has_displayed_reviews) {
+                 $google_rating = get_post_meta(get_the_ID(), 'lbd_google_rating', true);
+                 $google_review_count = get_post_meta(get_the_ID(), 'lbd_google_review_count', true);
+                 $google_reviews_url = get_post_meta(get_the_ID(), 'lbd_google_reviews_url', true);
+
+                 if ($google_rating && $google_review_count) {
+                     echo '<div class="google-reviews-fallback">'; // Keep this container
+                     echo '<div class="review-summary google-summary">'; // Added google-summary class
+                     echo '<div class="google-badge"><span class="google-icon">G</span> Google</div>';
+                     echo '<div class="average-rating">' . esc_html($google_rating) . ' / 5</div>';
+                     
+                      if (function_exists('lbd_get_star_rating_html')) {
+                         // Pass 'Google' as the source explicitly
+                         echo lbd_get_star_rating_html($google_rating, $google_review_count, 'Google');
+                     } else {
+                         // Fallback star display
+                         echo '<div class="rating-stars">';
+                         $full_stars = floor($google_rating);
+                         $half_star = $google_rating - $full_stars >= 0.5;
+                         $empty_stars = 5 - $full_stars - ($half_star ? 1 : 0);
+                         for ($i = 0; $i < $full_stars; $i++) echo '<span class="star full-star">★</span>';
+                         if ($half_star) echo '<span class="star half-star">★</span>';
+                         for ($i = 0; $i < $empty_stars; $i++) echo '<span class="star empty-star">☆</span>';
+                         echo '</div>';
+                     }
+
+                     echo '<div class="review-count">Based on ' . esc_html($google_review_count) . ' Google reviews</div>';
+                     
+                     if ($google_reviews_url) {
+                         echo '<div class="google-reviews-link"><a href="' . esc_url($google_reviews_url) . '" target="_blank" rel="noopener">Read reviews on Google</a></div>';
+                     }
+                     
+                     echo '</div>'; // End google-summary
+                      $has_displayed_reviews = true; // We displayed Google info
+                     
+                      // CTA to leave native review
+                     echo '<p class="site-reviews-cta"><a href="' . esc_url(home_url('/submit-review/?business_id=' . get_the_ID())) . '">Be the first to review ' . esc_html(get_the_title()) . ' on our site!</a></p>';
+                     echo '</div>'; // End google-reviews-fallback
+                 }
+            }
             
-            <?php if ($reviews && !empty($reviews)) : ?>
-                <div class="leave-review-cta">
-                    <a href="<?php echo esc_url(home_url('/submit-review/?business_id=' . get_the_ID())); ?>" class="btn-leave-review">
-                        Leave <?php echo esc_html(get_the_title()); ?> a review!
-                    </a>
-                </div>
-            <?php endif; ?>
+            // --- No Reviews Found ---
+            // If after checking both native and Google, we still haven't shown anything
+            if (!$has_displayed_reviews) {
+                 echo '<p>No reviews yet. <a href="' . esc_url(home_url('/submit-review/?business_id=' . get_the_ID())) . '">Be the first to review ' . esc_html(get_the_title()) . '!</a></p>';
+            }
+            
+            // --- Leave Review Button ---
+            // Show button regardless of whether reviews were displayed, allowing users to add native review anytime
+            ?>
+            <div class="leave-review-cta">
+                <a href="<?php echo esc_url(home_url('/submit-review/?business_id=' . get_the_ID())); ?>" class="btn-leave-review">
+                    Leave <?php echo esc_html(get_the_title()); ?> a review!
+                </a>
+            </div>
+           
         </section>
         
         <!-- Photos Section -->

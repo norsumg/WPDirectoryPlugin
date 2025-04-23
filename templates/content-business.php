@@ -3,6 +3,35 @@
     $is_premium = get_post_meta(get_the_ID(), 'business_premium', true);
     $phone = get_post_meta(get_the_ID(), 'business_phone', true);
     $website = get_post_meta(get_the_ID(), 'business_website', true);
+    
+    // Get review data
+    $review_average = get_post_meta(get_the_ID(), 'lbd_review_average', true);
+    $review_count = get_post_meta(get_the_ID(), 'lbd_review_count', true);
+    
+    // If no native reviews, check for Google reviews as fallback
+    $review_source = 'Native';
+    if (empty($review_average)) {
+        // Look for various possible Google review field names
+        $google_rating = get_post_meta(get_the_ID(), 'google_rating', true);
+        if (empty($google_rating)) {
+            $google_rating = get_post_meta(get_the_ID(), 'lbd_google_rating', true);
+        }
+        
+        $google_review_count = get_post_meta(get_the_ID(), 'google_review_count', true);
+        if (empty($google_review_count)) {
+            $google_review_count = get_post_meta(get_the_ID(), 'lbd_google_review_count', true);
+        }
+        
+        // If we found Google reviews, use them
+        if (!empty($google_rating)) {
+            $review_average = $google_rating;
+            $review_count = $google_review_count;
+            $review_source = 'Google';
+        }
+    }
+    
+    // Get categories
+    $categories = get_the_terms(get_the_ID(), 'business_category');
     ?>
     
     <?php if ($is_premium) : ?>
@@ -19,9 +48,24 @@
     
     <h3 class="business-title"><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h3>
     
+    <?php 
+    // Display star rating if available
+    if (!empty($review_average) && function_exists('lbd_get_star_rating_html')) {
+        echo lbd_get_star_rating_html($review_average, $review_count, $review_source);
+    }
+    ?>
+    
     <div class="business-excerpt">
         <?php echo wp_trim_words(get_the_excerpt(), 20); ?>
     </div>
+    
+    <?php if (!empty($categories) && !is_wp_error($categories)) : ?>
+    <div class="business-categories-list">
+        <?php foreach($categories as $category) : ?>
+        <span><?php echo esc_html($category->name); ?></span>
+        <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
     
     <?php 
     // Display business attributes if any are set
@@ -53,8 +97,11 @@
     
     <div class="business-link">
         <a href="<?php the_permalink(); ?>" class="view-details">View Details</a>
-        <?php if ($website) : ?>
-        <a href="<?php echo esc_url($website); ?>" class="visit-website" target="_blank">Visit Website</a>
+        <?php if ($website) : 
+            // Add UTM parameters to external links
+            $utm_website = add_query_arg('utm_source', 'kentlocal', $website);
+        ?>
+        <a href="<?php echo esc_url($utm_website); ?>" class="visit-website" target="_blank" rel="nofollow">Visit Website</a>
         <?php endif; ?>
     </div>
 </div> 

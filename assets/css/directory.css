@@ -87,6 +87,10 @@
     padding: 15px;
     background: #fff;
     transition: box-shadow 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
 }
 
 .business-grid .business-item:hover {
@@ -158,16 +162,19 @@
 .business-link {
     display: flex;
     gap: 10px;
-    margin-top: 15px;
+    margin-top: auto;
+    padding-top: 15px;
 }
 
 .business-link a {
+    flex: 1;
     display: inline-block;
     padding: 8px 12px;
     text-decoration: none;
     border-radius: 4px;
     font-size: 14px;
     transition: all 0.3s ease;
+    text-align: center;
 }
 
 .view-details {
@@ -180,12 +187,8 @@
 }
 
 .visit-website {
-    display: inline-block;
-    padding: 5px 10px;
-    margin-top: 10px;
-    text-decoration: none;
     background-color: #0073aa;
-    color: white;
+    color: white !important;
 }
 
 .visit-website:hover {
@@ -1293,4 +1296,27 @@ body.search .business .author-link {
 
 .business-tabs a:hover {
     background: #f5f5f5;
+}
+
+/* Category and area headings */
+.business-category h1,
+.business-taxonomy h1,
+.business-area h1 {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+/* Business categories list */
+.business-categories-list {
+    margin: 8px 0;
+    font-size: 13px;
+}
+
+.business-categories-list span {
+    display: inline-block;
+    background: #f5f5f5;
+    padding: 3px 8px;
+    border-radius: 3px;
+    margin-right: 5px;
+    margin-bottom: 5px;
 } 

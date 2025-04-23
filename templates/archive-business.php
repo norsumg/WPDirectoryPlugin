@@ -11,6 +11,22 @@
             </div>
             
             <?php 
+            // Debug info for admins
+            if (current_user_can('manage_options') && isset($_GET['lbd_debug'])) : 
+                global $wp_query;
+                $per_page = isset($_GET['per_page']) ? intval($_GET['per_page']) : 0;
+                ?>
+                <div style="background: #f5f5f5; border: 1px solid #ddd; padding: 15px; margin: 15px 0; font-family: monospace;">
+                    <h3>Pagination Debug Info</h3>
+                    <p>Found posts: <?php echo $wp_query->found_posts; ?></p>
+                    <p>Posts per page: <?php echo $wp_query->get('posts_per_page'); ?></p>
+                    <p>Current page: <?php echo max( 1, get_query_var('paged') ); ?></p>
+                    <p>Requested per_page: <?php echo $per_page; ?></p>
+                    <p>Max num pages: <?php echo $wp_query->max_num_pages; ?></p>
+                </div>
+            <?php endif; ?>
+            
+            <?php 
             // Add pagination options before the pagination
             do_action('lbd_before_pagination');
             
