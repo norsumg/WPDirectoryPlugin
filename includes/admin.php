@@ -1311,16 +1311,19 @@ function lbd_create_business_from_csv($data, $direct_import = false) {
     // Check if the business already exists by name and postcode
     $existing_id = 0;
     
-    // Optimized existence check query
+    // Optimized existence check query - check both business_postcode and lbd_postcode 
     $sql = $wpdb->prepare(
         "SELECT p.ID FROM {$wpdb->posts} p
          JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
          WHERE p.post_type = 'business'
          AND p.post_title = %s 
-         AND pm.meta_key = 'business_postcode'
-         AND pm.meta_value = %s
+         AND (
+            (pm.meta_key = 'business_postcode' AND pm.meta_value = %s) OR
+            (pm.meta_key = 'lbd_postcode' AND pm.meta_value = %s)
+         )
          LIMIT 1",
         $business_name,
+        $postcode,
         $postcode
     );
     
@@ -1625,7 +1628,31 @@ function lbd_create_business_from_csv($data, $direct_import = false) {
     
     // Apply all meta updates in one go
     foreach ($meta_updates as $meta_key => $meta_value) {
-        update_post_meta($post_id, $meta_key, $meta_value);
+        // Map CSV field names to actual meta field names in WordPress
+        $actual_meta_key = $meta_key;
+        
+        // Handle field name mismatches
+        $field_mappings = array(
+            'business_email' => 'lbd_email',
+            'business_website' => 'lbd_website',
+            'business_phone' => 'lbd_phone',
+            'business_address' => 'lbd_address',
+            'business_city' => 'lbd_city',
+            'business_postcode' => 'lbd_postcode',
+            'business_lat' => 'lbd_latitude',
+            'business_lng' => 'lbd_longitude',
+            // Add more mappings as needed
+        );
+        
+        if (isset($field_mappings[$meta_key])) {
+            $actual_meta_key = $field_mappings[$meta_key];
+            
+            // Also update using the original key for backward compatibility
+            update_post_meta($post_id, $meta_key, $meta_value);
+        }
+        
+        // Update with the correct meta key
+        update_post_meta($post_id, $actual_meta_key, $meta_value);
     }
     
     return array(

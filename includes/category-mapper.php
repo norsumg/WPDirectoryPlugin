@@ -385,8 +385,10 @@ function lbd_category_mapping_form($categories) {
         $html .= '<td>';
         if ($suggestion['is_saved']) {
             $html .= '<span class="status-saved">Saved Mapping</span>';
+        } elseif ($suggestion['suggested_id'] != 0) {
+            $html .= '<span class="status-suggested">Suggested Match</span>';
         } else {
-            $html .= '<span class="status-new">New</span>';
+            $html .= '<span class="status-new">New / Unmatched</span>';
         }
         $html .= '</td>';
         
@@ -434,12 +436,20 @@ function lbd_category_mapping_form($categories) {
             color: #155724;
             font-weight: bold;
         }
-        .status-new {
+        .status-suggested {
             display: inline-block;
             padding: 3px 8px;
             border-radius: 3px;
             background-color: #cce5ff;
             color: #004085;
+            font-weight: bold;
+        }
+        .status-new {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            background-color: #f8d7da;
+            color: #721c24;
             font-weight: bold;
         }
         select.category-mapping-select {

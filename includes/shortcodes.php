@@ -113,13 +113,11 @@ function lbd_search_form_shortcode($atts) {
                         <select name="area">
                             <option value="">All Areas</option>
                             <?php
-                            // Use cached terms if available
-                            $areas = function_exists('lbd_get_cached_terms') 
-                                ? lbd_get_cached_terms('business_area')
-                                : get_terms(array(
-                                    'taxonomy' => 'business_area',
-                                    'hide_empty' => false,
-                                ));
+                            // Always get fresh terms directly to reflect additions/deletions
+                            $areas = get_terms(array(
+                                'taxonomy' => 'business_area',
+                                'hide_empty' => false,
+                            ));
                             
                             if (!empty($areas) && !is_wp_error($areas)) {
                                 foreach ($areas as $area) {
@@ -135,18 +133,49 @@ function lbd_search_form_shortcode($atts) {
                         <select name="category">
                             <option value="">All Categories</option>
                             <?php
-                            // Use cached terms if available
-                            $categories = function_exists('lbd_get_cached_terms') 
-                                ? lbd_get_cached_terms('business_category')
-                                : get_terms(array(
-                                    'taxonomy' => 'business_category',
-                                    'hide_empty' => false,
-                                ));
+                            // Always get fresh terms and sort by parent/child relationship
+                            $categories = get_terms(array(
+                                'taxonomy' => 'business_category',
+                                'hide_empty' => false,
+                            ));
                             
                             if (!empty($categories) && !is_wp_error($categories)) {
+                                // Separate into top-level and child categories
+                                $top_level_categories = array();
+                                $child_categories = array();
+                                
                                 foreach ($categories as $category) {
-                                    $selected = ($current_category === $category->slug) ? 'selected="selected"' : '';
-                                    echo '<option value="' . esc_attr($category->slug) . '" ' . $selected . '>' . esc_html($category->name) . '</option>';
+                                    if ($category->parent == 0) {
+                                        $top_level_categories[] = $category;
+                                    } else {
+                                        if (!isset($child_categories[$category->parent])) {
+                                            $child_categories[$category->parent] = array();
+                                        }
+                                        $child_categories[$category->parent][] = $category;
+                                    }
+                                }
+                                
+                                // Display categories in hierarchical format
+                                foreach ($top_level_categories as $parent) {
+                                    $selected = ($current_category === $parent->slug) ? 'selected="selected"' : '';
+                                    // Make the parent category directly selectable
+                                    echo '<option value="' . esc_attr($parent->slug) . '" ' . $selected . '>' . esc_html($parent->name) . '</option>';
+                                    
+                                    // Add child categories with indentation
+                                    if (isset($child_categories[$parent->term_id])) {
+                                        foreach ($child_categories[$parent->term_id] as $child) {
+                                            $selected = ($current_category === $child->slug) ? 'selected="selected"' : '';
+                                            echo '<option value="' . esc_attr($child->slug) . '" ' . $selected . '>&nbsp;&nbsp;— ' . esc_html($child->name) . '</option>';
+                                        }
+                                    }
+                                }
+                                
+                                // Check for orphaned categories (children with no existing parent)
+                                foreach ($categories as $category) {
+                                    if ($category->parent > 0 && !isset($top_level_categories[$category->parent])) {
+                                        $selected = ($current_category === $category->slug) ? 'selected="selected"' : '';
+                                        echo '<option value="' . esc_attr($category->slug) . '" ' . $selected . '>' . esc_html($category->name) . '</option>';
+                                    }
                                 }
                             }
                             ?>
@@ -158,6 +187,19 @@ function lbd_search_form_shortcode($atts) {
             </div>
         </form>
     </div>
+    
+    <style>
+    /* Custom styles for the hierarchical dropdown */
+    .business-search-form select optgroup {
+        font-weight: bold;
+        color: #333;
+        background-color: #f5f5f5;
+    }
+    .business-search-form select option {
+        padding-left: 10px;
+        font-weight: normal;
+    }
+    </style>
     
     <?php
     
