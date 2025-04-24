@@ -341,8 +341,8 @@ function lbd_csv_import_page() {
                         $_POST['lbd_csv_import_nonce'] = wp_create_nonce('lbd_csv_import');
                         
                         // Now process the import
-                        lbd_handle_csv_import();
-                    }
+            lbd_handle_csv_import();
+        }
                 }
             }
             // Normal CSV upload and processing
@@ -352,12 +352,12 @@ function lbd_csv_import_page() {
             else {
                 // Display the initial upload form
                 ?>
-                <div class="card">
-                    <h2>CSV File Upload</h2>
-                    <p>Upload a CSV file containing business data to import.</p>
-                    
-                    <form method="post" enctype="multipart/form-data">
-                        <?php wp_nonce_field('lbd_csv_import_action', 'lbd_csv_import_nonce'); ?>
+        <div class="card">
+            <h2>CSV File Upload</h2>
+            <p>Upload a CSV file containing business data to import.</p>
+            
+            <form method="post" enctype="multipart/form-data">
+                <?php wp_nonce_field('lbd_csv_import_action', 'lbd_csv_import_nonce'); ?>
                         
                         <p>
                             <label for="csv_file">CSV File:</label>
@@ -382,49 +382,49 @@ function lbd_csv_import_page() {
                             <br>
                             <small>Choose this to import directly without category mapping.</small>
                         </p>
-                        
-                        <h3>CSV Format</h3>
-                        <p>Your CSV file should have the following columns:</p>
+                
+                <h3>CSV Format</h3>
+                <p>Your CSV file should have the following columns:</p>
                         <ul>
                             <li><strong>business_name</strong> - Business name (required)</li>
                             <li><strong>business_area</strong> - Geographic area (required)</li>
                             <li><strong>business_description</strong> - Full description</li>
                             <li><strong>business_excerpt</strong> - Short description</li>
-                            <li><strong>business_category</strong> - The category name (required)</li>
+                    <li><strong>business_category</strong> - The category name (required)</li>
                             <li><strong>parent_category_name</strong> - Parent category if applicable</li>
-                            <li><strong>business_phone</strong> - Phone number</li>
-                            <li><strong>business_address</strong> - Physical address</li>
-                            <li><strong>business_website</strong> - Website URL</li>
-                            <li><strong>business_email</strong> - Email address</li>
-                            <li><strong>business_facebook</strong> - Facebook page URL</li>
-                            <li><strong>business_instagram</strong> - Instagram username (without @)</li>
-                            <li><strong>business_hours_24</strong> - Set to "yes" if business is open 24 hours</li>
-                            <li><strong>business_hours_monday</strong> - Monday opening hours (e.g., "9:00 AM - 5:00 PM" or "Closed")</li>
-                            <li><strong>business_hours_tuesday</strong> - Tuesday opening hours</li>
-                            <li><strong>business_hours_wednesday</strong> - Wednesday opening hours</li>
-                            <li><strong>business_hours_thursday</strong> - Thursday opening hours</li>
-                            <li><strong>business_hours_friday</strong> - Friday opening hours</li>
-                            <li><strong>business_hours_saturday</strong> - Saturday opening hours</li>
-                            <li><strong>business_hours_sunday</strong> - Sunday opening hours</li>
-                            <li><strong>business_payments</strong> - Accepted payment methods</li>
-                            <li><strong>business_parking</strong> - Parking information</li>
-                            <li><strong>business_amenities</strong> - Available amenities</li>
-                            <li><strong>business_accessibility</strong> - Accessibility features</li>
-                            <li><strong>business_premium</strong> - Set to "yes" for premium listings</li>
-                            <li><strong>business_image_url</strong> - URL to a featured image</li>
-                            <li><strong>business_black_owned</strong> - Set to "yes" if business is Black owned</li>
-                            <li><strong>business_women_owned</strong> - Set to "yes" if business is Women owned</li>
-                            <li><strong>business_lgbtq_friendly</strong> - Set to "yes" if business is LGBTQ+ friendly</li>
-                            <li><strong>business_google_rating</strong> - Average rating from Google (e.g. "4.5")</li>
-                            <li><strong>business_google_review_count</strong> - Number of reviews on Google</li>
-                            <li><strong>business_google_reviews_url</strong> - Link to Google reviews</li>
-                        </ul>
-                        
-                        <p class="submit">
+                    <li><strong>business_phone</strong> - Phone number</li>
+                    <li><strong>business_address</strong> - Physical address</li>
+                    <li><strong>business_website</strong> - Website URL</li>
+                    <li><strong>business_email</strong> - Email address</li>
+                    <li><strong>business_facebook</strong> - Facebook page URL</li>
+                    <li><strong>business_instagram</strong> - Instagram username (without @)</li>
+                    <li><strong>business_hours_24</strong> - Set to "yes" if business is open 24 hours</li>
+                    <li><strong>business_hours_monday</strong> - Monday opening hours (e.g., "9:00 AM - 5:00 PM" or "Closed")</li>
+                    <li><strong>business_hours_tuesday</strong> - Tuesday opening hours</li>
+                    <li><strong>business_hours_wednesday</strong> - Wednesday opening hours</li>
+                    <li><strong>business_hours_thursday</strong> - Thursday opening hours</li>
+                    <li><strong>business_hours_friday</strong> - Friday opening hours</li>
+                    <li><strong>business_hours_saturday</strong> - Saturday opening hours</li>
+                    <li><strong>business_hours_sunday</strong> - Sunday opening hours</li>
+                    <li><strong>business_payments</strong> - Accepted payment methods</li>
+                    <li><strong>business_parking</strong> - Parking information</li>
+                    <li><strong>business_amenities</strong> - Available amenities</li>
+                    <li><strong>business_accessibility</strong> - Accessibility features</li>
+                    <li><strong>business_premium</strong> - Set to "yes" for premium listings</li>
+                    <li><strong>business_image_url</strong> - URL to a featured image</li>
+                    <li><strong>business_black_owned</strong> - Set to "yes" if business is Black owned</li>
+                    <li><strong>business_women_owned</strong> - Set to "yes" if business is Women owned</li>
+                    <li><strong>business_lgbtq_friendly</strong> - Set to "yes" if business is LGBTQ+ friendly</li>
+                    <li><strong>business_google_rating</strong> - Average rating from Google (e.g. "4.5")</li>
+                    <li><strong>business_google_review_count</strong> - Number of reviews on Google</li>
+                    <li><strong>business_google_reviews_url</strong> - Link to Google reviews</li>
+                </ul>
+                
+                <p class="submit">
                             <input type="submit" name="analyze_csv" class="button button-primary" value="Analyze CSV Categories" id="analyze-button">
                             <input type="submit" name="submit" class="button" value="Skip Analysis & Import Directly" id="direct-button" style="display:none;">
-                        </p>
-                    </form>
+                </p>
+            </form>
 
                     <script>
                         jQuery(document).ready(function($) {
@@ -441,13 +441,13 @@ function lbd_csv_import_page() {
                             });
                         });
                     </script>
-                </div>
-                
-                <div class="card">
-                    <h2>Sample CSV</h2>
-                    <p>Download a sample CSV file to see the expected format.</p>
-                    <p><a href="#" class="button" id="lbd-sample-csv">Download Sample</a></p>
-                </div>
+        </div>
+        
+        <div class="card">
+            <h2>Sample CSV</h2>
+            <p>Download a sample CSV file to see the expected format.</p>
+            <p><a href="#" class="button" id="lbd-sample-csv">Download Sample</a></p>
+        </div>
                 <?php
             }
         } catch (Exception $e) {
@@ -504,7 +504,7 @@ function lbd_handle_csv_mapping_step_simple() {
             @chmod($csv_dir, 0755);
             if (!is_writable($csv_dir)) {
                 echo '<div class="error"><p>Upload directory is not writable. Please check permissions on ' . esc_html($csv_dir) . '</p></div>';
-                return;
+            return;
             }
         }
         
@@ -706,29 +706,33 @@ function lbd_handle_csv_import() {
             throw new Exception(__('You do not have permission to import businesses.', 'local-business-directory'));
         }
         
-        // --- Determine File Source and Nonce ---
+        // --- Determine import type and get file path ---
         if (isset($_POST['lbd_action']) && $_POST['lbd_action'] === 'save_category_mappings') {
             // Scenario: Post-Mapping Import
+            
+            // Check nonce
             if (!isset($_POST['lbd_category_mapping_nonce']) || !wp_verify_nonce($_POST['lbd_category_mapping_nonce'], 'lbd_category_mapping_action')) {
-                throw new Exception(__('Security check failed. Please try again.', 'local-business-directory'));
+                throw new Exception(__('Security check failed for category mapping step.', 'local-business-directory'));
             }
             
-            if (!isset($_POST['csv_file_path']) || empty($_POST['csv_file_path'])) {
-                throw new Exception(__('CSV file path missing after mapping.', 'local-business-directory'));
+            // Make sure there's a valid file path
+            if (!isset($_POST['csv_file_path']) || empty($_POST['csv_file_path']) || !file_exists($_POST['csv_file_path'])) {
+                throw new Exception(__('CSV file not found. Please upload the file again.', 'local-business-directory'));
             }
             
             $file_path = sanitize_text_field($_POST['csv_file_path']);
-            
-            if (!file_exists($file_path) || !is_readable($file_path)) {
-                throw new Exception(__('Stored CSV file not found or not readable: ' . $file_path, 'local-business-directory'));
-            }
-            
-            // Get saved category mappings
-            $category_mappings = isset($_POST['category_mapping']) ? $_POST['category_mapping'] : get_option('lbd_category_mappings', array());
-            
-            // Using direct import mode after mapping
-            $direct_import = true;
             $is_direct_upload = false;
+            $direct_import = true; // Coming from mapping means we can use term mappings
+            
+            // Get category mappings
+            if (isset($_POST['category_mapping']) && is_array($_POST['category_mapping'])) {
+                $category_mappings = array_map('intval', $_POST['category_mapping']);
+                
+                // Save for future imports if we're using persistent mappings
+                if (isset($_POST['save_mappings']) && $_POST['save_mappings'] === '1') {
+                    update_option('lbd_category_mappings', $category_mappings);
+                }
+            }
             
         } elseif (isset($_POST['lbd_csv_import_nonce']) && wp_verify_nonce($_POST['lbd_csv_import_nonce'], 'lbd_csv_import')) {
             // Scenario: Direct Upload Import
@@ -770,6 +774,14 @@ function lbd_handle_csv_import() {
             
             $file_path = $_FILES['lbd_csv_file']['tmp_name'];
             $is_direct_upload = true;
+            
+            // Try to load saved category mappings if we're not doing direct import
+            if (!$direct_import) {
+                $saved_mappings = get_option('lbd_category_mappings', array());
+                if (!empty($saved_mappings)) {
+                    $category_mappings = $saved_mappings;
+                }
+            }
             
         } else {
             throw new Exception(__('Invalid import request. Security check failed.', 'local-business-directory'));
@@ -859,8 +871,8 @@ function lbd_handle_csv_import() {
             }
             fgetcsv($temp_handle); // Skip header
             while (fgetcsv($temp_handle) !== false) { 
-                $total_rows++; 
-            }
+            $total_rows++;
+        }
             fclose($temp_handle);
         } else {
             $total_rows = 'Unknown'; // Cannot count
@@ -891,108 +903,51 @@ function lbd_handle_csv_import() {
         echo 'Direct import: ' . ($direct_import ? 'Yes' : 'No') . "\n";
         echo 'Is direct upload: ' . ($is_direct_upload ? 'Yes' : 'No') . "\n";
         echo 'Total rows: ' . $total_rows . "\n";
+        echo 'Category mappings: ' . count($category_mappings) . "\n";
         echo '</pre></div>';
         
         // Batch size - process this many rows before flushing output
         $batch_size = 5;
         $current_batch = 0;
         
+        // Prepare import options
+        $import_options = array(
+            'direct_import' => $direct_import,
+            'category_mappings' => $category_mappings
+        );
+        
         // Process each row
         while (($row = fgetcsv($handle)) !== false) {
+            // Update progress every few rows
             $current_batch++;
-            
-            // Update progress at the start of each batch or on the last row
-            if ($current_batch >= $batch_size || $row_num === $total_rows) {
-                $progress_percent = min(100, round(($row_num / $total_rows) * 100));
+            if ($current_batch >= $batch_size) {
+                $progress_percent = $total_rows !== 'Unknown' ? round(($row_num / $total_rows) * 100) : 0;
                 echo '<script>
                     document.querySelector(".lbd-import-progress").style.width = "' . $progress_percent . '%";
-                    document.querySelector(".lbd-import-status").textContent = "Processing row ' . $row_num . ' of ' . $total_rows . ' (' . $progress_percent . '%)";
+                    document.querySelector(".lbd-import-status").textContent = "Processing row ' . $row_num . ' of ' . $total_rows . '";
                 </script>';
-                flush();
                 ob_flush();
+                flush();
                 $current_batch = 0;
             }
             
-            // Convert row data to associative array based on header
-            $data = array();
-            foreach ($header as $i => $key) {
-                $data[$key] = isset($row[$i]) ? $row[$i] : '';
-            }
-            
             // Skip empty rows
-            if (empty($data['business_name']) || empty($data['business_postcode'])) {
+            if (count($row) === 0 || (count($row) === 1 && empty($row[0]))) {
                 $skipped_count++;
-                $row_errors[$row_num] = "Missing business name or postcode";
-                echo '<div class="lbd-import-warning">Row ' . $row_num . ': Skipped - Missing required fields</div>';
                 $row_num++;
                 continue;
             }
             
-            // Handle category mapping if needed
-            if ($has_category_column && !empty($data['business_category'])) {
-                $original_category = $data['business_category'];
-                $mapped_category = '';
-                
-                // Using saved mapping from previous step
-                if (!$is_direct_upload && !empty($category_mappings[$original_category])) {
-                    $term_id = intval($category_mappings[$original_category]);
-                    if ($term_id > 0) {
-                        $term = get_term($term_id, 'business_category');
-                        if ($term && !is_wp_error($term)) {
-                            // Check if it has a parent
-                            if ($term->parent > 0) {
-                                $parent_term = get_term($term->parent, 'business_category');
-                                if ($parent_term && !is_wp_error($parent_term)) {
-                                    $mapped_category = $parent_term->name . ' > ' . $term->name;
-                                } else {
-                                    $mapped_category = $term->name;
-                                }
-                            } else {
-                                $mapped_category = $term->name;
-                            }
-                        } else {
-                            // Term no longer exists
-                            $mapped_category = 'Unassigned';
-                            echo '<div class="lbd-import-warning">Row ' . $row_num . ': Mapped category ID ' . $term_id . ' no longer exists. Using "Unassigned".</div>';
-                        }
-                    } else {
-                        // Was explicitly mapped to 0 (skip)
-                        $mapped_category = 'Unassigned';
-                        echo '<div class="lbd-import-warning">Row ' . $row_num . ': Category "' . esc_html($original_category) . '" was skipped. Using "Unassigned".</div>';
-                    }
-                }
-                // Check if we have a mapping for this category
-                else if (!$direct_import && isset($category_mappings[$original_category])) {
-                    $mapped_category = $category_mappings[$original_category];
-                    
-                    // Verify the mapped category still exists
-                    $category_exists = false;
-                    foreach ($existing_terms as $term) {
-                        if ($term->name === $mapped_category || $term->slug === sanitize_title($mapped_category)) {
-                            $category_exists = true;
-                            break;
-                        }
-                    }
-                    
-                    if (!$category_exists) {
-                        echo '<div class="lbd-import-warning">Warning: Mapped category "' . esc_html($mapped_category) . 
-                             '" for "' . esc_html($original_category) . '" does not exist.</div>';
-                        // Use original category as fallback
-                        $mapped_category = $original_category;
-                    }
-                } else {
-                    // Direct import or no mapping - use original
-                    $mapped_category = $original_category;
-                }
-                
-                // Update the data with mapped category
-                $data['business_category'] = $mapped_category;
+            // Convert row to associative array using headers
+            $data = array();
+            foreach ($header as $index => $key) {
+                $data[$key] = isset($row[$index]) ? $row[$index] : '';
             }
             
             // Try to import the business
             try {
-                $result = lbd_create_business_from_csv($data, $direct_import);
-                
+                $result = lbd_create_business_from_csv($data, $import_options);
+            
                 if (is_wp_error($result)) {
                     $error_count++;
                     $row_errors[$row_num] = $result->get_error_message();
@@ -1004,7 +959,11 @@ function lbd_handle_csv_import() {
                         echo '<div class="lbd-import-success">Created business: ' . esc_html($data['business_name']) . ' (ID: ' . $result['post_id'] . ')</div>';
                     } else {
                         $updated_count++;
-                        echo '<div class="lbd-import-success">Updated business: ' . esc_html($data['business_name']) . ' (ID: ' . $result['post_id'] . ')</div>';
+                        // Display what fields were updated
+                        $updated_fields_text = !empty($result['updated_fields']) ? 
+                            ' Updated fields: ' . esc_html(implode(', ', array_unique($result['updated_fields']))) : '';
+                        echo '<div class="lbd-import-success">Updated business: ' . esc_html($data['business_name']) . 
+                             ' (ID: ' . $result['post_id'] . ')' . $updated_fields_text . '</div>';
                     }
                 }
             } catch (Exception $e) {
@@ -1031,101 +990,44 @@ function lbd_handle_csv_import() {
         // Display final results
         echo '<div class="lbd-import-results">';
         echo '<h3>' . __('Import Completed', 'local-business-directory') . '</h3>';
-        echo '<p>' . sprintf(
-            __('Processed %d rows: %d businesses created, %d updated, %d skipped, %d errors', 'local-business-directory'),
-            $row_num - 1,
-            $created_count,
-            $updated_count,
-            $skipped_count,
-            $error_count
-        ) . '</p>';
+        echo '<p>' . __('Businesses Created:', 'local-business-directory') . ' <strong>' . $created_count . '</strong></p>';
+        echo '<p>' . __('Businesses Updated:', 'local-business-directory') . ' <strong>' . $updated_count . '</strong></p>';
+        echo '<p>' . __('Rows Skipped:', 'local-business-directory') . ' <strong>' . $skipped_count . '</strong></p>';
+        echo '<p>' . __('Errors:', 'local-business-directory') . ' <strong>' . $error_count . '</strong></p>';
         
-        // Display errors if any
-        if (!empty($row_errors)) {
-            echo '<div class="lbd-import-errors-container">';
-            echo '<h4>' . __('Errors', 'local-business-directory') . '</h4>';
+        // Display errors summary if there were any
+        if ($error_count > 0) {
+            echo '<div class="lbd-import-errors-summary">';
+            echo '<h4>' . __('Error Summary', 'local-business-directory') . '</h4>';
             echo '<ul>';
             foreach ($row_errors as $row => $error) {
-                echo '<li>Row ' . esc_html($row) . ': ' . esc_html($error) . '</li>';
+                echo '<li>Row ' . $row . ': ' . esc_html($error) . '</li>';
             }
             echo '</ul>';
             echo '</div>';
         }
         
-        echo '<p><a href="' . esc_url(admin_url('edit.php?post_type=business')) . '" class="button button-primary">' . 
-             __('View All Businesses', 'local-business-directory') . '</a> ';
-        echo '<a href="' . esc_url(admin_url('admin.php?page=lbd-csv-import')) . '" class="button">' . 
+        echo '<p><a href="' . admin_url('admin.php?page=lbd-csv-import') . '" class="button button-primary">' . 
              __('Import Another File', 'local-business-directory') . '</a></p>';
-             
         echo '</div>';
         
-        // Add toggle for debug info
-        echo '<p><a href="#" onclick="document.querySelector(\'.lbd-debug-info\').style.display=\'block\';return false;" class="button">' . 
-             __('Show Debug Info', 'local-business-directory') . '</a></p>';
-        
-        // Add CSS styles for the import UI
-        echo '<style>
-            .lbd-import-progress-container {
-                width: 100%;
-                background-color: #f1f1f1;
-                border-radius: 3px;
-                margin: 10px 0;
-            }
-            .lbd-import-progress {
-                height: 20px;
-                background-color: #0073aa;
-                border-radius: 3px;
-                transition: width 0.3s;
-            }
-            .lbd-import-status {
-                margin: 5px 0 15px;
-                font-weight: bold;
-            }
-            .lbd-import-log {
-                max-height: 300px;
-                overflow-y: auto;
-                margin-bottom: 20px;
-            }
-            .lbd-import-success {
-                color: #46b450;
-                margin: 3px 0;
-            }
-            .lbd-import-error {
-                color: #dc3232;
-                margin: 3px 0;
-            }
-            .lbd-import-warning {
-                color: #ffb900;
-                margin: 3px 0;
-            }
-            .lbd-import-results {
-                margin-top: 20px;
-                background: #fff;
-                border: 1px solid #ccd0d4;
-                padding: 10px 20px;
-            }
-            .lbd-import-errors-container {
-                background: #fbeaea;
-                border: 1px solid #dc3232;
-                padding: 10px;
-                margin: 10px 0;
-            }
-        </style>';
-        
     } catch (Exception $e) {
+        // Handle overall exception
         echo '<div class="notice notice-error"><p>' . esc_html($e->getMessage()) . '</p></div>';
+        echo '<p><a href="' . admin_url('admin.php?page=lbd-csv-import') . '" class="button button-primary">' . 
+             __('Try Again', 'local-business-directory') . '</a></p>';
     }
     
-    // Restore original settings
+    // Restore original PHP settings
     error_reporting($original_error_reporting);
     ini_set('display_errors', $original_display_errors);
     set_time_limit($original_max_execution_time);
-    ini_set('memory_limit', $original_memory_limit);
+    @ini_set('memory_limit', $original_memory_limit);
     
-    // Get the buffered content
+    // Get buffered output
     $output = ob_get_clean();
     
-    // Output the results
+    // Echo the output
     echo $output;
 }
 
@@ -1254,12 +1156,12 @@ function lbd_get_business_hours($post_id, $day) {
         }
         // Check if the first element is an array (correct structure)
         if (isset($hours_group[0]) && is_array($hours_group[0])) {
-            return $hours_group;
-        }
+        return $hours_group;
+    }
     }
     
     // If we didn't find valid data in the expected format, return null.
-    return null; 
+    return null;
 }
 
 // Make the function available outside of admin
@@ -1268,7 +1170,7 @@ add_action('init', function() {
         function lbd_get_business_hours($post_id, $day) {
             // Call the admin function
             if (function_exists('\lbd_get_business_hours')) {
-                 return \lbd_get_business_hours($post_id, $day);
+            return \lbd_get_business_hours($post_id, $day);
             }
             // Fallback if the admin function isn't loaded for some reason
             return get_post_meta($post_id, 'lbd_hours_' . $day . '_group', true);
@@ -1280,11 +1182,23 @@ add_action('init', function() {
  * Creates or updates a business from CSV data
  *
  * @param array $data Associative array of business data from CSV
- * @param bool $direct_import Whether to create terms directly if they don't exist
+ * @param array|bool $options Import options array or boolean for backward compatibility
  * @return array|WP_Error Result of the operation with status and post ID
  */
-function lbd_create_business_from_csv($data, $direct_import = false) {
+function lbd_create_business_from_csv($data, $options = array()) {
     global $wpdb;
+    
+    // Handle backward compatibility with older direct_import boolean parameter
+    if (is_bool($options)) {
+        $direct_import = $options;
+        $options = array('direct_import' => $direct_import);
+    }
+    
+    // Default options
+    $options = wp_parse_args($options, array(
+        'direct_import' => false, // Whether to create terms directly
+        'category_mappings' => array() // Array of category mappings
+    ));
     
     // Basic validation - ensure business name exists
     if (empty($data['business_name'])) {
@@ -1305,58 +1219,50 @@ function lbd_create_business_from_csv($data, $direct_import = false) {
         'post_type'    => 'business',
     );
     
+    // Set excerpt if provided
+    if (isset($data['business_excerpt']) && !empty($data['business_excerpt'])) {
+        $post_data['post_excerpt'] = sanitize_text_field($data['business_excerpt']);
+    }
+    
     // Check if the business already exists by name and postcode
     $existing_id = 0;
     
     // Optimized existence check query - check both business_postcode and lbd_postcode 
-    $sql = $wpdb->prepare(
+    $check_query = $wpdb->prepare(
         "SELECT p.ID FROM {$wpdb->posts} p
-         JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
-         WHERE p.post_type = 'business'
-         AND p.post_title = %s 
-         AND (
-            (pm.meta_key = 'business_postcode' AND pm.meta_value = %s) OR
-            (pm.meta_key = 'lbd_postcode' AND pm.meta_value = %s)
-         )
-         LIMIT 1",
+        JOIN {$wpdb->postmeta} pm1 ON p.ID = pm1.post_id
+        WHERE p.post_type = 'business'
+        AND p.post_title = %s
+        AND pm1.meta_key IN ('business_postcode', 'lbd_postcode')
+        AND pm1.meta_value = %s
+        LIMIT 1",
         $business_name,
-        $postcode,
         $postcode
     );
     
-    $existing_id = $wpdb->get_var($sql);
+    $existing_id = $wpdb->get_var($check_query);
     
-    // If not found by name+postcode, check by name only as fallback
-    if (!$existing_id) {
-        $existing_query = new WP_Query(array(
-            'post_type' => 'business',
-            'posts_per_page' => 1,
-            'post_status' => 'any',
-            'title' => $business_name,
-            'fields' => 'ids'
-        ));
-        
-        if ($existing_query->have_posts()) {
-            $existing_id = $existing_query->posts[0];
-        }
-    }
+    // Status flag for reporting
+    $status = 'unknown';
     
-    // Update existing post or create new one
+    // Create or update the post
     if ($existing_id) {
+        // Update existing post
         $post_data['ID'] = $existing_id;
         $post_id = wp_update_post($post_data);
         $status = 'updated';
     } else {
+        // Create new post
         $post_id = wp_insert_post($post_data);
         $status = 'created';
     }
     
-    // Return error if post creation failed
-    if (is_wp_error($post_id)) {
-        return $post_id;
+    // Check if post creation/update failed
+    if (is_wp_error($post_id) || $post_id === 0) {
+        return new WP_Error('post_creation_failed', __('Failed to create or update business post', 'local-business-directory'));
     }
     
-    // Store the terms to set after all processing
+    // Arrays to store terms for taxonomies
     $business_areas = array();
     $business_categories = array();
     
@@ -1369,7 +1275,7 @@ function lbd_create_business_from_csv($data, $direct_import = false) {
             
             $term = term_exists($area, 'business_area');
             
-            if (!$term && $direct_import) {
+            if (!$term && $options['direct_import']) {
                 // Create the term if it doesn't exist and direct import is enabled
                 $term = wp_insert_term($area, 'business_area');
                 if (is_wp_error($term)) {
@@ -1390,91 +1296,114 @@ function lbd_create_business_from_csv($data, $direct_import = false) {
         }
     }
     
-    // Check if we need to use the unassigned category
-    $assign_unassigned = false;
-    
     // Process business categories
+    $assign_unassigned = false;
+    $category_processed = false;
+    
     if (isset($data['business_category']) && !empty($data['business_category'])) {
-        // Check if this is a hierarchical category
-        if (strpos($data['business_category'], '>') !== false) {
-            // Handle hierarchical category (Parent > Child)
-            $parts = array_map('trim', explode('>', $data['business_category']));
-            $parent = $parts[0];
-            $child = isset($parts[1]) ? $parts[1] : '';
-            
-            if (!empty($parent) && !empty($child)) {
-                // First, check if parent term exists
-                $parent_term = term_exists($parent, 'business_category');
-                
-                if (!$parent_term && $direct_import) {
-                    // Create parent term if it doesn't exist
-                    $parent_term = wp_insert_term($parent, 'business_category');
-                    if (is_wp_error($parent_term)) {
-                        error_log("LBD CSV Import: Could not create parent category '{$parent}': " . $parent_term->get_error_message());
-                    }
+        $csv_category_name = trim($data['business_category']);
+        $csv_parent_name = isset($data['parent_category_name']) ? trim($data['parent_category_name']) : '';
+        
+        // Check for category mappings first
+        if (!empty($options['category_mappings']) && isset($options['category_mappings'][$csv_category_name])) {
+            $mapped_term_id = intval($options['category_mappings'][$csv_category_name]);
+            if ($mapped_term_id > 0) {
+                // Verify the term exists
+                $term_check = get_term($mapped_term_id, 'business_category');
+                if ($term_check && !is_wp_error($term_check)) {
+                    $business_categories[] = $mapped_term_id;
+                    $category_processed = true;
+                } else {
+                    error_log("LBD Import: Mapped category ID {$mapped_term_id} for '{$csv_category_name}' no longer exists. Post ID: {$post_id}");
+                    $assign_unassigned = true;
                 }
-                
-                if (is_array($parent_term)) {
-                    // Now check if child term exists under this parent
-                    $child_term = term_exists($child, 'business_category', $parent_term['term_id']);
-                    
-                    if (!$child_term && $direct_import) {
-                        // Create child term if it doesn't exist
-                        $child_term = wp_insert_term($child, 'business_category', array('parent' => $parent_term['term_id']));
-                        if (is_wp_error($child_term)) {
-                            error_log("LBD CSV Import: Could not create child category '{$child}' under '{$parent}': " . $child_term->get_error_message());
-                        }
-                    }
-                    
-                    if (is_array($child_term)) {
-                        $business_categories[] = (int)$child_term['term_id'];
-                    } else {
-                        $assign_unassigned = true;
-                    }
+            } else {
+                // Explicitly mapped to 0 (skip/unassigned)
+                $assign_unassigned = true;
+                $category_processed = true;
+            }
+        }
+        
+        // If not processed via mapping, try direct handling
+        if (!$category_processed) {
+            // Handle hierarchical category (Parent > Child) format
+            if (empty($csv_parent_name) && strpos($csv_category_name, '>') !== false) {
+                $parts = array_map('trim', explode('>', $csv_category_name));
+                $csv_parent_name = $parts[0];
+                $csv_category_name = isset($parts[1]) ? $parts[1] : '';
+            }
+            
+            // Use the hierarchy-aware function if available
+            if (function_exists('lbd_get_or_create_business_category')) {
+                $term_details = lbd_get_or_create_business_category($csv_category_name, $csv_parent_name, $options['direct_import']);
+                if ($term_details && isset($term_details['term_id'])) {
+                    $business_categories[] = (int)$term_details['term_id'];
                 } else {
                     $assign_unassigned = true;
                 }
             } else {
-                $assign_unassigned = true;
-            }
-        } else {
-            // Handle simple category
-            $term = term_exists($data['business_category'], 'business_category');
-            
-            if (!$term && $direct_import) {
-                // Create the term if it doesn't exist
-                $term = wp_insert_term($data['business_category'], 'business_category');
-                if (is_wp_error($term)) {
-                    error_log("LBD CSV Import: Could not create category '{$data['business_category']}': " . $term->get_error_message());
+                // Fallback to basic term handling
+                if (!empty($csv_parent_name)) {
+                    // Handle parent-child hierarchy
+                    $parent_term = term_exists($csv_parent_name, 'business_category');
+                    if (!$parent_term && $options['direct_import']) {
+                        $parent_term = wp_insert_term($csv_parent_name, 'business_category');
+                        if (is_wp_error($parent_term)) {
+                            error_log("LBD CSV Import: Could not create parent category '{$csv_parent_name}': " . $parent_term->get_error_message());
+                            $assign_unassigned = true;
+                        }
+                    }
+                    
+                    if (is_array($parent_term)) {
+                        $child_term = term_exists($csv_category_name, 'business_category', $parent_term['term_id']);
+                        if (!$child_term && $options['direct_import']) {
+                            $child_term = wp_insert_term($csv_category_name, 'business_category', array('parent' => $parent_term['term_id']));
+                            if (is_wp_error($child_term)) {
+                                error_log("LBD CSV Import: Could not create child category '{$csv_category_name}': " . $child_term->get_error_message());
+                                $assign_unassigned = true;
+                            }
+                        }
+                        
+                        if (is_array($child_term)) {
+                            $business_categories[] = (int)$child_term['term_id'];
+                        } else {
+                            $assign_unassigned = true;
+                        }
+                    } else {
+                        $assign_unassigned = true;
+                    }
+                } else {
+                    // Simple category without parent
+                    $term = term_exists($csv_category_name, 'business_category');
+                    if (!$term && $options['direct_import']) {
+                        $term = wp_insert_term($csv_category_name, 'business_category');
+                        if (is_wp_error($term)) {
+                            error_log("LBD CSV Import: Could not create category '{$csv_category_name}': " . $term->get_error_message());
+                            $assign_unassigned = true;
+                        }
+                    }
+                    
+                    if (is_array($term)) {
+                        $business_categories[] = (int)$term['term_id'];
+                    } else {
+                        $assign_unassigned = true;
+                    }
                 }
-            }
-            
-            if (is_array($term)) {
-                $business_categories[] = (int)$term['term_id'];
-            } else {
-                $assign_unassigned = true;
             }
         }
     } else {
-        // No category specified, assign unassigned
+        // No category specified
         $assign_unassigned = true;
     }
     
     // Check if we need to add the 'unassigned' category
     if (empty($business_categories) || $assign_unassigned) {
-        // Get or create the 'unassigned' category
         $unassigned_term = term_exists('Unassigned', 'business_category');
-        
         if (!$unassigned_term) {
-            // Create the unassigned category if it doesn't exist
             $unassigned_term = wp_insert_term('Unassigned', 'business_category', array(
                 'description' => 'Businesses with no assigned category during import',
                 'slug' => 'unassigned'
             ));
-            
-            if (is_wp_error($unassigned_term)) {
-                error_log("LBD CSV Import: Could not create 'Unassigned' category: " . $unassigned_term->get_error_message());
-            }
         }
         
         if (is_array($unassigned_term)) {
@@ -1484,144 +1413,250 @@ function lbd_create_business_from_csv($data, $direct_import = false) {
     
     // Set business categories
     if (!empty($business_categories)) {
-        wp_set_object_terms($post_id, $business_categories, 'business_category');
+        wp_set_object_terms($post_id, array_unique($business_categories), 'business_category');
     }
     
-    // Define the fields we expect from the CSV and their target WP meta keys + sanitizers
+    // Define the field map for CSV columns to meta keys
     $field_map = array(
-        // CSV Column Name => array('meta_key' => WP Meta Key, 'sanitize' => Callback or Type)
+        // Contact information
+        'business_phone' => array(
+            'meta_key' => 'lbd_phone',
+            'sanitize' => 'sanitize_text_field'
+        ),
+        'business_email' => array(
+            'meta_key' => 'lbd_email',
+            'sanitize' => 'sanitize_email'
+        ),
+        'business_website' => array(
+            'meta_key' => 'lbd_website',
+            'sanitize' => 'esc_url_raw'
+        ),
         
-        // Contact
-        'business_email' => array('meta_key' => 'lbd_email', 'sanitize' => 'sanitize_email'),
-        'business_website' => array('meta_key' => 'lbd_website', 'sanitize' => 'esc_url_raw'),
-        'business_phone' => array('meta_key' => 'lbd_phone', 'sanitize' => 'sanitize_text_field'),
-        'business_mobile' => array('meta_key' => 'lbd_mobile', 'sanitize' => 'sanitize_text_field'),
-        'business_fax' => array('meta_key' => 'lbd_fax', 'sanitize' => 'sanitize_text_field'),
-
-        // Address
-        'business_address' => array('meta_key' => 'lbd_address', 'sanitize' => 'sanitize_text_field'), // Old combined field
-        'business_street_address' => array('meta_key' => 'lbd_street_address', 'sanitize' => 'sanitize_text_field'),
-        'business_city' => array('meta_key' => 'lbd_city', 'sanitize' => 'sanitize_text_field'),
-        'business_county' => array('meta_key' => 'lbd_county', 'sanitize' => 'sanitize_text_field'),
-        'business_state' => array('meta_key' => 'lbd_state', 'sanitize' => 'sanitize_text_field'),
-        'business_postcode' => array('meta_key' => 'lbd_postcode', 'sanitize' => 'sanitize_text_field'),
-        'business_country' => array('meta_key' => 'lbd_country', 'sanitize' => 'sanitize_text_field'),
-        'business_lat' => array('meta_key' => 'lbd_latitude', 'sanitize' => 'floatval'),
-        'business_lng' => array('meta_key' => 'lbd_longitude', 'sanitize' => 'floatval'),
-
-        // Social
-        'business_facebook' => array('meta_key' => 'lbd_facebook', 'sanitize' => 'esc_url_raw'),
-        'business_twitter' => array('meta_key' => 'lbd_twitter', 'sanitize' => 'sanitize_text_field'),
-        'business_linkedin' => array('meta_key' => 'lbd_linkedin', 'sanitize' => 'esc_url_raw'),
-        'business_instagram' => array('meta_key' => 'lbd_instagram', 'sanitize' => 'sanitize_text_field'),
-        'business_youtube' => array('meta_key' => 'lbd_youtube', 'sanitize' => 'esc_url_raw'),
-
-        // Google Reviews
-        'business_google_rating' => array('meta_key' => 'lbd_google_rating', 'sanitize' => 'lbd_sanitize_google_rating'), // Use custom sanitizer
-        'business_google_review_count' => array('meta_key' => 'lbd_google_review_count', 'sanitize' => 'intval'),
-        'business_google_reviews_url' => array('meta_key' => 'lbd_google_reviews_url', 'sanitize' => 'esc_url_raw'),
+        // Address fields
+        'business_address' => array(
+            'meta_key' => 'lbd_address',
+            'sanitize' => 'sanitize_text_field'
+        ),
+        'business_street_address' => array(
+            'meta_key' => 'lbd_street_address',
+            'sanitize' => 'sanitize_text_field'
+        ),
+        'business_city' => array(
+            'meta_key' => 'lbd_city',
+            'sanitize' => 'sanitize_text_field'
+        ),
+        'business_postcode' => array(
+            'meta_key' => 'lbd_postcode',
+            'sanitize' => 'sanitize_text_field'
+        ),
         
-        // Other Attributes
-        'business_black_owned' => array('meta_key' => 'lbd_black_owned', 'sanitize' => 'lbd_sanitize_yes_no'),
-        'business_women_owned' => array('meta_key' => 'lbd_women_owned', 'sanitize' => 'lbd_sanitize_yes_no'),
-        'business_lgbtq_friendly' => array('meta_key' => 'lbd_lgbtq_friendly', 'sanitize' => 'lbd_sanitize_yes_no'),
-        'business_premium' => array('meta_key' => 'lbd_premium', 'sanitize' => 'lbd_sanitize_yes_no'), // Handle premium here too
-        'business_is_premium' => array('meta_key' => 'lbd_premium', 'sanitize' => 'lbd_sanitize_yes_no'), // Alternative field name
-
-        // Additional Info
-        'business_payments' => array('meta_key' => 'lbd_payments', 'sanitize' => 'sanitize_text_field'),
-        'business_parking' => array('meta_key' => 'lbd_parking', 'sanitize' => 'sanitize_text_field'),
-        'business_amenities' => array('meta_key' => 'lbd_amenities', 'sanitize' => 'sanitize_textarea_field'),
-        'business_accessibility' => array('meta_key' => 'lbd_accessibility', 'sanitize' => 'sanitize_textarea_field'),
-        'business_established' => array('meta_key' => 'lbd_established', 'sanitize' => 'intval'),
-        'business_employees' => array('meta_key' => 'lbd_employees', 'sanitize' => 'intval'),
-        'business_tagline' => array('meta_key' => 'lbd_tagline', 'sanitize' => 'sanitize_text_field'),
-
-        // Image URLs (will be processed later)
-        'business_logo_url' => array('meta_key' => 'lbd_logo', 'sanitize' => 'esc_url_raw'), // Store URL in lbd_logo meta
-        'business_image_url' => array('meta_key' => 'lbd_featured_image_url', 'sanitize' => 'esc_url_raw'), // Store URL separately
+        // Coordinates
+        'business_latitude' => array(
+            'meta_key' => 'lbd_latitude',
+            'sanitize' => 'sanitize_text_field'
+        ),
+        'business_longitude' => array(
+            'meta_key' => 'lbd_longitude',
+            'sanitize' => 'sanitize_text_field'
+        ),
+        
+        // Social media
+        'business_facebook' => array(
+            'meta_key' => 'lbd_facebook',
+            'sanitize' => 'esc_url_raw'
+        ),
+        'business_instagram' => array(
+            'meta_key' => 'lbd_instagram',
+            'sanitize' => 'sanitize_text_field'
+        ),
+        
+        // Additional details
+        'business_extra_categories' => array(
+            'meta_key' => 'lbd_extra_categories',
+            'sanitize' => 'sanitize_text_field'
+        ),
+        'business_service_options' => array(
+            'meta_key' => 'lbd_service_options',
+            'sanitize' => 'sanitize_text_field'
+        ),
+        'business_payments' => array(
+            'meta_key' => 'lbd_payments',
+            'sanitize' => 'sanitize_text_field'
+        ),
+        'business_parking' => array(
+            'meta_key' => 'lbd_parking',
+            'sanitize' => 'sanitize_text_field'
+        ),
+        'business_amenities' => array(
+            'meta_key' => 'lbd_amenities',
+            'sanitize' => 'sanitize_textarea_field'
+        ),
+        'business_accessibility' => array(
+            'meta_key' => 'lbd_accessibility',
+            'sanitize' => 'sanitize_textarea_field'
+        ),
+        
+        // Business attributes
+        'business_premium' => array(
+            'meta_key' => 'business_premium',
+            'sanitize' => 'lbd_sanitize_yes_no'
+        ),
+        'business_black_owned' => array(
+            'meta_key' => 'lbd_black_owned',
+            'sanitize' => 'lbd_sanitize_yes_no'
+        ),
+        'business_women_owned' => array(
+            'meta_key' => 'lbd_women_owned',
+            'sanitize' => 'lbd_sanitize_yes_no'
+        ),
+        'business_lgbtq_friendly' => array(
+            'meta_key' => 'lbd_lgbtq_friendly',
+            'sanitize' => 'lbd_sanitize_yes_no'
+        ),
+        
+        // Google review data
+        'business_google_rating' => array(
+            'meta_key' => 'lbd_google_rating',
+            'sanitize' => 'lbd_sanitize_google_rating'
+        ),
+        'business_google_review_count' => array(
+            'meta_key' => 'lbd_google_review_count',
+            'sanitize' => 'absint'
+        ),
+        'business_google_reviews_url' => array(
+            'meta_key' => 'lbd_google_reviews_url',
+            'sanitize' => 'esc_url_raw'
+        ),
     );
-
-    $meta_updates = array();
     
-    // Populate meta_updates using the map
-    foreach ($field_map as $csv_column => $details) {
-        if (isset($data[$csv_column]) && $data[$csv_column] !== '') {
-            $value = $data[$csv_column];
-            $sanitize_callback = $details['sanitize'];
+    // Process standard meta fields defined in the field map
+    foreach ($field_map as $csv_key => $meta_info) {
+        if (isset($data[$csv_key]) && $data[$csv_key] !== '') {
+            $sanitize_callback = $meta_info['sanitize'];
             
-            if (is_callable($sanitize_callback)) {
-                $value = call_user_func($sanitize_callback, $value);
-            } elseif ($sanitize_callback === 'floatval') {
-                $value = floatval(str_replace(',', '.', $value)); // Handle comma decimal separators
-            } elseif ($sanitize_callback === 'intval') {
-                $value = intval(preg_replace('/[^0-9]/', '', $value)); // Strip non-digits
-            }
-
-            // Only add if the sanitized value is not considered "empty" 
-            // (allows 0 for count/rating, but not empty strings after sanitization)
-            if ($value !== '' && !is_null($value) && $value !== false) { 
-                $meta_updates[$details['meta_key']] = $value;
+            // Check if the sanitize callback is valid
+            if (function_exists($sanitize_callback)) {
+                $sanitized_value = $sanitize_callback($data[$csv_key]);
+                update_post_meta($post_id, $meta_info['meta_key'], $sanitized_value);
+            } else {
+                // Fallback to sanitize_text_field if callback doesn't exist
+                update_post_meta($post_id, $meta_info['meta_key'], sanitize_text_field($data[$csv_key]));
             }
         }
     }
-
-    // --- Handle Opening Hours Separately ---
-    $days = array('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday');
-    foreach ($days as $day) {
-        $hours_field = "business_hours_{$day}";
-        if (isset($data[$hours_field]) && $data[$hours_field] !== '') {
-            $hours_text = $data[$hours_field];
-            $hours_data = lbd_parse_hours_from_text($hours_text); // Use the improved parser
-            // Only update if the parser returned something usable
-            if (!empty($hours_data['open']) || !empty($hours_data['close']) || !empty($hours_data['closed'])) {
-                $meta_updates["lbd_hours_{$day}_group"] = array($hours_data); // Ensure wrapping array
-            }
-        }
-    }
-    // Handle 24/7 flag
-    if (isset($data['business_hours_24'])) {
-        $meta_updates['lbd_hours_24'] = lbd_sanitize_yes_no($data['business_hours_24']);
-    }
-    // --- End Opening Hours ---
-
-    // --- Handle Images Separately ---
-    $logo_url = isset($data['business_logo_url']) ? esc_url_raw($data['business_logo_url']) : '';
-    $image_url = isset($data['business_image_url']) ? esc_url_raw($data['business_image_url']) : '';
     
-    if ($logo_url) {
-        $meta_updates['lbd_logo'] = $logo_url; // Store the URL itself
-        // Attempt import (function handles check if already imported)
-        if (function_exists('lbd_import_image')) {
-            lbd_import_image($logo_url, $post_id, $business_name . ' Logo', false); // Don't set as featured
-        }
+    // Handle 24-hour flag separately
+    if (isset($data['business_24_hours'])) {
+        $is_24_hours = lbd_sanitize_yes_no($data['business_24_hours']);
+        update_post_meta($post_id, 'lbd_hours_24', $is_24_hours);
     }
-    if ($image_url) {
-        // Store URL for reference if needed
-        // update_post_meta($post_id, 'lbd_featured_image_source_url', $image_url);
-        // Attempt import and set as featured
-        if (function_exists('lbd_import_image')) {
-            $thumb_id = lbd_import_image($image_url, $post_id, $business_name, true); 
-            // lbd_import_image now handles setting the thumbnail if successful
-        }
-    }
-    // --- End Images ---
-
-    // Apply all meta updates
-    foreach ($meta_updates as $meta_key => $meta_value) {
-        // Use maybe_update_meta to avoid redundant writes if value hasn't changed
-        $existing_value = get_post_meta($post_id, $meta_key, true);
+    
+    // Handle business hours
+    $days = array('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday');
+    
+    foreach ($days as $day) {
+        $hours_key = 'business_hours_' . $day;
         
-        // Compare carefully - handle arrays (like hours groups)
-        if (is_array($existing_value) || is_array($meta_value)) {
-            if ($existing_value !== $meta_value) { // Simple array comparison might be enough for hours
-                update_post_meta($post_id, $meta_key, $meta_value);
+        if (isset($data[$hours_key]) && !empty($data[$hours_key])) {
+            $hours_data = $data[$hours_key];
+            
+            // Try to parse the hours string
+            if (function_exists('lbd_parse_hours_from_text')) {
+                $parsed_hours = lbd_parse_hours_from_text($hours_data);
+                
+                if ($parsed_hours) {
+                    // Convert to repeater format
+                    $repeater_data = array(
+                        array(
+                            'open' => $parsed_hours['open'],
+                            'close' => $parsed_hours['close'],
+                            'closed' => $parsed_hours['closed']
+                        )
+                    );
+                    
+                    update_post_meta($post_id, 'lbd_hours_' . $day . '_group', $repeater_data);
+                }
+            } else {
+                // Simple storage if parser not available
+                update_post_meta($post_id, 'lbd_hours_' . $day, sanitize_text_field($hours_data));
             }
-        } elseif ((string)$existing_value !== (string)$meta_value) { // Cast to string for scalar comparison
-            update_post_meta($post_id, $meta_key, $meta_value);
         }
     }
-
+    
+    // Handle logo
+    if (!empty($data['business_logo_url'])) {
+        $logo_url = esc_url_raw($data['business_logo_url']);
+        
+        // Import the logo if it's a URL
+        if (filter_var($logo_url, FILTER_VALIDATE_URL)) {
+            // Use the import function if available
+            if (function_exists('lbd_import_image')) {
+                $logo_id = lbd_import_image($logo_url, $post_id, $business_name . ' Logo', false);
+                if ($logo_id && !is_wp_error($logo_id)) {
+                    $logo_url = wp_get_attachment_url($logo_id);
+                }
+            }
+        }
+        
+        update_post_meta($post_id, 'lbd_logo', $logo_url);
+    }
+    
+    // Handle featured image
+    if (!empty($data['business_image_url'])) {
+        $image_url = esc_url_raw($data['business_image_url']);
+        
+        // Import the image if it's a URL
+        if (filter_var($image_url, FILTER_VALIDATE_URL)) {
+            // Use the import function if available
+            if (function_exists('lbd_set_featured_image_from_url')) {
+                lbd_set_featured_image_from_url($image_url, $post_id, $business_name);
+            } elseif (function_exists('lbd_import_image')) {
+                $image_id = lbd_import_image($image_url, $post_id, $business_name, true);
+                if ($image_id && !is_wp_error($image_id)) {
+                    set_post_thumbnail($post_id, $image_id);
+                }
+            }
+        }
+    }
+    
+    // Handle additional photos
+    if (!empty($data['business_photos'])) {
+        $photo_urls = explode('|', $data['business_photos']);
+        $photos_array = array();
+        
+        foreach ($photo_urls as $url) {
+            $url = trim($url);
+            if (empty($url)) continue;
+            
+            if (filter_var($url, FILTER_VALIDATE_URL)) {
+                if (function_exists('lbd_import_image')) {
+                    $photo_id = lbd_import_image($url, $post_id, $business_name . ' Photo', false);
+                    if ($photo_id && !is_wp_error($photo_id)) {
+                        $photos_array[$photo_id] = $url;
+                    } else {
+                        $photos_array[] = $url;
+                    }
+                } else {
+                    $photos_array[] = $url;
+                }
+            }
+        }
+        
+        if (!empty($photos_array)) {
+            update_post_meta($post_id, 'lbd_business_photos', $photos_array);
+        }
+    }
+    
+    // Handle accreditations JSON
+    if (!empty($data['business_accreditations_json'])) {
+        $accreditations_json = $data['business_accreditations_json'];
+        $accreditations = json_decode($accreditations_json, true);
+        
+        if (is_array($accreditations)) {
+            update_post_meta($post_id, 'lbd_accreditations', $accreditations);
+        }
+    }
+    
     return array(
         'post_id' => $post_id,
         'status' => $status
@@ -2944,59 +2979,37 @@ function lbd_get_or_create_business_category($category_name, $parent_name = '', 
 /**
  * Custom sanitizer for Google rating to handle potential non-numeric characters
  */
-if (!function_exists('lbd_sanitize_google_rating')) {
-    function lbd_sanitize_google_rating($value) {
-        // Remove common non-numeric characters except decimal point/comma
-        $value = preg_replace('/[^\d.,]/', '', $value);
-        // Replace comma with dot for float conversion
-        $value = str_replace(',', '.', $value);
-        return floatval($value);
-    }
+function lbd_sanitize_google_rating($value) {
+    // Remove any non-numeric characters (except for decimal point)
+    $value = preg_replace('/[^0-9.]/', '', $value);
+    return floatval($value);
 }
 
 /**
- * Custom sanitizer for yes/no fields
+ * Sanitize yes/no values to boolean or CMB2 compatible format
+ * 
+ * @param string $value The value to sanitize
+ * @return string|boolean 'on' for yes values when using with CMB2, boolean true/false for general use
  */
 if (!function_exists('lbd_sanitize_yes_no')) {
     function lbd_sanitize_yes_no($value) {
+        // Handle boolean values
+        if (is_bool($value)) {
+            return $value;
+        }
+        
+        // Handle numeric values
+        if (is_numeric($value)) {
+            return (int)$value === 1 ? 'on' : '';
+        }
+        
+        // Convert string values
         $value = strtolower(trim($value));
-        if (in_array($value, array('yes', 'true', '1', 'on'))) {
+        if (in_array($value, array('yes', 'true', 'y', '1', 'on'))) {
             return 'on'; // Use 'on' for CMB2 checkbox checked state
         }
+        
         // Return empty string for 'no' or anything else, CMB2 treats empty as unchecked
         return ''; 
     }
-}
-
-/**
- * Custom sanitizer for Google ratings - handles different number formats
- * @param string $rating The rating value from CSV
- * @return float Sanitized rating as float between 0-5
- */
-function lbd_sanitize_google_rating($rating) {
-    // Remove all non-numeric characters except for decimal/comma
-    $rating = preg_replace('/[^\d\.,]/', '', $rating);
-    // Convert comma to dot for float conversion
-    $rating = str_replace(',', '.', $rating);
-    $rating = floatval($rating);
-    // Ensure value is between 0-5
-    return min(max(0, $rating), 5);
-}
-
-/**
- * Sanitizes yes/no fields to a consistent format
- * @param string $value The input value (yes, no, true, false, 1, 0, etc.)
- * @return string 'on' for affirmative response, empty string for negative
- */
-function lbd_sanitize_yes_no($value) {
-    if (empty($value)) {
-        return '';
-    }
-    
-    $value = strtolower(trim($value));
-    if (in_array($value, array('yes', 'true', '1', 'on', 'y'))) {
-        return 'on';
-    }
-    
-    return '';
 }
