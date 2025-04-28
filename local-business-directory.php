@@ -3,7 +3,7 @@
  * Plugin Name: Local Business Directory
  * Plugin URI: https://norsumedia.com/
  * Description: A directory of local businesses with custom fields, search, and import/export features.
- * Version: 0.9.43
+ * Version: 1.0.07
  * Author: Norsu Media
  * Author URI: https://norsumedia.com/
  * Text Domain: local-business-directory
@@ -36,6 +36,7 @@ lbd_include_file('includes/rankmath-integration.php');
 lbd_include_file('includes/duplicates.php');
 lbd_include_file('includes/category-importer.php');
 lbd_include_file('includes/category-mapper.php');
+lbd_include_file('includes/category-mapping-fix.php'); // Include our fix for category mapping
 
 // Include debug tools after WordPress is fully loaded
 function lbd_maybe_include_debug() {

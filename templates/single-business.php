@@ -214,7 +214,54 @@
 
         if ($has_hours) : ?>
         <div class="business-hours">
-            <h3>Opening Hours</h3>
+            <h3 style="display: flex; align-items: center; gap: 12px;">
+                Opening Hours
+                <?php
+                // --- OPEN NOW WIDGET ---
+                date_default_timezone_set('Europe/London');
+                $now = new DateTime('now');
+                $today = strtolower($now->format('l')); // e.g. 'monday'
+                $is_open_now = false;
+                $open_label = '';
+                $open_color = '';
+                if ($is_24_hours) {
+                    $is_open_now = true;
+                } else {
+                    $day_group = function_exists('lbd_get_business_hours')
+                        ? lbd_get_business_hours(get_the_ID(), $today)
+                        : get_post_meta(get_the_ID(), 'lbd_hours_' . $today . '_group', true);
+                    if (!empty($day_group) && isset($day_group[0]) && is_array($day_group[0])) {
+                        $hours_item = $day_group[0];
+                        $is_closed = !empty($hours_item['closed']);
+                        $opening = isset($hours_item['open']) ? trim($hours_item['open']) : '';
+                        $closing = isset($hours_item['close']) ? trim($hours_item['close']) : '';
+                        if (!$is_closed && $opening && $closing) {
+                            $open_time = DateTime::createFromFormat('g:i A', $opening);
+                            $close_time = DateTime::createFromFormat('g:i A', $closing);
+                            if ($open_time && $close_time) {
+                                // Handle overnight (close past midnight)
+                                if ($close_time <= $open_time) {
+                                    $close_time->modify('+1 day');
+                                }
+                                if ($now >= $open_time && $now <= $close_time) {
+                                    $is_open_now = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                if ($is_open_now) {
+                    $open_label = 'Open Now!';
+                    $open_color = '#2ecc40';
+                } else {
+                    $open_label = 'Closed';
+                    $open_color = '#e74c3c';
+                }
+                ?>
+                <span style="display:inline-block; padding: 3px 14px; border-radius: 16px; font-size: 0.95em; font-weight: 600; color: #fff; background: <?php echo esc_attr($open_color); ?>; margin-left: 6px; letter-spacing: 0.5px;">
+                    <?php echo esc_html($open_label); ?>
+                </span>
+            </h3>
             
             <?php if ($is_24_hours) : ?>
                 <p class="hours-24"><strong>Open 24 Hours, 7 days a week</strong></p>
@@ -471,8 +518,6 @@
 
             if ($payments || $parking || $amenities || $accessibility) : ?>
             <div class="business-additional-info">
-                <h3>Additional Information</h3>
-                
                 <?php if ($payments) : ?>
                     <div class="info-item">
                         <h4>Payments Accepted</h4>

@@ -203,25 +203,114 @@ function lbd_find_closest_category($category_name) {
 }
 
 /**
+ * Save a category mapping for future use
+ * 
+ * @param string $csv_category Category name from CSV
+ * @param int $wp_category_id WordPress category term_id
+ * @return bool Success status
+ */
+function lbd_save_category_mapping($csv_category, $wp_category_id) {
+    global $wpdb;
+    $mapping_key = 'lbd_category_mapping_' . sanitize_title($csv_category);
+    
+    // Debug log before saving
+    error_log("Attempting to save mapping for: " . $csv_category);
+    error_log("Mapping key: " . $mapping_key);
+    error_log("WordPress Category ID: " . $wp_category_id);
+    
+    // First, try to get all mappings from a single option
+    $all_mappings = get_option('lbd_all_category_mappings', array());
+    if (!is_array($all_mappings)) {
+        $all_mappings = array();
+    }
+    
+    // Add or update this mapping
+    $all_mappings[sanitize_title($csv_category)] = intval($wp_category_id);
+    
+    // Save all mappings as a single option - FORCE autoload to YES and try direct database update first
+    $serialized_mappings = maybe_serialize($all_mappings);
+    $result = false;
+    
+    // First try direct database query for reliability
+    $db_result = $wpdb->query($wpdb->prepare(
+        "REPLACE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, %s)",
+        'lbd_all_category_mappings',
+        $serialized_mappings,
+        'yes'
+    ));
+    
+    if ($db_result !== false) {
+        error_log("Saved mappings directly to database");
+        $result = true;
+        
+        // Also ensure WordPress cache is updated
+        wp_cache_set('lbd_all_category_mappings', $all_mappings, 'options');
+    } else {
+        // Fallback to WordPress API
+        $result = update_option('lbd_all_category_mappings', $all_mappings, true); // true = autoload
+    }
+    
+    // Also try to save as individual option for maximum compatibility
+    update_option($mapping_key, intval($wp_category_id), true); // true = autoload
+    
+    // Debug log after saving
+    error_log("Save result: " . ($result ? "Success" : "Failed"));
+    
+    // Double-check that our save worked
+    $verify = get_option('lbd_all_category_mappings');
+    if ($verify !== false && is_array($verify)) {
+        error_log("Verified mappings saved successfully - found " . count($verify) . " mappings");
+    } else {
+        error_log("WARNING: Verification failed - could not retrieve saved mappings");
+    }
+    
+    return $result;
+}
+
+/**
  * Get the suggested mapping for a category
  * 
- * @param string $category_name Category name from CSV
+ * @param string $csv_category Category name from CSV
  * @return array Mapping suggestion data
  */
 function lbd_get_category_mapping_suggestion($category_name) {
     // Check if we have a saved mapping
     $mapping_key = 'lbd_category_mapping_' . sanitize_title($category_name);
-    $saved_mapping = get_option($mapping_key);
+    
+    // First try the combined mappings approach
+    $all_mappings = get_option('lbd_all_category_mappings', array());
+    $saved_mapping = null;
+    
+    if (is_array($all_mappings) && isset($all_mappings[sanitize_title($category_name)])) {
+        $saved_mapping = $all_mappings[sanitize_title($category_name)];
+        error_log("Found mapping in combined option: " . $saved_mapping);
+    } else {
+        // Fall back to individual option
+        $saved_mapping = get_option($mapping_key);
+        error_log("Looking up individual option: " . $mapping_key);
+    }
+    
+    // Debug log for retrieval attempt
+    error_log("Looking up mapping for: " . $category_name);
+    error_log("Mapping key: " . $mapping_key);
+    error_log("Saved mapping found: " . ($saved_mapping ? "Yes (ID: $saved_mapping)" : "No"));
     
     if ($saved_mapping) {
         $term = get_term($saved_mapping, 'business_category');
         if ($term && !is_wp_error($term)) {
+            error_log("Retrieved term name: " . $term->name);
+            
             return array(
                 'suggested_id' => $saved_mapping,
                 'suggested_name' => $term->name,
                 'similarity' => 100,
                 'is_saved' => true
             );
+        } else {
+            error_log("Failed to get term with ID: " . $saved_mapping);
+            if (is_wp_error($term)) {
+                error_log("Term error: " . $term->get_error_message());
+            }
         }
     }
     
@@ -247,18 +336,6 @@ function lbd_get_category_mapping_suggestion($category_name) {
 }
 
 /**
- * Save a category mapping for future use
- * 
- * @param string $csv_category Category name from CSV
- * @param int $wp_category_id WordPress category term_id
- * @return bool Success status
- */
-function lbd_save_category_mapping($csv_category, $wp_category_id) {
-    $mapping_key = 'lbd_category_mapping_' . sanitize_title($csv_category);
-    return update_option($mapping_key, intval($wp_category_id), false);
-}
-
-/**
  * Create form for mapping categories
  * 
  * @param array $categories List of category names from CSV
@@ -266,7 +343,8 @@ function lbd_save_category_mapping($csv_category, $wp_category_id) {
  */
 function lbd_category_mapping_form($categories) {
     $html = '<form method="post" id="category-mapping-form">';
-    $html .= wp_nonce_field('lbd_category_mapping_action', 'lbd_category_mapping_nonce', true, false);
+    $nonce = wp_nonce_field('lbd_category_mapping_action', 'lbd_category_mapping_nonce', true, false);
+    $html .= $nonce;
     $html .= '<input type="hidden" name="lbd_action" value="save_category_mappings">';
     
     $html .= '<table class="wp-list-table widefat fixed striped">';
@@ -469,4 +547,360 @@ function lbd_category_mapping_form($categories) {
     </style>';
     
     return $html;
-} 
+}
+
+/**
+ * Process category mapping form submission
+ */
+function lbd_process_category_mapping() {
+    // Check if form was submitted
+    if (!isset($_POST['lbd_action']) || $_POST['lbd_action'] !== 'save_category_mappings') {
+        error_log("Category mapping process: No form submission detected");
+        return;
+    }
+    
+    error_log("Category mapping form submitted - processing started");
+    
+    // Verify nonce
+    if (!isset($_POST['lbd_category_mapping_nonce']) || 
+        !wp_verify_nonce($_POST['lbd_category_mapping_nonce'], 'lbd_category_mapping_action')) {
+        error_log("Category mapping process: Nonce verification failed");
+        wp_die('Security check failed. Please try again.');
+    }
+    
+    // Check for mapping data
+    if (!isset($_POST['category_mapping']) || !is_array($_POST['category_mapping'])) {
+        error_log("Category mapping process: No mapping data found in submission");
+        return;
+    }
+    
+    error_log("Category mapping data found: " . count($_POST['category_mapping']) . " mappings");
+    error_log("POST data: " . print_r($_POST, true));
+    
+    $saved_count = 0;
+    
+    // Process each mapping
+    foreach ($_POST['category_mapping'] as $csv_category => $wp_category_id) {
+        $wp_category_id = intval($wp_category_id);
+        
+        // Skip empty selections
+        if ($wp_category_id <= 0) {
+            error_log("Skipping empty mapping for: " . $csv_category);
+            continue;
+        }
+        
+        // Get original category name without metadata
+        $original_category = isset($_POST['original_category'][$csv_category]) 
+            ? sanitize_text_field($_POST['original_category'][$csv_category]) 
+            : $csv_category;
+        
+        error_log("Processing mapping: CSV=" . $original_category . ", WP ID=" . $wp_category_id);
+        
+        // Save the mapping
+        if (lbd_save_category_mapping($original_category, $wp_category_id)) {
+            $saved_count++;
+            error_log("Mapping saved successfully for: " . $original_category);
+        } else {
+            error_log("Failed to save mapping for: " . $original_category);
+        }
+    }
+    
+    error_log("Category mapping complete: " . $saved_count . " mappings saved");
+    
+    // Set admin notice for next page load
+    if ($saved_count > 0) {
+        add_action('admin_notices', function() use ($saved_count) {
+            echo '<div class="notice notice-success is-dismissible">';
+            echo '<p>' . sprintf(_n(
+                '%d category mapping saved successfully.',
+                '%d category mappings saved successfully.',
+                $saved_count,
+                'local-business-directory'
+            ), $saved_count) . '</p>';
+            echo '</div>';
+        });
+    }
+}
+add_action('admin_init', 'lbd_process_category_mapping');
+
+/**
+ * Display diagnostic information about saved category mappings
+ * Helps debug why mappings aren't being remembered
+ */
+function lbd_display_mapping_diagnostics() {
+    global $wpdb;
+    
+    // Only run this on the category mapping page
+    if (!isset($_GET['page']) || $_GET['page'] !== 'lbd-import-businesses') {
+        return;
+    }
+    
+    echo '<div class="notice notice-info">';
+    echo '<h3>Category Mapping Diagnostics</h3>';
+    
+    // Show sanitization examples
+    echo '<h4>Sanitization Examples</h4>';
+    echo '<p>This shows how category names are transformed into option keys:</p>';
+    echo '<table class="widefat striped" style="width: auto; margin-bottom: 20px;">';
+    echo '<thead><tr><th>Original Category Name</th><th>Sanitized Key</th></tr></thead>';
+    echo '<tbody>';
+    
+    $example_categories = array(
+        'Restaurants',
+        'Health & Beauty',
+        'Professional Services',
+        'Home & Garden',
+        'Restaurants [child of Food & Drink]',
+        'IT & Computing'
+    );
+    
+    foreach ($example_categories as $category) {
+        // Extract actual name if it has metadata
+        $actual_name = $category;
+        if (preg_match('/^(.*?)\s*\[child of (.*?)\]$/', $category, $matches)) {
+            $actual_name = $matches[1];
+        }
+        
+        $sanitized = 'lbd_category_mapping_' . sanitize_title($actual_name);
+        
+        echo '<tr>';
+        echo '<td>' . esc_html($actual_name) . '</td>';
+        echo '<td><code>' . esc_html($sanitized) . '</code></td>';
+        echo '</tr>';
+    }
+    
+    echo '</tbody></table>';
+    
+    // Direct database check for mappings
+    echo '<h4>Raw Database Records</h4>';
+    echo '<p>Directly querying the database for our options:</p>';
+    
+    $raw_option = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM {$wpdb->options} WHERE option_name = %s",
+        'lbd_all_category_mappings'
+    ));
+    
+    if ($raw_option) {
+        echo '<div style="background: #f0f0f1; padding: 10px; margin-bottom: 15px; border-radius: 4px;">';
+        echo '<p><strong>Combined Mappings in Database:</strong></p>';
+        echo '<ul>';
+        echo '<li><strong>Option ID:</strong> ' . esc_html($raw_option->option_id) . '</li>';
+        echo '<li><strong>Option Name:</strong> ' . esc_html($raw_option->option_name) . '</li>';
+        echo '<li><strong>Autoload:</strong> ' . esc_html($raw_option->autoload) . '</li>';
+        echo '<li><strong>Raw Value Length:</strong> ' . strlen($raw_option->option_value) . ' bytes</li>';
+        echo '</ul>';
+        
+        // Try to unserialize for display
+        $unserialized = maybe_unserialize($raw_option->option_value);
+        if (is_array($unserialized)) {
+            echo '<p>Successfully unserialized into array with ' . count($unserialized) . ' items</p>';
+        } else {
+            echo '<p>Warning: Could not unserialize into array</p>';
+        }
+        echo '</div>';
+    } else {
+        echo '<p><strong>Error:</strong> No direct record found in options table for combined mappings.</p>';
+    }
+    
+    // Check for combined mappings
+    $all_mappings = get_option('lbd_all_category_mappings', array());
+    
+    if (!empty($all_mappings) && is_array($all_mappings)) {
+        echo '<h4>Combined Mappings</h4>';
+        echo '<p>Found ' . count($all_mappings) . ' mappings in the combined option:</p>';
+        echo '<table class="widefat striped" style="width: auto; margin-bottom: 20px;">';
+        echo '<thead><tr><th>CSV Category (sanitized)</th><th>WP Category ID</th><th>WP Category Name</th></tr></thead>';
+        echo '<tbody>';
+        
+        foreach ($all_mappings as $sanitized_cat => $wp_cat_id) {
+            // Get the WordPress category name
+            $term = get_term($wp_cat_id, 'business_category');
+            $wp_cat_name = is_wp_error($term) ? 'Error: ' . $term->get_error_message() : ($term ? $term->name : 'Category not found');
+            
+            echo '<tr>';
+            echo '<td><code>' . esc_html($sanitized_cat) . '</code></td>';
+            echo '<td>' . esc_html($wp_cat_id) . '</td>';
+            echo '<td>' . esc_html($wp_cat_name) . '</td>';
+            echo '</tr>';
+        }
+        
+        echo '</tbody></table>';
+    } else {
+        echo '<p><strong>No combined mappings found.</strong> The combined option is not set or not an array.</p>';
+    }
+    
+    // Query the options table for individual mappings
+    $mapping_options = $wpdb->get_results(
+        "SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE 'lbd_category_mapping_%'"
+    );
+    
+    if (empty($mapping_options)) {
+        echo '<p><strong>No individual category mappings found</strong> in the database.</p>';
+    } else {
+        echo '<h4>Individual Mappings</h4>';
+        echo '<p>Found ' . count($mapping_options) . ' saved individual category mappings:</p>';
+        echo '<table class="widefat striped" style="width: auto;">';
+        echo '<thead><tr><th>CSV Category</th><th>WP Category ID</th><th>WP Category Name</th></tr></thead>';
+        echo '<tbody>';
+        
+        foreach ($mapping_options as $option) {
+            $option_key = $option->option_name;
+            $wp_cat_id = intval($option->option_value);
+            
+            // Extract the original category name from the option name
+            $csv_category = str_replace('lbd_category_mapping_', '', $option_key);
+            
+            // Try to unsanitize the title (approximate)
+            $csv_category = ucwords(str_replace('-', ' ', $csv_category));
+            
+            // Get the WordPress category name
+            $term = get_term($wp_cat_id, 'business_category');
+            $wp_cat_name = is_wp_error($term) ? 'Error: ' . $term->get_error_message() : ($term ? $term->name : 'Category not found');
+            
+            echo '<tr>';
+            echo '<td>' . esc_html($csv_category) . '</td>';
+            echo '<td>' . esc_html($wp_cat_id) . '</td>';
+            echo '<td>' . esc_html($wp_cat_name) . '</td>';
+            echo '</tr>';
+        }
+        
+        echo '</tbody></table>';
+    }
+    
+    // Add a reset button
+    echo '<form method="post">';
+    echo wp_nonce_field('lbd_reset_mappings', 'lbd_reset_mappings_nonce', true, false);
+    echo '<input type="hidden" name="lbd_action" value="reset_mappings">';
+    echo '<p><button type="submit" class="button button-secondary">Reset All Category Mappings</button></p>';
+    echo '</form>';
+    
+    echo '<p><strong>Debug Tips:</strong></p>';
+    echo '<ol>';
+    echo '<li>Check the WordPress error log for detailed debugging information.</li>';
+    echo '<li>The plugin is using two approaches to save mappings - a combined option and individual options.</li>';
+    echo '<li>Make sure your WordPress installation allows option saving (check permissions, database integrity).</li>';
+    echo '</ol>';
+    
+    echo '</div>';
+}
+
+/**
+ * Reset all category mappings if requested
+ */
+function lbd_reset_category_mappings() {
+    if (!isset($_POST['lbd_action']) || $_POST['lbd_action'] !== 'reset_mappings') {
+        return;
+    }
+    
+    if (!isset($_POST['lbd_reset_mappings_nonce']) || 
+        !wp_verify_nonce($_POST['lbd_reset_mappings_nonce'], 'lbd_reset_mappings')) {
+        wp_die('Security check failed');
+    }
+    
+    global $wpdb;
+    
+    // Delete combined mappings
+    delete_option('lbd_all_category_mappings');
+    
+    // Delete all individual mappings
+    $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE 'lbd_category_mapping_%'");
+    
+    // Clear potential caches
+    wp_cache_delete('lbd_all_category_mappings', 'options');
+    
+    // Add admin notice
+    add_action('admin_notices', function() {
+        echo '<div class="notice notice-success is-dismissible">';
+        echo '<p>All category mappings have been reset.</p>';
+        echo '</div>';
+    });
+}
+add_action('admin_init', 'lbd_reset_category_mappings');
+add_action('admin_notices', 'lbd_display_mapping_diagnostics');
+
+/**
+ * Get category mapping for import - optimized version for import process
+ * This function is more efficient as it loads all mappings at once
+ * 
+ * @param string $category_name Category name from CSV
+ * @return int|null WordPress category ID or null if not found
+ */
+function lbd_get_category_mapping_for_import($category_name) {
+    static $all_mappings = null;
+    static $cache = array();
+    
+    // Check in local memory cache first (fastest)
+    if (isset($cache[$category_name])) {
+        return $cache[$category_name];
+    }
+    
+    // Load all mappings once (for performance)
+    if ($all_mappings === null) {
+        $all_mappings = get_option('lbd_all_category_mappings', array());
+        error_log("Loaded " . count($all_mappings) . " mappings from combined option");
+    }
+    
+    $sanitized_name = sanitize_title($category_name);
+    
+    // Check in combined mappings
+    if (is_array($all_mappings) && isset($all_mappings[$sanitized_name])) {
+        $wp_category_id = $all_mappings[$sanitized_name];
+        $cache[$category_name] = $wp_category_id; // Cache for future use
+        error_log("Used mapping for '$category_name' -> term_id: $wp_category_id");
+        return $wp_category_id;
+    }
+    
+    // Try individual option as fallback
+    $mapping_key = 'lbd_category_mapping_' . $sanitized_name;
+    $wp_category_id = get_option($mapping_key);
+    
+    if ($wp_category_id) {
+        $cache[$category_name] = $wp_category_id; // Cache for future use
+        error_log("Used individual mapping for '$category_name' -> term_id: $wp_category_id");
+        return $wp_category_id;
+    }
+    
+    // Special case - log when no mapping is found
+    error_log("No mapping found for category: '$category_name'");
+    $cache[$category_name] = null; // Cache the miss too
+    return null;
+}
+
+/**
+ * Check saved mappings on page load
+ * This will run on every admin page to help debug persistence issues
+ */
+function lbd_check_saved_mappings() {
+    // Only run this on our plugin's admin pages
+    if (!isset($_GET['page']) || strpos($_GET['page'], 'lbd-') !== 0) {
+        return;
+    }
+    
+    error_log('----------- CHECKING SAVED MAPPINGS ON PAGE LOAD -----------');
+    
+    // Check combined mappings
+    $all_mappings = get_option('lbd_all_category_mappings');
+    error_log('Combined mappings option exists: ' . ($all_mappings !== false ? 'YES' : 'NO'));
+    
+    if ($all_mappings !== false) {
+        if (is_array($all_mappings)) {
+            error_log('Combined mappings is an array with ' . count($all_mappings) . ' items');
+            error_log('Combined mappings contents: ' . print_r($all_mappings, true));
+        } else {
+            error_log('Combined mappings is NOT an array but: ' . gettype($all_mappings));
+            error_log('Value: ' . print_r($all_mappings, true));
+        }
+    }
+    
+    // Check for individual mappings
+    global $wpdb;
+    $count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE 'lbd_category_mapping_%'");
+    error_log('Individual mapping count in database: ' . $count);
+    
+    // Check autoload status for our options
+    $autoload_status = $wpdb->get_var("SELECT autoload FROM {$wpdb->options} WHERE option_name = 'lbd_all_category_mappings'");
+    error_log('Autoload status for combined mappings: ' . ($autoload_status ?: 'option not found'));
+    
+    error_log('----------- END CHECKING SAVED MAPPINGS -----------');
+}
+add_action('admin_init', 'lbd_check_saved_mappings', 5); // Run early 
