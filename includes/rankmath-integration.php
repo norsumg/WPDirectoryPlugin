@@ -13,6 +13,9 @@ if (!defined('ABSPATH')) {
 
 /**
  * Debug function to help troubleshoot schema issues
+ * 
+ * Enable debugging with: update_option('lbd_debug_schema', true);
+ * Disable with: update_option('lbd_debug_schema', false);
  */
 function lbd_debug_schema_to_file($schema, $message = '') {
     $debug = get_option('lbd_debug_schema', false);
@@ -21,6 +24,13 @@ function lbd_debug_schema_to_file($schema, $message = '') {
     }
     
     $log_file = WP_CONTENT_DIR . '/lbd-schema-debug.log';
+    
+    // Safety check: Don't let log file grow beyond 10MB
+    if (file_exists($log_file) && filesize($log_file) > 10 * 1024 * 1024) {
+        // Rotate the log file
+        @rename($log_file, $log_file . '.old');
+    }
+    
     $data = date('[Y-m-d H:i:s]') . ' ' . $message . "\n";
     $data .= print_r($schema, true) . "\n\n";
     
@@ -325,8 +335,8 @@ function lbd_format_schema_time($time_string) {
  * Hook into Rank Math's schema filter
  */
 function lbd_register_rankmath_hooks() {
-    // Enable debug mode temporarily to troubleshoot
-    update_option('lbd_debug_schema', true);
+    // Debug mode is disabled by default - enable via: update_option('lbd_debug_schema', true);
+    // IMPORTANT: Remember to disable after troubleshooting to prevent log file growth
     
     if (class_exists('\\RankMath\\Schema\\Schema')) {
         // Hook into Service schema type (since that's what's set in the screenshot)

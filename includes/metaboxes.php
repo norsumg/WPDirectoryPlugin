@@ -385,6 +385,69 @@ function lbd_metaboxes() {
         'type' => 'textarea_small',
         'desc' => 'Brief description of the accreditation (optional)',
     ) );
+    
+    // Business Owner Information Section
+    $cmb->add_field( array(
+        'name' => 'Business Owner Information',
+        'desc' => 'Contact information for the business owner',
+        'id'   => 'lbd_owner_info_title',
+        'type' => 'title',
+    ) );
+    
+    $cmb->add_field( array(
+        'name' => 'Business Owner Name',
+        'id' => 'lbd_owner_name',
+        'type' => 'text',
+        'desc' => 'Name of the business owner or primary contact',
+    ) );
+    
+    $cmb->add_field( array(
+        'name' => 'Business Owner Email',
+        'id' => 'lbd_owner_email',
+        'type' => 'text_email',
+        'desc' => 'Email address of the business owner',
+    ) );
+    
+    $cmb->add_field( array(
+        'name' => 'Business Owner Phone',
+        'id' => 'lbd_owner_phone',
+        'type' => 'text',
+        'desc' => 'Phone number of the business owner',
+    ) );
+    
+    // Business Verification Status
+    $cmb->add_field( array(
+        'name' => 'Business Verification Status',
+        'id' => 'lbd_verified',
+        'type' => 'radio',
+        'options' => array(
+            'verified' => 'Verified Business',
+            'unverified' => 'Unverified Business',
+        ),
+        'default' => 'unverified',
+        'desc' => 'Unverified businesses will show the "Claim This Business" button on the frontend.',
+    ) );
+    
+    // Claim Status (auto-populated)
+    $cmb->add_field( array(
+        'name' => 'Claim Status',
+        'id' => 'lbd_claimed',
+        'type' => 'text',
+        'attributes' => array(
+            'readonly' => 'readonly',
+        ),
+        'desc' => 'This field is automatically updated when a business is claimed.',
+    ) );
+    
+    $cmb->add_field( array(
+        'name' => 'Claim Date',
+        'id' => 'lbd_claimed_date',
+        'type' => 'text',
+        'attributes' => array(
+            'readonly' => 'readonly',
+        ),
+        'desc' => 'Date when the business was claimed (auto-populated).',
+    ) );
 }
 add_action( 'cmb2_admin_init', 'lbd_metaboxes' );
 

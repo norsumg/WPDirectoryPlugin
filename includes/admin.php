@@ -52,6 +52,64 @@ function lbd_add_admin_menu() {
 add_action('admin_menu', 'lbd_add_admin_menu');
 
 /**
+ * AJAX handler to toggle schema debug mode
+ */
+function lbd_ajax_toggle_schema_debug() {
+    check_ajax_referer('lbd_debug_actions', 'nonce');
+    
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error('Permission denied');
+    }
+    
+    $enable = isset($_POST['enable']) && $_POST['enable'] === '1';
+    update_option('lbd_debug_schema', $enable);
+    
+    wp_send_json_success(['enabled' => $enable]);
+}
+add_action('wp_ajax_lbd_toggle_schema_debug', 'lbd_ajax_toggle_schema_debug');
+
+/**
+ * AJAX handler to delete schema debug log
+ */
+function lbd_ajax_delete_schema_log() {
+    check_ajax_referer('lbd_debug_actions', 'nonce');
+    
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error('Permission denied');
+    }
+    
+    $log_file = WP_CONTENT_DIR . '/lbd-schema-debug.log';
+    $log_file_old = $log_file . '.old';
+    
+    $deleted = false;
+    $errors = [];
+    
+    if (file_exists($log_file)) {
+        if (@unlink($log_file)) {
+            $deleted = true;
+        } else {
+            $errors[] = 'Could not delete main log file';
+        }
+    }
+    
+    // Also delete the rotated log file if it exists
+    if (file_exists($log_file_old)) {
+        if (@unlink($log_file_old)) {
+            $deleted = true;
+        } else {
+            $errors[] = 'Could not delete rotated log file';
+        }
+    }
+    
+    if (!empty($errors)) {
+        wp_send_json_error(implode(', ', $errors));
+    }
+    
+    wp_send_json_success(['deleted' => $deleted]);
+}
+add_action('wp_ajax_lbd_delete_schema_log', 'lbd_ajax_delete_schema_log');
+
+/**
  * Add Export button to businesses list
  */
 function lbd_add_export_button() {
@@ -261,6 +319,16 @@ function lbd_export_businesses_to_csv() {
  * Main admin page callback
  */
 function lbd_admin_main_page() {
+    // Get schema debug log info
+    $log_file = WP_CONTENT_DIR . '/lbd-schema-debug.log';
+    $log_exists = file_exists($log_file);
+    $log_size = $log_exists ? filesize($log_file) : 0;
+    $debug_enabled = get_option('lbd_debug_schema', false);
+    
+    // Format file size
+    $log_size_formatted = $log_size < 1024 ? $log_size . ' B' : 
+        ($log_size < 1048576 ? round($log_size / 1024, 1) . ' KB' : 
+        round($log_size / 1048576, 2) . ' MB');
     ?>
     <div class="wrap">
         <h1>Local Business Directory</h1>
@@ -274,6 +342,96 @@ function lbd_admin_main_page() {
             <h2>Import Businesses</h2>
             <p>Import businesses in bulk using a CSV file.</p>
             <p><a href="<?php echo admin_url('admin.php?page=lbd-csv-import'); ?>" class="button button-primary">CSV Import</a></p>
+        </div>
+        
+        <div class="card">
+            <h2>Debug Tools</h2>
+            <p>Schema debug logging for troubleshooting Rank Math integration.</p>
+            
+            <table class="form-table" role="presentation">
+                <tr>
+                    <th scope="row">Debug Mode</th>
+                    <td>
+                        <span id="lbd-debug-status" class="<?php echo $debug_enabled ? 'lbd-status-on' : 'lbd-status-off'; ?>">
+                            <?php echo $debug_enabled ? '● Enabled' : '○ Disabled'; ?>
+                        </span>
+                        <button type="button" id="lbd-toggle-debug" class="button" data-enabled="<?php echo $debug_enabled ? '1' : '0'; ?>">
+                            <?php echo $debug_enabled ? 'Disable Debug' : 'Enable Debug'; ?>
+                        </button>
+                        <p class="description">When enabled, schema data is logged to help troubleshoot issues.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">Log File</th>
+                    <td>
+                        <?php if ($log_exists): ?>
+                            <span id="lbd-log-size"><strong><?php echo esc_html($log_size_formatted); ?></strong></span>
+                            <button type="button" id="lbd-delete-log" class="button button-secondary" style="color: #a00;">Delete Log</button>
+                            <p class="description">Location: <code><?php echo esc_html($log_file); ?></code></p>
+                        <?php else: ?>
+                            <span class="lbd-status-off">No log file exists</span>
+                            <p class="description">A log file will be created when debug mode is enabled and a business page is viewed.</p>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            </table>
+            
+            <style>
+                .lbd-status-on { color: #00a32a; font-weight: bold; margin-right: 10px; }
+                .lbd-status-off { color: #666; margin-right: 10px; }
+            </style>
+            
+            <script>
+            jQuery(document).ready(function($) {
+                $('#lbd-toggle-debug').on('click', function() {
+                    var $btn = $(this);
+                    var enabled = $btn.data('enabled') == '1';
+                    $btn.prop('disabled', true).text('Saving...');
+                    
+                    $.post(ajaxurl, {
+                        action: 'lbd_toggle_schema_debug',
+                        enable: enabled ? '0' : '1',
+                        nonce: '<?php echo wp_create_nonce('lbd_debug_actions'); ?>'
+                    }, function(response) {
+                        if (response.success) {
+                            var newEnabled = response.data.enabled;
+                            $btn.data('enabled', newEnabled ? '1' : '0');
+                            $btn.text(newEnabled ? 'Disable Debug' : 'Enable Debug');
+                            $('#lbd-debug-status')
+                                .removeClass('lbd-status-on lbd-status-off')
+                                .addClass(newEnabled ? 'lbd-status-on' : 'lbd-status-off')
+                                .text(newEnabled ? '● Enabled' : '○ Disabled');
+                        } else {
+                            alert('Error: ' + response.data);
+                        }
+                        $btn.prop('disabled', false);
+                    });
+                });
+                
+                $('#lbd-delete-log').on('click', function() {
+                    if (!confirm('Are you sure you want to delete the schema debug log?')) {
+                        return;
+                    }
+                    
+                    var $btn = $(this);
+                    $btn.prop('disabled', true).text('Deleting...');
+                    
+                    $.post(ajaxurl, {
+                        action: 'lbd_delete_schema_log',
+                        nonce: '<?php echo wp_create_nonce('lbd_debug_actions'); ?>'
+                    }, function(response) {
+                        if (response.success) {
+                            $btn.after('<span class="lbd-status-off" style="margin-left: 10px;">Log deleted!</span>');
+                            $btn.remove();
+                            $('#lbd-log-size').text('0 B');
+                        } else {
+                            alert('Error: ' + response.data);
+                            $btn.prop('disabled', false).text('Delete Log');
+                        }
+                    });
+                });
+            });
+            </script>
         </div>
     </div>
     <?php
@@ -332,6 +490,17 @@ function lbd_csv_import_page() {
                         $category_mappings = isset($_POST['category_mapping']) ? $_POST['category_mapping'] : array();
                         if (!empty($category_mappings)) {
                             update_option('lbd_category_mappings', $category_mappings);
+                            // --- Ensure mappings persist for future imports ---
+                            // Save to lbd_all_category_mappings (combined)
+                            $all_mappings = get_option('lbd_all_category_mappings', array());
+                            if (!is_array($all_mappings)) $all_mappings = array();
+                            foreach ($category_mappings as $csv_cat => $wp_cat_id) {
+                                $sanitized = sanitize_title($csv_cat);
+                                $all_mappings[$sanitized] = intval($wp_cat_id);
+                                // Also save as individual option for max compatibility
+                                update_option('lbd_category_mapping_' . $sanitized, intval($wp_cat_id), true);
+                            }
+                            update_option('lbd_all_category_mappings', $all_mappings, true);
                         }
                         
                         // Set direct import flag
@@ -390,8 +559,8 @@ function lbd_csv_import_page() {
                             <li><strong>business_area</strong> - Geographic area (required)</li>
                             <li><strong>business_description</strong> - Full description</li>
                             <li><strong>business_excerpt</strong> - Short description</li>
-                    <li><strong>business_category</strong> - The category name (required)</li>
-                            <li><strong>parent_category_name</strong> - Parent category if applicable</li>
+                    <li><strong>parent_category_name</strong> - Parent category for mapping (required for mapping)</li>
+                    <li><strong>business_category</strong> - Extra services/categories (stored as meta only, not used for mapping)</li>
                     <li><strong>business_phone</strong> - Phone number</li>
                     <li><strong>business_address</strong> - Physical address</li>
                     <li><strong>business_website</strong> - Website URL</li>
@@ -504,7 +673,7 @@ function lbd_handle_csv_mapping_step_simple() {
             @chmod($csv_dir, 0755);
             if (!is_writable($csv_dir)) {
                 echo '<div class="error"><p>Upload directory is not writable. Please check permissions on ' . esc_html($csv_dir) . '</p></div>';
-            return;
+                return;
             }
         }
         
@@ -536,53 +705,46 @@ function lbd_handle_csv_mapping_step_simple() {
             return;
         }
         
-        // Find category column indices
-        $category_idx = array_search('business_category', $headers);
+        // Find parent_category_name column index
         $parent_idx = array_search('parent_category_name', $headers);
-        
-        if ($category_idx === false && $parent_idx === false) {
+        if ($parent_idx === false) {
             fclose($handle);
-            echo '<div class="error"><p>No business_category or parent_category_name column found in CSV.</p></div>';
+            echo '<div class="error"><p>No parent_category_name column found in CSV. This column is required for category mapping.</p></div>';
             return;
         }
         
-        // Extract unique categories
-        $categories = array();
+        // Extract unique parent categories
         $parent_categories = array();
-        
         while (($data = fgetcsv($handle)) !== false) {
-            // Process category
-            if ($category_idx !== false && isset($data[$category_idx]) && !empty($data[$category_idx])) {
-                $category = trim($data[$category_idx]);
-                if (!in_array($category, $categories)) {
-                    $categories[] = $category;
-                }
-            }
-            
-            // Process parent category
-            if ($parent_idx !== false && isset($data[$parent_idx]) && !empty($data[$parent_idx])) {
+            if (isset($data[$parent_idx]) && !empty($data[$parent_idx])) {
                 $parent = trim($data[$parent_idx]);
                 if (!in_array($parent, $parent_categories)) {
                     $parent_categories[] = $parent;
                 }
             }
         }
-        
         fclose($handle);
         
-        // Combine all unique categories
-        $all_categories = array_unique(array_merge($categories, $parent_categories));
-        
-        if (empty($all_categories)) {
-            echo '<div class="error"><p>No categories found in the CSV file.</p></div>';
+        if (empty($parent_categories)) {
+            echo '<div class="error"><p>No parent categories found in the CSV file.</p></div>';
             return;
         }
+        
+        // Use only parent categories for mapping
+        $all_categories = $parent_categories;
+        
+        // Load saved mappings for pre-selection
+        $saved_mappings = get_option('lbd_all_category_mappings', array());
+        if (!is_array($saved_mappings)) $saved_mappings = array();
         
         // Display the mapping form
         ?>
         <div class="card">
             <h2>Map Categories</h2>
             <p>We found <?php echo count($all_categories); ?> unique categories in your CSV file. Please map them to existing WordPress categories:</p>
+            <p class="notice notice-info" style="padding: 5px 10px;">
+                <strong>Note:</strong> Only the <code>parent_category_name</code> column is used for category mapping. The <code>business_category</code> column will be stored as extra services only.
+            </p>
             <p class="notice notice-info" style="padding: 5px 10px;">
                 <strong>Note:</strong> Categories left as "-- Select Category --" will be assigned to the "Unassigned" category during import.
             </p>
@@ -595,7 +757,7 @@ function lbd_handle_csv_mapping_step_simple() {
                 <table class="wp-list-table widefat fixed striped">
                     <thead>
                         <tr>
-                            <th>CSV Category</th>
+                            <th>Parent Category (from CSV)</th>
                             <th>WordPress Category</th>
                             <th style="width: 120px;">Actions</th>
                         </tr>
@@ -608,18 +770,15 @@ function lbd_handle_csv_mapping_step_simple() {
                                     <select name="category_mapping[<?php echo esc_attr($category); ?>]" style="width: 100%;">
                                         <option value="0">-- Select Category --</option>
                                         <?php 
-                                        // Get all categories
                                         $wp_categories = get_terms(array(
                                             'taxonomy' => 'business_category',
                                             'hide_empty' => false
                                         ));
-                                        
+                                        $selected = lbd_get_saved_mapping($category);
                                         if (!empty($wp_categories) && !is_wp_error($wp_categories)) {
                                             foreach ($wp_categories as $term) {
                                                 $indent = '';
                                                 $parent_name = '';
-                                                
-                                                // Add indentation for child categories
                                                 if ($term->parent > 0) {
                                                     $parent = get_term($term->parent, 'business_category');
                                                     if ($parent && !is_wp_error($parent)) {
@@ -627,8 +786,8 @@ function lbd_handle_csv_mapping_step_simple() {
                                                         $parent_name = $parent->name . ' > ';
                                                     }
                                                 }
-                                                
-                                                echo '<option value="' . esc_attr($term->term_id) . '">' . 
+                                                $is_selected = ($selected && $selected == $term->term_id) ? 'selected' : '';
+                                                echo '<option value="' . esc_attr($term->term_id) . '" ' . $is_selected . '>' . 
                                                      esc_html($indent . $term->name) . 
                                                      '</option>';
                                             }
@@ -646,7 +805,6 @@ function lbd_handle_csv_mapping_step_simple() {
                 
                 <script>
                 jQuery(document).ready(function($) {
-                    // Handle skip category buttons
                     $('.skip-category').on('click', function() {
                         var category = $(this).data('category');
                         $('select[name="category_mapping[' + category + ']"]').val('0');
@@ -655,6 +813,12 @@ function lbd_handle_csv_mapping_step_simple() {
                 });
                 </script>
                 
+                <p style="margin-top: 18px;">
+                    <label>
+                        <input type="checkbox" name="save_mappings" value="1" checked>
+                        Save these mappings for future imports
+                    </label>
+                </p>
                 <p class="submit">
                     <input type="submit" class="button button-primary" value="Save Mappings & Import">
                 </p>
@@ -750,139 +914,49 @@ function lbd_create_business_from_csv($data, $options = array()) {
     if (!empty($area_term_ids)) { wp_set_object_terms($post_id, array_unique($area_term_ids), 'business_area'); }
     else { error_log("LBD Import Warning: No valid area for Post ID {$post_id} ('{$business_name}')."); }
 
-    // Categories
-    $category_term_ids = array(); $assign_unassigned = false; $category_processed_via_mapping = false;
-    if (isset($data['business_category']) && !empty($data['business_category'])) {
-        $csv_category_name = trim($data['business_category']); 
-        $csv_parent_name = isset($data['parent_category_name']) ? trim($data['parent_category_name']) : ''; 
-        
-        // Special case for Bathroom remodeler
-        if (strtolower($csv_category_name) === 'bathroom remodeler' || 
-            strtolower($csv_category_name) === 'bathroom remodeller' ||
-            strtolower($csv_category_name) === 'bathroom renovator') {
-            
-            // Try to find the Bathroom Fitter category
-            $bathroom_fitter = get_term_by('name', 'Bathroom Fitter', 'business_category');
-            if (!$bathroom_fitter) {
-                $bathroom_fitter = get_term_by('name', 'Bathroom Fitters', 'business_category');
-            }
-            
-            if ($bathroom_fitter && !is_wp_error($bathroom_fitter)) {
-                $category_term_ids[] = (int)$bathroom_fitter->term_id;
-                $category_processed_via_mapping = true;
-                error_log("Special case: Mapped '{$csv_category_name}' to Bathroom Fitter (ID: {$bathroom_fitter->term_id})");
-            }
+    // Categories - Only use parent_category_name for taxonomy assignment
+    $category_term_ids = array();
+    $assign_unassigned = false;
+    $category_processed_via_mapping = false;
+    $parent_category_name = isset($data['parent_category_name']) ? trim($data['parent_category_name']) : '';
+
+    if ($parent_category_name && function_exists('lbd_get_category_mapping_for_import')) {
+        $mapped_term_id = lbd_get_category_mapping_for_import($parent_category_name);
+        if ($mapped_term_id) {
+            $category_term_ids[] = $mapped_term_id;
+            $category_processed_via_mapping = true;
+            error_log("Used mapping for parent category '{$parent_category_name}' -> term_id: {$mapped_term_id}");
         }
-        
-        $mapping_lookup_key = $csv_category_name . ($csv_parent_name ? '|||' . $csv_parent_name : ''); // Use same key as mapping form if possible
-        
-        // Only proceed with normal mapping if special case didn't handle it
-        if (!$category_processed_via_mapping) {
-            // Debug output
-            error_log("Processing category for '{$business_name}': Category='{$csv_category_name}', Parent='{$csv_parent_name}'");
-            
-            // First try using our new global mapping function if available
-            if (function_exists('lbd_get_category_mapping_for_import')) {
-                $mapped_term_id = lbd_get_category_mapping_for_import($csv_category_name);
-                
-                if ($mapped_term_id > 0) { 
-                    $term_check = get_term($mapped_term_id, 'business_category'); 
-                    if ($term_check && !is_wp_error($term_check)) { 
-                        $category_term_ids[] = $mapped_term_id; 
-                        $category_processed_via_mapping = true;
-                        error_log("Used mapping for '{$csv_category_name}' -> term_id: {$mapped_term_id}");
-                    } else { 
-                        $assign_unassigned = true; 
-                        error_log("LBD Import Warning: Mapped category ID {$mapped_term_id} for '{$csv_category_name}' not found. Post ID: {$post_id}"); 
-                    } 
-                }
-            }
-            
-            // Fallback to old mapping approach if new one didn't work
-            if (!$category_processed_via_mapping) {
-                // Check mapping (if provided)
-                if (!empty($options['category_mappings']) && isset($options['category_mappings'][$mapping_lookup_key])) {
-                    $mapped_term_id = intval($options['category_mappings'][$mapping_lookup_key]);
-                    if ($mapped_term_id > 0) { 
-                        $term_check = get_term($mapped_term_id, 'business_category'); 
-                        if ($term_check && !is_wp_error($term_check)) { 
-                            $category_term_ids[] = $mapped_term_id; 
-                            $category_processed_via_mapping = true;
-                            error_log("Used mapping for '{$mapping_lookup_key}' -> term_id: {$mapped_term_id}");
-                        } else { 
-                            $assign_unassigned = true; 
-                            error_log("LBD Import Warning: Mapped category ID {$mapped_term_id} for '{$mapping_lookup_key}' not found. Post ID: {$post_id}"); 
-                        } 
-                    } else { 
-                        $assign_unassigned = true; 
-                        $category_processed_via_mapping = true; 
-                        error_log("Category mapped to unassigned: '{$mapping_lookup_key}'");
-                    } // Mapped to 0 means skip/unassigned
-                }
-                // Fallback: Check mapping just by child name if parent context mapping failed or wasn't present
-                elseif (!empty($options['category_mappings']) && isset($options['category_mappings'][$csv_category_name]) && !$category_processed_via_mapping) {
-                     $mapped_term_id = intval($options['category_mappings'][$csv_category_name]);
-                     if ($mapped_term_id > 0) { 
-                        $term_check = get_term($mapped_term_id, 'business_category'); 
-                        if ($term_check && !is_wp_error($term_check)) { 
-                            $category_term_ids[] = $mapped_term_id; 
-                            $category_processed_via_mapping = true;
-                            error_log("Used simple mapping for '{$csv_category_name}' -> term_id: {$mapped_term_id}");
-                        } else { 
-                            $assign_unassigned = true; 
-                            error_log("LBD Import Warning: Mapped category ID {$mapped_term_id} for '{$csv_category_name}' not found. Post ID: {$post_id}"); 
-                        } 
-                     } else { 
-                        $assign_unassigned = true; 
-                        $category_processed_via_mapping = true;
-                        error_log("Category mapped to unassigned via simple mapping: '{$csv_category_name}'");
-                     }
-                }
-            }
-        }
-    } else { 
-        $assign_unassigned = true;
-        error_log("No business_category in CSV data for '{$business_name}'");
-    }
-    
-    // Assign 'Unassigned' if necessary
-    if ($assign_unassigned && empty($category_term_ids)) { 
-        $unassigned_term = term_exists('Unassigned', 'business_category'); 
-        if (!$unassigned_term) { 
-            $unassigned_term = wp_insert_term('Unassigned', 'business_category', array('slug' => 'unassigned')); 
-        } 
-        if (is_array($unassigned_term) && isset($unassigned_term['term_id'])) {
-            $category_term_ids[] = (int)$unassigned_term['term_id'];
-            error_log("Assigning to Unassigned category");
-        }
-    }
-    
-    // Set terms
-    if (!empty($category_term_ids)) {
-        // Track category changes for existing businesses
-        if ($existing_id) {
-            $existing_terms = wp_get_object_terms($post_id, 'business_category', array('fields' => 'ids'));
-            if (!is_wp_error($existing_terms)) {
-                $existing_term_ids = array_map('intval', $existing_terms);
-                sort($existing_term_ids);
-                $new_term_ids = array_unique($category_term_ids);
-                sort($new_term_ids);
-                
-                if ($existing_term_ids != $new_term_ids) {
-                    $updated_fields[] = 'categories';
-                }
-            }
-        }
-        
-        wp_set_object_terms($post_id, array_unique($category_term_ids), 'business_category');
-    } else {
-        // Prepare variables for the error log message first
-        $log_csv_cat = isset($data['business_category']) ? $data['business_category'] : 'N/A';
-        $log_csv_parent = isset($data['parent_category_name']) ? $data['parent_category_name'] : 'N/A';
-        // Now use the prepared variables in the error log string
-        error_log("LBD Import Warning: No valid category assigned for business ID {$post_id} ('{$business_name}'). CSV Cat: '{$log_csv_cat}', Parent: '{$log_csv_parent}'");
     }
 
+    if (!$category_processed_via_mapping) {
+        $assign_unassigned = true;
+        error_log("No mapping found for parent category: '{$parent_category_name}'");
+    }
+
+    // Set terms or assign to Unassigned
+    if (!empty($category_term_ids)) {
+        wp_set_object_terms($post_id, array_unique($category_term_ids), 'business_category');
+    } else {
+        // Create or get Unassigned category
+        $unassigned_term = term_exists('Unassigned', 'business_category');
+        if (!$unassigned_term) {
+            $unassigned_term = wp_insert_term('Unassigned', 'business_category', array('slug' => 'unassigned'));
+        }
+        if (is_array($unassigned_term) && isset($unassigned_term['term_id'])) {
+            wp_set_object_terms($post_id, (int)$unassigned_term['term_id'], 'business_category');
+            error_log("Assigned business ID {$post_id} to Unassigned category");
+        }
+    }
+
+    // Store business_category as extra services meta
+    if (isset($data['business_category']) && $data['business_category']) {
+        update_post_meta($post_id, 'lbd_extra_categories', $data['business_category']);
+    }
+    if (isset($data['business_extra_categories']) && $data['business_extra_categories']) {
+        update_post_meta($post_id, 'lbd_extra_categories', $data['business_extra_categories']);
+    }
+    
     // --- Process Meta Fields ---
     $field_map = array(
         'business_phone' => array('meta_key' => 'lbd_phone', 'sanitize' => 'sanitize_text_field'), 'business_email' => array('meta_key' => 'lbd_email', 'sanitize' => 'sanitize_email'), 'business_website' => array('meta_key' => 'lbd_website', 'sanitize' => 'esc_url_raw'),
@@ -1144,6 +1218,15 @@ function lbd_handle_csv_import() {
                 // Save for future imports if we're using persistent mappings
                 if (isset($_POST['save_mappings']) && $_POST['save_mappings'] === '1') {
                     update_option('lbd_category_mappings', $category_mappings);
+                    // --- Ensure mappings persist for future imports ---
+                    $all_mappings = get_option('lbd_all_category_mappings', array());
+                    if (!is_array($all_mappings)) $all_mappings = array();
+                    foreach ($category_mappings as $csv_cat => $wp_cat_id) {
+                        $sanitized = sanitize_title($csv_cat);
+                        $all_mappings[$sanitized] = intval($wp_cat_id);
+                        update_option('lbd_category_mapping_' . $sanitized, intval($wp_cat_id), true);
+                    }
+                    update_option('lbd_all_category_mappings', $all_mappings, true);
                 }
             }
             
@@ -3067,4 +3150,76 @@ if (!function_exists('lbd_sanitize_yes_no')) {
         // Return empty string for 'no' or anything else, CMB2 treats empty as unchecked
         return ''; 
     }
+}
+
+// 1. Add new admin menu item
+add_action('admin_menu', function() {
+    add_submenu_page(
+        'local-business-directory',
+        'Update Category Mappings',
+        'Update Category Mappings',
+        'manage_options',
+        'lbd-update-category-mappings',
+        'lbd_update_category_mappings_page'
+    );
+});
+
+// 2. Admin page callback
+function lbd_update_category_mappings_page() {
+    if (!current_user_can('manage_options')) {
+        wp_die('You do not have sufficient permissions to access this page.');
+    }
+    $updated = 0;
+    $skipped = 0;
+    $errors = 0;
+    if (isset($_POST['lbd_update_categories'])) {
+        $unassigned_term = get_term_by('slug', 'unassigned', 'business_category');
+        if ($unassigned_term) {
+            $args = array(
+                'post_type' => 'business',
+                'posts_per_page' => -1,
+                'tax_query' => array([
+                    'taxonomy' => 'business_category',
+                    'field' => 'term_id',
+                    'terms' => $unassigned_term->term_id,
+                ]),
+                'post_status' => 'publish',
+            );
+            $businesses = get_posts($args);
+            foreach ($businesses as $business) {
+                $parent_cat = get_post_meta($business->ID, 'parent_category_name', true);
+                if ($parent_cat) {
+                    if (function_exists('lbd_get_category_mapping_for_import')) {
+                        $mapped_term_id = lbd_get_category_mapping_for_import($parent_cat);
+                        if ($mapped_term_id) {
+                            wp_set_object_terms($business->ID, $mapped_term_id, 'business_category', false);
+                            $updated++;
+                            continue;
+                        }
+                    }
+                }
+                $skipped++;
+            }
+        } else {
+            $errors++;
+        }
+    }
+    echo '<div class="wrap"><h1>Update Category Mappings</h1>';
+    echo '<form method="post"><p>This tool will re-assign all businesses in the Unassigned category to their mapped parent category if available.</p>';
+    echo '<input type="submit" name="lbd_update_categories" class="button button-primary" value="Update Categories">';
+    echo '</form>';
+    if (isset($_POST['lbd_update_categories'])) {
+        echo '<div class="notice notice-success"><p>Updated: ' . intval($updated) . ' | Skipped: ' . intval($skipped) . ' | Errors: ' . intval($errors) . '</p></div>';
+    }
+    echo '</div>';
+}
+
+// Add back the helper function
+function lbd_get_saved_mapping($cat) {
+    $sanitized = sanitize_title($cat);
+    $all = get_option('lbd_all_category_mappings', array());
+    if (is_array($all) && isset($all[$sanitized])) return intval($all[$sanitized]);
+    $ind = get_option('lbd_category_mapping_' . $sanitized);
+    if ($ind) return intval($ind);
+    return 0;
 }

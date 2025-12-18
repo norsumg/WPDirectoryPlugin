@@ -3,7 +3,7 @@
  * Plugin Name: Local Business Directory
  * Plugin URI: https://norsumedia.com/
  * Description: A directory of local businesses with custom fields, search, and import/export features.
- * Version: 1.0.07
+ * Version: 1.0.12
  * Author: Norsu Media
  * Author URI: https://norsumedia.com/
  * Text Domain: local-business-directory
@@ -38,6 +38,12 @@ lbd_include_file('includes/category-importer.php');
 lbd_include_file('includes/category-mapper.php');
 lbd_include_file('includes/category-mapping-fix.php'); // Include our fix for category mapping
 
+// Include submission system
+lbd_include_file('includes/submission/class-business-submission.php');
+lbd_include_file('includes/submission/submission-handler.php');
+lbd_include_file('includes/submission/submission-shortcodes.php');
+lbd_include_file('includes/submission/submission-actions.php');
+
 // Include debug tools after WordPress is fully loaded
 function lbd_maybe_include_debug() {
     // Only load debug files if admin with proper permissions has requested it
@@ -59,6 +65,9 @@ add_action('plugins_loaded', 'lbd_maybe_include_debug', 20);
 function lbd_enqueue_styles() {
     // Main plugin CSS
     wp_enqueue_style('lbd-styles', plugin_dir_url(__FILE__) . 'assets/css/directory.css', array(), '0.7.0');
+    
+    // Submission forms CSS
+    wp_enqueue_style('lbd-submission-forms', plugin_dir_url(__FILE__) . 'assets/css/submission-forms.css', array(), '1.0.0');
     
     // Single business page scripts - only load on business single
     if (is_singular('business')) {

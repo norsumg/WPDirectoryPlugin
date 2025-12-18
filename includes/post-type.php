@@ -22,6 +22,7 @@ function lbd_register_taxonomy() {
             'singular_name' => 'Business Category',
         ),
         'rewrite' => array( 'slug' => 'directory/categories', 'with_front' => false ),
+        'query_var' => true,
     ) );
     
     // Business Area taxonomy
@@ -47,10 +48,10 @@ function lbd_add_rewrite_rules() {
     // Generic rewrite rules that will match any slug
     // Validation of actual term slugs will happen in pre_get_posts
     
-    // Rewrite for area pages - with directory namespace
+    // Rewrite for category-only pages - with directory namespace (MUST COME FIRST)
     add_rewrite_rule(
-        '^directory/([^/]+)/?$',
-        'index.php?business_area=$matches[1]',
+        '^directory/categories/([^/]+)/?$',
+        'index.php?business_category=$matches[1]',
         'top'
     );
     
@@ -61,9 +62,20 @@ function lbd_add_rewrite_rules() {
         'top'
     );
     
+    // Rewrite for area pages - with directory namespace (LEAST SPECIFIC)
+    add_rewrite_rule(
+        '^directory/([^/]+)/?$',
+        'index.php?business_area=$matches[1]',
+        'top'
+    );
+    
     // Add rewrite tags
     add_rewrite_tag('%business_area%', '([^/]+)');
     add_rewrite_tag('%business_category%', '([^/]+)');
+    
+    // NOTE: Do NOT flush rewrite rules here - this function runs on every page load.
+    // Flushing should only happen on plugin activation or when explicitly requested.
+    // The old code was flushing on every page load which caused image upload corruption.
 }
 add_action('init', 'lbd_add_rewrite_rules');
 
@@ -81,10 +93,18 @@ function lbd_validate_taxonomy_slugs($query) {
     $area_slug = $query->get('business_area');
     $category_slug = $query->get('business_category');
     
+    // Debug logging for troubleshooting
+    if (current_user_can('manage_options') && (isset($_GET['lbd_debug']) || WP_DEBUG)) {
+        error_log("LBD Debug - Area slug: " . ($area_slug ?: 'none') . ", Category slug: " . ($category_slug ?: 'none'));
+    }
+    
     // If we have an area slug, validate it
     if ($area_slug) {
         $area_term = get_term_by('slug', $area_slug, 'business_area');
         if (!$area_term || is_wp_error($area_term)) {
+            if (current_user_can('manage_options') && (isset($_GET['lbd_debug']) || WP_DEBUG)) {
+                error_log("LBD Debug - Invalid area slug: " . $area_slug);
+            }
             $query->set_404();
             return;
         }
@@ -94,6 +114,9 @@ function lbd_validate_taxonomy_slugs($query) {
     if ($category_slug) {
         $category_term = get_term_by('slug', $category_slug, 'business_category');
         if (!$category_term || is_wp_error($category_term)) {
+            if (current_user_can('manage_options') && (isset($_GET['lbd_debug']) || WP_DEBUG)) {
+                error_log("LBD Debug - Invalid category slug: " . $category_slug);
+            }
             $query->set_404();
             return;
         }

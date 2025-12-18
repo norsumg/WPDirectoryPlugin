@@ -26,6 +26,9 @@
         
         <h1 class="business-title"><?php the_title(); ?></h1>
         
+        <!-- Claim Business Button -->
+        <?php echo do_shortcode('[claim_business_button]'); ?>
+        
         <!-- Tab Navigation -->
         <div class="business-tabs-container">
             <ul class="business-tabs">
@@ -47,7 +50,15 @@
                 $categories = get_the_terms( get_the_ID(), 'business_category' );
                 
                 if ( $areas && !is_wp_error( $areas ) ) {
-                    echo '<span class="business-area-link"><strong>Area:</strong> <a href="' . get_term_link( $areas[0] ) . '">' . esc_html( $areas[0]->name ) . '</a></span>';
+                    // Sort areas alphabetically by name
+                    usort($areas, function($a, $b) {
+                        return strcasecmp($a->name, $b->name);
+                    });
+                    $area_links = array();
+                    foreach ($areas as $area) {
+                        $area_links[] = '<a href="' . get_term_link($area) . '">' . esc_html($area->name) . '</a>';
+                    }
+                    echo '<span class="business-area-link"><strong>Areas:</strong> ' . implode(', ', $area_links) . '</span>';
                 }
                 
                 if ( $categories && !is_wp_error( $categories ) ) {
@@ -214,7 +225,7 @@
 
         if ($has_hours) : ?>
         <div class="business-hours">
-            <h3 style="display: flex; align-items: center; gap: 12px;">
+            <h2 style="display: flex; align-items: center; gap: 12px;" class="section-title">
                 Opening Hours
                 <?php
                 // --- OPEN NOW WIDGET ---
@@ -261,7 +272,7 @@
                 <span style="display:inline-block; padding: 3px 14px; border-radius: 16px; font-size: 0.95em; font-weight: 600; color: #fff; background: <?php echo esc_attr($open_color); ?>; margin-left: 6px; letter-spacing: 0.5px;">
                     <?php echo esc_html($open_label); ?>
                 </span>
-            </h3>
+            </h2>
             
             <?php if ($is_24_hours) : ?>
                 <p class="hours-24"><strong>Open 24 Hours, 7 days a week</strong></p>
@@ -493,7 +504,6 @@
             
             if ($black_owned || $women_owned || $lgbtq_friendly) {
                 echo '<div class="business-attributes">';
-                echo '<h3>Business Attributes</h3>';
                 
                 if ($black_owned) {
                     echo '<div class="attribute-item black-owned"><span class="attribute-icon">✓</span> Black Owned</div>';

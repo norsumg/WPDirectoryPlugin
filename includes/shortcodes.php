@@ -100,17 +100,17 @@ function lbd_search_form_shortcode($atts) {
     ob_start();
     ?>
     <div class="<?php echo esc_attr($form_classes); ?>">
-        <form role="search" method="get" action="<?php echo esc_url(home_url('/')); ?>" class="search-form">
+        <form role="search" method="get" action="<?php echo esc_url(home_url('/')); ?>" class="search-form" id="business-search-form">
             <input type="hidden" name="post_type" value="business" />
             
             <div class="search-inputs">
                 <div class="input-container search-field">
-                    <input type="text" name="s" placeholder="<?php echo esc_attr($atts['placeholder']); ?>" value="<?php echo esc_attr($current_search); ?>" />
+                    <input type="text" name="s" id="business-search-input" placeholder="<?php echo esc_attr($atts['placeholder']); ?>" value="<?php echo esc_attr($current_search); ?>" />
                 </div>
                 
                 <?php if ($atts['show_filters'] !== 'no'): ?>
                     <div class="input-container area-field">
-                        <select name="area">
+                        <select name="area" id="business-area-select">
                             <option value="">All Areas</option>
                             <?php
                             // Always get fresh terms directly to reflect additions/deletions
@@ -130,7 +130,7 @@ function lbd_search_form_shortcode($atts) {
                     </div>
                     
                     <div class="input-container category-field">
-                        <select name="category">
+                        <select name="category" id="business-category-select">
                             <option value="">All Categories</option>
                             <?php
                             // Always get fresh terms and sort by parent/child relationship
@@ -200,6 +200,45 @@ function lbd_search_form_shortcode($atts) {
         font-weight: normal;
     }
     </style>
+    
+    <script>
+    jQuery(document).ready(function($) {
+        $('#business-search-form').on('submit', function(e) {
+            var searchTerm = $('#business-search-input').val().trim();
+            var area = $('#business-area-select').val();
+            var category = $('#business-category-select').val();
+            
+            // If there's a search term, let the form submit normally to search results
+            if (searchTerm !== '') {
+                return true;
+            }
+            
+            // If no search term but category or area is selected, redirect to appropriate page
+            if (searchTerm === '' && (category !== '' || area !== '')) {
+                e.preventDefault();
+                
+                var redirectUrl = '<?php echo esc_js(home_url('/directory/')); ?>';
+                
+                if (area !== '' && category !== '') {
+                    // Both area and category selected - go to category in area page
+                    redirectUrl += area + '/' + category + '/';
+                } else if (area !== '') {
+                    // Only area selected - go to area page
+                    redirectUrl += area + '/';
+                } else if (category !== '') {
+                    // Only category selected - go to category page
+                    redirectUrl += 'categories/' + category + '/';
+                }
+                
+                window.location.href = redirectUrl;
+                return false;
+            }
+            
+            // If nothing is selected, let the form submit normally (will show all businesses)
+            return true;
+        });
+    });
+    </script>
     
     <?php
     

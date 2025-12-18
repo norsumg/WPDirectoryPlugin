@@ -18,7 +18,6 @@ if (!defined('ABSPATH')) {
  */
 function lbd_extract_categories_from_csv($file_path) {
     $unique_categories = array();
-    $hierarchical_categories = array();
     
     // Validate file exists
     if (!file_exists($file_path)) {
@@ -41,99 +40,30 @@ function lbd_extract_categories_from_csv($file_path) {
         return array();
     }
     
-    // Find the category column index
-    $category_idx = array_search('business_category', $headers);
-    if ($category_idx === false) {
-        // Also check for parent_category_name column
-        $parent_idx = array_search('parent_category_name', $headers);
-        if ($parent_idx !== false) {
-            // Find column for child category
-            $possible_category_columns = array('category_name', 'subcategory', 'child_category');
-            foreach ($possible_category_columns as $column) {
-                $idx = array_search($column, $headers);
-                if ($idx !== false) {
-                    $category_idx = $idx;
-                    break;
-                }
-            }
-        }
-        
-        if ($category_idx === false) {
-            fclose($handle);
-            error_log("No business_category column found in CSV");
-            return array();
-        }
-    }
-    
-    // Also check for parent_category_name column
+    // Only use parent_category_name for mapping
     $parent_idx = array_search('parent_category_name', $headers);
+    if ($parent_idx === false) {
+        fclose($handle);
+        error_log("No parent_category_name column found in CSV");
+        return array();
+    }
     
     // Process each row
     $row_counter = 0;
     try {
         while (($data = fgetcsv($handle)) !== false) {
             $row_counter++;
-            
             // Skip empty rows
-            if (empty($data) || count($data) < $category_idx + 1) {
+            if (empty($data) || count($data) < $parent_idx + 1) {
                 continue;
             }
-            
-            // Get category name
-            if (isset($data[$category_idx]) && !empty($data[$category_idx])) {
-                $category_name = trim($data[$category_idx]);
-                
-                // Handle hierarchical categories (Parent > Child)
-                if (strpos($category_name, '>') !== false) {
-                    $category_parts = array_map('trim', explode('>', $category_name));
-                    $parent_name = $category_parts[0];
-                    $child_name = $category_parts[1];
-                    
-                    // Store hierarchical relationship for later processing
-                    if (!isset($hierarchical_categories[$parent_name])) {
-                        $hierarchical_categories[$parent_name] = array();
-                    }
-                    if (!in_array($child_name, $hierarchical_categories[$parent_name])) {
-                        $hierarchical_categories[$parent_name][] = $child_name;
-                    }
-                    
-                    // Add both parent and child to unique categories
-                    if (!in_array($parent_name, $unique_categories)) {
-                        $unique_categories[] = $parent_name;
-                    }
-                    if (!in_array($child_name, $unique_categories)) {
-                        $unique_categories[] = $child_name;
-                    }
-                } else {
-                    // Check if there's a separate parent category column
-                    if ($parent_idx !== false && isset($data[$parent_idx]) && !empty($data[$parent_idx])) {
-                        $parent_name = trim($data[$parent_idx]);
-                        $child_name = $category_name;
-                        
-                        // Store hierarchical relationship
-                        if (!isset($hierarchical_categories[$parent_name])) {
-                            $hierarchical_categories[$parent_name] = array();
-                        }
-                        if (!in_array($child_name, $hierarchical_categories[$parent_name])) {
-                            $hierarchical_categories[$parent_name][] = $child_name;
-                        }
-                        
-                        // Add both parent and child to unique categories
-                        if (!in_array($parent_name, $unique_categories)) {
-                            $unique_categories[] = $parent_name;
-                        }
-                        if (!in_array($child_name, $unique_categories)) {
-                            $unique_categories[] = $child_name;
-                        }
-                    } else {
-                        // Simple category
-                        if (!in_array($category_name, $unique_categories)) {
-                            $unique_categories[] = $category_name;
-                        }
-                    }
+            // Get parent category name
+            if (isset($data[$parent_idx]) && !empty($data[$parent_idx])) {
+                $parent_name = trim($data[$parent_idx]);
+                if (!in_array($parent_name, $unique_categories)) {
+                    $unique_categories[] = $parent_name;
                 }
             }
-            
             // Safety check - don't process too many rows
             if ($row_counter > 10000) {
                 error_log("CSV processing stopped after 10,000 rows for safety");
@@ -143,21 +73,7 @@ function lbd_extract_categories_from_csv($file_path) {
     } catch (Exception $e) {
         error_log("Error processing CSV: " . $e->getMessage());
     }
-    
     fclose($handle);
-    
-    // Add special metadata to help with mapping child categories
-    foreach ($hierarchical_categories as $parent => $children) {
-        foreach ($children as $child) {
-            // Find the child's index in the unique_categories array
-            $index = array_search($child, $unique_categories);
-            if ($index !== false) {
-                // Add a hint to show this is a child category
-                $unique_categories[$index] = $child . ' [child of ' . $parent . ']';
-            }
-        }
-    }
-    
     return $unique_categories;
 }
 
