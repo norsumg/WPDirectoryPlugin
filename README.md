@@ -204,3 +204,13 @@ The integration will automatically:
 - **Reviews**: Includes up to 3 approved reviews with proper rating, author, and date information
 - **Ratings**: Adds aggregate ratings from your native review system or imported Google reviews
 - **Address**: Creates proper PostalAddress formatting from your address field 
+
+## Changelog
+
+### 1.0.13 — 2026-02-27
+
+- Added `profile_url` column to the CSV export so each row includes the business's front-end listing URL
+
+### 1.0.12
+
+- Initial tracked version

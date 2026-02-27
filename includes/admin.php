@@ -165,6 +165,7 @@ function lbd_export_businesses_to_csv() {
     // Add CSV headers
     $headers = array(
         'business_name',
+        'profile_url',
         'business_description',
         'business_excerpt',
         'business_area',
@@ -268,6 +269,7 @@ function lbd_export_businesses_to_csv() {
         // Add row to CSV
         fputcsv($output, array(
             $business->post_title,
+            get_permalink($business->ID),
             $business->post_content,
             $business->post_excerpt,
             $area_name,
