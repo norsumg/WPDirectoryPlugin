@@ -352,6 +352,210 @@ function lbd_send_submission_notifications($submission_id, $submission_data) {
 }
 
 /**
+ * Process the "Send Verification Email" form on the claim page.
+ * Validates input, generates a token, stores it as a transient, and sends an email
+ * to the business's listed email address with a verification link.
+ */
+function lbd_process_claim_email_verification() {
+    if (!isset($_POST['lbd_claim_email_nonce'])) {
+        return array('success' => false, 'message' => 'Invalid submission.');
+    }
+    if (!wp_verify_nonce($_POST['lbd_claim_email_nonce'], 'lbd_claim_email_verify_action')) {
+        return array('success' => false, 'message' => 'Security check failed. Please try again.');
+    }
+    if (!empty($_POST['website'])) {
+        return array('success' => true, 'message' => 'Thank you!');
+    }
+
+    $business_id  = isset($_POST['business_id']) ? intval($_POST['business_id']) : 0;
+    $owner_name   = isset($_POST['owner_name']) ? sanitize_text_field($_POST['owner_name']) : '';
+    $owner_email  = isset($_POST['owner_email']) ? sanitize_email($_POST['owner_email']) : '';
+    $owner_phone  = isset($_POST['owner_phone']) ? sanitize_text_field($_POST['owner_phone']) : '';
+
+    $errors = array();
+    if (empty($owner_name))  $errors[] = 'Your Name is required.';
+    if (empty($owner_email)) $errors[] = 'Your Email is required.';
+    if (empty($owner_phone)) $errors[] = 'Your Phone is required.';
+    if (!empty($owner_email) && !is_email($owner_email)) $errors[] = 'Please enter a valid email address.';
+
+    $business = get_post($business_id);
+    if (!$business || $business->post_type !== 'business') {
+        $errors[] = 'Business not found.';
+    }
+
+    $business_email = get_post_meta($business_id, 'lbd_email', true);
+    if (empty($business_email) || !is_email($business_email)) {
+        $errors[] = 'This business does not have a valid email on file.';
+    }
+
+    if (!empty($errors)) {
+        return array('success' => false, 'message' => 'Please correct the following errors:', 'errors' => $errors);
+    }
+
+    $result = lbd_send_claim_verification_email($business_id, array(
+        'owner_name'  => $owner_name,
+        'owner_email' => $owner_email,
+        'owner_phone' => $owner_phone,
+    ));
+
+    return $result;
+}
+
+/**
+ * Generate a verification token, store the claim data in a transient,
+ * create an audit-trail submission post, and send the verification email.
+ */
+function lbd_send_claim_verification_email($business_id, $claimant_data) {
+    $business = get_post($business_id);
+    $business_email = get_post_meta($business_id, 'lbd_email', true);
+
+    $token = wp_generate_password(32, false);
+
+    $claim_payload = array(
+        'business_id'  => $business_id,
+        'owner_name'   => $claimant_data['owner_name'],
+        'owner_email'  => $claimant_data['owner_email'],
+        'owner_phone'  => $claimant_data['owner_phone'],
+        'created_at'   => current_time('mysql'),
+    );
+
+    set_transient('lbd_claim_' . $token, $claim_payload, 24 * HOUR_IN_SECONDS);
+
+    // Create a submission post for audit trail
+    $submission_id = wp_insert_post(array(
+        'post_title'   => 'Claim (email verification): ' . $business->post_title,
+        'post_content' => 'Awaiting email verification.',
+        'post_status'  => 'publish',
+        'post_type'    => 'business_submission',
+    ));
+
+    if (!is_wp_error($submission_id)) {
+        update_post_meta($submission_id, 'submission_status', 'email_pending');
+        update_post_meta($submission_id, 'submission_type', 'claim_business');
+        update_post_meta($submission_id, 'submission_date', current_time('mysql'));
+        update_post_meta($submission_id, 'claimed_business_id', $business_id);
+        update_post_meta($submission_id, 'business_owner_name', $claimant_data['owner_name']);
+        update_post_meta($submission_id, 'business_owner_email', $claimant_data['owner_email']);
+        update_post_meta($submission_id, 'business_owner_phone', $claimant_data['owner_phone']);
+        update_post_meta($submission_id, 'claim_verification_token', $token);
+        update_post_meta($submission_id, 'original_submission_data', json_encode($claim_payload));
+    }
+
+    // Build verification URL
+    $claim_page_id = get_option('lbd_claim_page_id');
+    $verify_url = add_query_arg('verify_claim', $token, get_permalink($claim_page_id));
+
+    $site_name = get_bloginfo('name');
+    $subject   = 'Verify your business claim — ' . $business->post_title;
+
+    $message  = "Hello,\n\n";
+    $message .= "Someone has requested to claim ownership of \"" . $business->post_title . "\" on " . $site_name . ".\n\n";
+    $message .= "Claimant details:\n";
+    $message .= "  Name:  " . $claimant_data['owner_name'] . "\n";
+    $message .= "  Email: " . $claimant_data['owner_email'] . "\n";
+    $message .= "  Phone: " . $claimant_data['owner_phone'] . "\n\n";
+    $message .= "If this is you, click the link below to verify your ownership:\n\n";
+    $message .= $verify_url . "\n\n";
+    $message .= "This link will expire in 24 hours.\n\n";
+    $message .= "If you did not request this, you can safely ignore this email.\n\n";
+    $message .= "Best regards,\n";
+    $message .= $site_name . " Team";
+
+    $sent = wp_mail($business_email, $subject, $message);
+
+    if (!$sent) {
+        return array('success' => false, 'message' => 'We were unable to send the verification email. Please try the manual claim option instead.');
+    }
+
+    // Notify admin
+    $admin_email = get_option('admin_email');
+    $admin_subject = 'Claim verification email sent — ' . $business->post_title;
+    $admin_message  = "A claim verification email has been sent for:\n\n";
+    $admin_message .= "Business: " . $business->post_title . "\n";
+    $admin_message .= "Claimant: " . $claimant_data['owner_name'] . " (" . $claimant_data['owner_email'] . ")\n";
+    $admin_message .= "Status: Awaiting email verification\n\n";
+    if (!is_wp_error($submission_id)) {
+        $admin_message .= "View submission: " . admin_url('post.php?post=' . $submission_id . '&action=edit');
+    }
+    wp_mail($admin_email, $admin_subject, $admin_message);
+
+    return array('success' => true, 'message' => 'Verification email sent.');
+}
+
+/**
+ * Validate a claim verification token and auto-approve the claim.
+ */
+function lbd_verify_claim_token($token) {
+    $claim_data = get_transient('lbd_claim_' . $token);
+
+    if (!$claim_data) {
+        return array(
+            'success' => false,
+            'message' => 'This verification link has expired or is invalid. Please submit a new claim.',
+        );
+    }
+
+    $business_id = intval($claim_data['business_id']);
+    $business = get_post($business_id);
+
+    if (!$business || $business->post_type !== 'business') {
+        return array('success' => false, 'message' => 'The business associated with this claim could not be found.');
+    }
+
+    // Check if already claimed in the meantime
+    $is_claimed = get_post_meta($business_id, 'lbd_claimed', true);
+    if ($is_claimed === 'yes') {
+        delete_transient('lbd_claim_' . $token);
+        return array('success' => false, 'message' => 'This business has already been claimed.');
+    }
+
+    // Find the matching submission post
+    $submissions = get_posts(array(
+        'post_type'   => 'business_submission',
+        'post_status' => 'any',
+        'meta_query'  => array(
+            array('key' => 'claim_verification_token', 'value' => $token),
+        ),
+        'posts_per_page' => 1,
+    ));
+
+    if (!empty($submissions)) {
+        $submission_id = $submissions[0]->ID;
+    } else {
+        // Create one if it wasn't found (edge case)
+        $submission_id = wp_insert_post(array(
+            'post_title'   => 'Claim (email verified): ' . $business->post_title,
+            'post_content' => 'Verified via email link.',
+            'post_status'  => 'publish',
+            'post_type'    => 'business_submission',
+        ));
+        update_post_meta($submission_id, 'submission_type', 'claim_business');
+        update_post_meta($submission_id, 'submission_date', current_time('mysql'));
+        update_post_meta($submission_id, 'claimed_business_id', $business_id);
+        update_post_meta($submission_id, 'business_owner_name', $claim_data['owner_name']);
+        update_post_meta($submission_id, 'business_owner_email', $claim_data['owner_email']);
+        update_post_meta($submission_id, 'business_owner_phone', $claim_data['owner_phone']);
+        update_post_meta($submission_id, 'original_submission_data', json_encode($claim_data));
+    }
+
+    // Auto-approve using the existing approval function
+    $approve_result = lbd_approve_business_claim($submission_id);
+
+    // Delete the transient so the link can't be reused
+    delete_transient('lbd_claim_' . $token);
+
+    if (!$approve_result || empty($approve_result['success'])) {
+        return array('success' => false, 'message' => 'There was a problem approving your claim. Please contact us for help.');
+    }
+
+    return array(
+        'success'      => true,
+        'message'      => 'Your ownership of "' . $business->post_title . '" has been verified! You are now the verified owner of this listing.',
+        'business_url' => get_permalink($business_id),
+    );
+}
+
+/**
  * Send claim notifications
  */
 function lbd_send_claim_notifications($submission_id, $claim_data, $business) {

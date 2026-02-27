@@ -184,6 +184,38 @@ function lbd_get_business_review_count($business_id) {
     return (int) $wpdb->get_var($query);
 }
 
-// Removed custom rewrite rules and template redirect functions
-// These were causing errors in the plugin
-// Instead, we'll use a WordPress page with the shortcode
+/**
+ * Create the "Claim Your Business" page if it doesn't already exist.
+ * Stores the page ID in option lbd_claim_page_id.
+ */
+function lbd_create_claim_page() {
+    $existing_page_id = get_option('lbd_claim_page_id');
+
+    if ($existing_page_id && get_post_status($existing_page_id) === 'publish') {
+        return;
+    }
+
+    $page_id = wp_insert_post(array(
+        'post_title'   => 'Claim Your Business',
+        'post_content' => '[claim_business_form]',
+        'post_status'  => 'publish',
+        'post_type'    => 'page',
+        'post_name'    => 'claim-your-business',
+    ));
+
+    if ($page_id && !is_wp_error($page_id)) {
+        update_option('lbd_claim_page_id', $page_id);
+    }
+}
+add_action('lbd_activation', 'lbd_create_claim_page');
+
+/**
+ * Ensure the claim page exists for sites that already have the plugin installed.
+ */
+function lbd_maybe_create_claim_page() {
+    $existing_page_id = get_option('lbd_claim_page_id');
+    if (!$existing_page_id || get_post_status($existing_page_id) !== 'publish') {
+        lbd_create_claim_page();
+    }
+}
+add_action('plugins_loaded', 'lbd_maybe_create_claim_page');

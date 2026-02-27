@@ -404,4 +404,83 @@
     background: #d1ecf1;
     border: 1px solid #bee5eb;
     color: #0c5460;
+}
+
+/* Claim Form — Business Name Header */
+.lbd-claim-business-name {
+    font-size: 18px;
+    color: #333;
+    margin-bottom: 25px;
+    padding: 12px 16px;
+    background: #f0f7ff;
+    border-left: 4px solid #007cba;
+    border-radius: 4px;
+}
+
+/* Claim Form — Email Verification Section */
+.lbd-claim-email-section p {
+    margin-bottom: 15px;
+    color: #555;
+    line-height: 1.6;
+}
+
+.lbd-masked-email {
+    font-size: 15px;
+    padding: 10px 14px;
+    background: #e8f5e8;
+    border: 1px solid #c3e6cb;
+    border-radius: 4px;
+    color: #155724;
+}
+
+/* Claim Form — Path Toggle Links */
+.lbd-claim-fallback-link {
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.lbd-claim-fallback-link a {
+    color: #007cba;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.lbd-claim-fallback-link a:hover {
+    text-decoration: underline;
+    color: #005a87;
+}
+
+/* Claim Form — No Email Notice */
+.lbd-claim-no-email-notice {
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    color: #856404;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.lbd-claim-no-email-notice p {
+    margin: 0;
+    color: inherit;
+}
+
+/* Claim Form — Verified Success State */
+.lbd-claim-verified {
+    text-align: center;
+    padding: 30px 20px;
+}
+
+.lbd-claim-verified h3 {
+    font-size: 24px;
+    margin-bottom: 15px;
+}
+
+.lbd-claim-verified .claim-business-button {
+    margin-top: 15px;
 } 

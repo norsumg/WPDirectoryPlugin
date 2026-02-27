@@ -135,6 +135,13 @@ class LBD_Business_Submission {
             'single' => true,
             'show_in_rest' => false,
         ));
+
+        // Email verification token (for claim-via-email flow)
+        register_post_meta('business_submission', 'claim_verification_token', array(
+            'type' => 'string',
+            'single' => true,
+            'show_in_rest' => false,
+        ));
     }
     
     /**
@@ -189,6 +196,7 @@ class LBD_Business_Submission {
                 <td>
                     <select name="submission_status" id="submission_status">
                         <option value="pending" <?php selected($status, 'pending'); ?>>Pending</option>
+                        <option value="email_pending" <?php selected($status, 'email_pending'); ?>>Awaiting Email Verification</option>
                         <option value="approved" <?php selected($status, 'approved'); ?>>Approved</option>
                         <option value="rejected" <?php selected($status, 'rejected'); ?>>Rejected</option>
                     </select>
@@ -281,8 +289,11 @@ class LBD_Business_Submission {
         
         ?>
         <div class="submission-actions">
-            <?php if ($status === 'pending'): ?>
+            <?php if ($status === 'pending' || $status === 'email_pending'): ?>
                 <p><strong>Actions:</strong></p>
+                <?php if ($status === 'email_pending'): ?>
+                    <p><em>Awaiting email verification. You can also approve manually:</em></p>
+                <?php endif; ?>
                 <p>
                     <button type="button" class="button button-primary approve-submission" data-id="<?php echo $post->ID; ?>">
                         Approve & Create Business
@@ -411,6 +422,7 @@ class LBD_Business_Submission {
                 $status = get_post_meta($post_id, 'submission_status', true);
                 $status_labels = array(
                     'pending' => '<span style="color: #f0ad4e;">Pending</span>',
+                    'email_pending' => '<span style="color: #5bc0de;">Awaiting Email Verification</span>',
                     'approved' => '<span style="color: #5cb85c;">Approved</span>',
                     'rejected' => '<span style="color: #d9534f;">Rejected</span>'
                 );
