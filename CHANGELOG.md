@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3 — 2026-02-27
+
+### Added
+- **Business Owner Dashboard** — verified owners can log in and manage their listing from a frontend dashboard (`/my-business/`).
+- **Business Revision System** — owners can submit changes to their listing via an edit form; changes go through admin review before going live.
+- **Automatic account creation** — a WordPress user account with `business_owner` role is created when a claim is approved; the owner receives a "set your password" email.
+- **Admin diff view** — when reviewing a revision submission, admins see a side-by-side comparison of current vs proposed values.
+- Auto-created "My Business" and "Edit My Business" pages on plugin activation.
+- Frontend login form embedded in the dashboard page (no redirect to wp-login.php).
+
+### Changed
+- Business owners are redirected to the frontend dashboard instead of wp-admin on login.
+- Admin bar is hidden for business owners.
+- Approval emails now include a link to the owner dashboard.
+- `revision` submission type added to admin dropdowns and column labels.
+
 ## 1.2 — 2026-02-27
 
 ### Added

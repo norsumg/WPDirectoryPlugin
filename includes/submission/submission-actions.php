@@ -48,6 +48,8 @@ function lbd_ajax_approve_submission() {
         $result = lbd_approve_new_business_submission($submission_id);
     } elseif ($submission_type === 'claim_business') {
         $result = lbd_approve_business_claim($submission_id);
+    } elseif ($submission_type === 'revision') {
+        $result = lbd_approve_business_revision($submission_id);
     } else {
         $result = array(
             'success' => false,
@@ -194,6 +196,27 @@ function lbd_approve_business_claim($submission_id) {
     update_post_meta($claimed_business_id, 'lbd_claimed_date', current_time('mysql'));
     update_post_meta($claimed_business_id, 'lbd_verified', 'verified');
     
+    // Create or find a WordPress user account for the owner
+    $owner_email = $original_data['owner_email'];
+    $owner_name  = $original_data['owner_name'];
+    $user = get_user_by('email', $owner_email);
+
+    if (!$user) {
+        $user_id = wp_create_user($owner_email, wp_generate_password(24, true, true), $owner_email);
+        if (!is_wp_error($user_id)) {
+            $user = get_user_by('ID', $user_id);
+            $user->set_role('business_owner');
+            wp_update_user(array('ID' => $user_id, 'display_name' => $owner_name, 'first_name' => $owner_name));
+            wp_new_user_notification($user_id, null, 'user');
+        }
+    } else {
+        $user_id = $user->ID;
+    }
+
+    if (isset($user_id) && !is_wp_error($user_id)) {
+        update_post_meta($claimed_business_id, 'lbd_owner_user_id', $user_id);
+    }
+    
     // Update submission status
     update_post_meta($submission_id, 'submission_status', 'approved');
     update_post_meta($submission_id, 'reviewed_date', current_time('mysql'));
@@ -207,6 +230,48 @@ function lbd_approve_business_claim($submission_id) {
         'message' => 'Business claim approved!',
         'business_id' => $claimed_business_id,
         'business_url' => get_edit_post_link($claimed_business_id)
+    );
+}
+
+/**
+ * Approve a business revision — apply proposed changes to the live listing.
+ */
+function lbd_approve_business_revision($submission_id) {
+    $business_id = get_post_meta($submission_id, 'claimed_business_id', true);
+    $changes = json_decode(get_post_meta($submission_id, 'original_submission_data', true), true);
+
+    if (!$business_id || !$changes) {
+        return array('success' => false, 'message' => 'Revision data not found.');
+    }
+
+    $business = get_post($business_id);
+    if (!$business || $business->post_type !== 'business') {
+        return array('success' => false, 'message' => 'Business not found.');
+    }
+
+    // Apply post_content change
+    if (isset($changes['post_content'])) {
+        wp_update_post(array('ID' => $business_id, 'post_content' => $changes['post_content']));
+        unset($changes['post_content']);
+    }
+
+    // Apply meta field changes
+    foreach ($changes as $key => $value) {
+        update_post_meta($business_id, $key, $value);
+    }
+
+    // Update submission status
+    update_post_meta($submission_id, 'submission_status', 'approved');
+    update_post_meta($submission_id, 'reviewed_date', current_time('mysql'));
+    update_post_meta($submission_id, 'reviewer_id', get_current_user_id());
+
+    lbd_send_approval_email($submission_id, $business_id, 'revision');
+
+    return array(
+        'success'      => true,
+        'message'      => 'Revision approved and changes applied!',
+        'business_id'  => $business_id,
+        'business_url' => get_edit_post_link($business_id),
     );
 }
 
@@ -252,6 +317,9 @@ function lbd_send_approval_email($submission_id, $business_id, $type) {
     if (!$owner_email || !$business) {
         return false;
     }
+
+    $dashboard_page_id = get_option('lbd_dashboard_page_id');
+    $dashboard_url = $dashboard_page_id ? get_permalink($dashboard_page_id) : '';
     
     $subject = 'Business Submission Approved: ' . $business->post_title;
     
@@ -260,12 +328,19 @@ function lbd_send_approval_email($submission_id, $business_id, $type) {
     if ($type === 'new_business') {
         $message .= "Great news! Your business submission for '" . $business->post_title . "' has been approved and is now live in our directory.\n\n";
         $message .= "Your business listing: " . get_permalink($business_id) . "\n\n";
+    } elseif ($type === 'revision') {
+        $message .= "Great news! Your proposed changes to '" . $business->post_title . "' have been approved and are now live.\n\n";
+        $message .= "Your business listing: " . get_permalink($business_id) . "\n\n";
     } else {
         $message .= "Great news! Your claim for '" . $business->post_title . "' has been approved. You are now the verified owner of this business listing.\n\n";
         $message .= "Your business listing: " . get_permalink($business_id) . "\n\n";
+        $message .= "An account has been created for you. You will receive a separate email to set your password.\n\n";
     }
     
-    $message .= "You can now manage your business information through our admin panel.\n\n";
+    if ($dashboard_url) {
+        $message .= "Manage your listing from your dashboard: " . $dashboard_url . "\n\n";
+    }
+
     $message .= "Best regards,\n";
     $message .= get_bloginfo('name') . " Team";
     

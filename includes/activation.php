@@ -185,6 +185,17 @@ function lbd_get_business_review_count($business_id) {
 }
 
 /**
+ * Register the business_owner role with minimal capabilities.
+ */
+function lbd_register_business_owner_role() {
+    if (!get_role('business_owner')) {
+        add_role('business_owner', 'Business Owner', array('read' => true));
+    }
+}
+add_action('lbd_activation', 'lbd_register_business_owner_role');
+add_action('init', 'lbd_register_business_owner_role', 5);
+
+/**
  * Create the "Claim Your Business" page if it doesn't already exist.
  * Stores the page ID in option lbd_claim_page_id.
  */
@@ -210,14 +221,63 @@ function lbd_create_claim_page() {
 add_action('lbd_activation', 'lbd_create_claim_page');
 
 /**
- * Ensure the claim page exists for sites that already have the plugin installed.
+ * Create the "My Business" dashboard page if it doesn't already exist.
+ */
+function lbd_create_dashboard_page() {
+    $existing = get_option('lbd_dashboard_page_id');
+    if ($existing && get_post_status($existing) === 'publish') {
+        return;
+    }
+    $page_id = wp_insert_post(array(
+        'post_title'   => 'My Business',
+        'post_content' => '[lbd_owner_dashboard]',
+        'post_status'  => 'publish',
+        'post_type'    => 'page',
+        'post_name'    => 'my-business',
+    ));
+    if ($page_id && !is_wp_error($page_id)) {
+        update_option('lbd_dashboard_page_id', $page_id);
+    }
+}
+add_action('lbd_activation', 'lbd_create_dashboard_page');
+
+/**
+ * Create the "Edit My Business" page if it doesn't already exist.
+ */
+function lbd_create_edit_business_page() {
+    $existing = get_option('lbd_edit_business_page_id');
+    if ($existing && get_post_status($existing) === 'publish') {
+        return;
+    }
+    $page_id = wp_insert_post(array(
+        'post_title'   => 'Edit My Business',
+        'post_content' => '[lbd_owner_edit_business]',
+        'post_status'  => 'publish',
+        'post_type'    => 'page',
+        'post_name'    => 'edit-my-business',
+    ));
+    if ($page_id && !is_wp_error($page_id)) {
+        update_option('lbd_edit_business_page_id', $page_id);
+    }
+}
+add_action('lbd_activation', 'lbd_create_edit_business_page');
+
+/**
+ * Ensure plugin pages exist for sites that already have the plugin installed.
  * Hooked to 'init' (not 'plugins_loaded') because wp_insert_post requires
  * the permalink / rewrite system to be initialised.
  */
-function lbd_maybe_create_claim_page() {
-    $existing_page_id = get_option('lbd_claim_page_id');
-    if (!$existing_page_id || get_post_status($existing_page_id) !== 'publish') {
-        lbd_create_claim_page();
+function lbd_maybe_create_plugin_pages() {
+    $pages = array(
+        'lbd_claim_page_id'         => 'lbd_create_claim_page',
+        'lbd_dashboard_page_id'     => 'lbd_create_dashboard_page',
+        'lbd_edit_business_page_id' => 'lbd_create_edit_business_page',
+    );
+    foreach ($pages as $option_key => $creator_fn) {
+        $page_id = get_option($option_key);
+        if (!$page_id || get_post_status($page_id) !== 'publish') {
+            call_user_func($creator_fn);
+        }
     }
 }
-add_action('init', 'lbd_maybe_create_claim_page', 99);
+add_action('init', 'lbd_maybe_create_plugin_pages', 99);

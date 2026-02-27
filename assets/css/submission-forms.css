@@ -483,4 +483,272 @@
 
 .lbd-claim-verified .claim-business-button {
     margin-top: 15px;
+}
+
+/* ─── Owner Dashboard ─── */
+
+.lbd-dashboard-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.lbd-dashboard-container h2 {
+    color: #333;
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 25px;
+}
+
+.lbd-dashboard-login {
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 30px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.lbd-dashboard-login p {
+    color: #666;
+    margin-bottom: 20px;
+    font-size: 15px;
+}
+
+.lbd-dashboard-login label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+}
+
+.lbd-dashboard-login input[type="text"],
+.lbd-dashboard-login input[type="password"] {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+    margin-bottom: 15px;
+    box-sizing: border-box;
+}
+
+.lbd-dashboard-login input[type="submit"] {
+    background: #007cba;
+    color: #fff;
+    border: none;
+    padding: 12px 30px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    width: 100%;
+}
+
+.lbd-dashboard-login input[type="submit"]:hover {
+    background: #005a87;
+}
+
+.lbd-dashboard-reset-link {
+    text-align: center;
+    margin-top: 15px;
+}
+
+.lbd-dashboard-reset-link a {
+    color: #007cba;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.lbd-dashboard-reset-link a:hover {
+    text-decoration: underline;
+}
+
+.lbd-dashboard-empty {
+    text-align: center;
+    padding: 40px 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.lbd-dashboard-empty p {
+    color: #666;
+    font-size: 16px;
+    margin-bottom: 20px;
+}
+
+/* Dashboard Card */
+.lbd-dashboard-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 25px;
+    margin-bottom: 25px;
+}
+
+.lbd-dashboard-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.lbd-dashboard-card-header h3 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 600;
+    color: #333;
+}
+
+.lbd-dashboard-details {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.lbd-dashboard-details th {
+    text-align: left;
+    padding: 8px 15px 8px 0;
+    color: #666;
+    font-weight: 600;
+    font-size: 14px;
+    width: 120px;
+    vertical-align: top;
+}
+
+.lbd-dashboard-details td {
+    padding: 8px 0;
+    color: #333;
+    font-size: 14px;
+}
+
+.lbd-dashboard-details td a {
+    color: #007cba;
+    text-decoration: none;
+}
+
+.lbd-dashboard-details td a:hover {
+    text-decoration: underline;
+}
+
+/* Dashboard Action Buttons */
+.lbd-dashboard-actions {
+    display: flex;
+    gap: 12px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.lbd-btn-secondary {
+    background: #6c757d !important;
+}
+
+.lbd-btn-secondary:hover {
+    background: #545b62 !important;
+}
+
+/* Status Badges */
+.lbd-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.lbd-badge-verified {
+    background: #d4edda;
+    color: #155724;
+}
+
+.lbd-badge-pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.lbd-badge-approved {
+    background: #d4edda;
+    color: #155724;
+}
+
+.lbd-badge-rejected {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Revisions Table */
+.lbd-dashboard-revisions {
+    margin-top: 25px;
+}
+
+.lbd-dashboard-revisions h3 {
+    color: #333;
+    font-size: 18px;
+    margin-bottom: 15px;
+}
+
+.lbd-revisions-table {
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.lbd-revisions-table thead th {
+    background: #f8f9fa;
+    padding: 10px 15px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #666;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.lbd-revisions-table tbody td {
+    padding: 10px 15px;
+    border-bottom: 1px solid #eee;
+}
+
+/* Dashboard Logout */
+.lbd-dashboard-logout {
+    text-align: center;
+    margin-top: 30px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.lbd-dashboard-logout a {
+    color: #dc3545;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.lbd-dashboard-logout a:hover {
+    text-decoration: underline;
+}
+
+/* ─── Dashboard Responsive ─── */
+
+@media (max-width: 768px) {
+    .lbd-dashboard-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .lbd-dashboard-actions {
+        flex-direction: column;
+    }
+
+    .lbd-dashboard-actions .submit-button {
+        text-align: center;
+    }
+
+    .lbd-dashboard-details th {
+        width: 100px;
+    }
 } 

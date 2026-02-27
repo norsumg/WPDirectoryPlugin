@@ -208,6 +208,7 @@ class LBD_Business_Submission {
                     <select name="submission_type" id="submission_type">
                         <option value="new_business" <?php selected($type, 'new_business'); ?>>New Business</option>
                         <option value="claim_business" <?php selected($type, 'claim_business'); ?>>Claim Business</option>
+                        <option value="revision" <?php selected($type, 'revision'); ?>>Business Revision</option>
                     </select>
                 </td>
             </tr>
@@ -223,9 +224,9 @@ class LBD_Business_Submission {
                     <input type="text" name="reviewed_date" id="reviewed_date" value="<?php echo esc_attr($reviewed_date); ?>" readonly />
                 </td>
             </tr>
-            <?php if ($type === 'claim_business' && $claimed_business_id): ?>
+            <?php if (($type === 'claim_business' || $type === 'revision') && $claimed_business_id): ?>
             <tr>
-                <th><label for="claimed_business_id">Claimed Business</label></th>
+                <th><label for="claimed_business_id"><?php echo $type === 'revision' ? 'Business' : 'Claimed Business'; ?></label></th>
                 <td>
                     <?php 
                     $claimed_business = get_post($claimed_business_id);
@@ -233,6 +234,38 @@ class LBD_Business_Submission {
                         echo '<a href="' . get_edit_post_link($claimed_business_id) . '">' . esc_html($claimed_business->post_title) . '</a>';
                     } else {
                         echo 'Business not found (ID: ' . esc_html($claimed_business_id) . ')';
+                    }
+                    ?>
+                </td>
+            </tr>
+            <?php endif; ?>
+            <?php if ($type === 'revision' && $claimed_business_id): ?>
+            <tr>
+                <th>Proposed Changes</th>
+                <td>
+                    <?php
+                    $changes = json_decode(get_post_meta($post->ID, 'original_submission_data', true), true);
+                    $editable_fields = function_exists('lbd_get_editable_fields') ? lbd_get_editable_fields() : array();
+                    $all_labels = array_merge(array('post_content' => array('label' => 'Description')), $editable_fields);
+                    if ($changes && is_array($changes)) {
+                        echo '<table class="widefat striped" style="margin-top:8px;">';
+                        echo '<thead><tr><th>Field</th><th>Current</th><th>Proposed</th></tr></thead><tbody>';
+                        foreach ($changes as $key => $new_val) {
+                            $label = isset($all_labels[$key]) ? $all_labels[$key]['label'] : $key;
+                            if ($key === 'post_content') {
+                                $current_val = $claimed_business ? $claimed_business->post_content : '';
+                            } else {
+                                $current_val = get_post_meta($claimed_business_id, $key, true);
+                            }
+                            echo '<tr>';
+                            echo '<td><strong>' . esc_html($label) . '</strong></td>';
+                            echo '<td>' . esc_html($current_val ?: '(empty)') . '</td>';
+                            echo '<td style="background:#e8f5e8;">' . esc_html($new_val ?: '(cleared)') . '</td>';
+                            echo '</tr>';
+                        }
+                        echo '</tbody></table>';
+                    } else {
+                        echo '<em>No change data available.</em>';
                     }
                     ?>
                 </td>
@@ -296,7 +329,7 @@ class LBD_Business_Submission {
                 <?php endif; ?>
                 <p>
                     <button type="button" class="button button-primary approve-submission" data-id="<?php echo $post->ID; ?>">
-                        Approve & Create Business
+                        <?php echo $type === 'revision' ? 'Approve Changes' : 'Approve & Create Business'; ?>
                     </button>
                 </p>
                 <p>
@@ -308,6 +341,8 @@ class LBD_Business_Submission {
                 <p><strong>Status:</strong> Approved</p>
                 <?php if ($type === 'claim_business'): ?>
                     <p>The business has been claimed successfully.</p>
+                <?php elseif ($type === 'revision'): ?>
+                    <p>The proposed changes have been applied to the listing.</p>
                 <?php else: ?>
                     <p>A new business has been created from this submission.</p>
                 <?php endif; ?>
@@ -404,7 +439,12 @@ class LBD_Business_Submission {
         switch ($column) {
             case 'submission_type':
                 $type = get_post_meta($post_id, 'submission_type', true);
-                echo $type === 'claim_business' ? 'Claim Business' : 'New Business';
+                $type_labels = array(
+                    'new_business'   => 'New Business',
+                    'claim_business' => 'Claim Business',
+                    'revision'       => 'Business Revision',
+                );
+                echo $type_labels[$type] ?? $type;
                 break;
                 
             case 'business_owner':
