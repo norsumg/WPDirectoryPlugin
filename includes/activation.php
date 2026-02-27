@@ -211,6 +211,8 @@ add_action('lbd_activation', 'lbd_create_claim_page');
 
 /**
  * Ensure the claim page exists for sites that already have the plugin installed.
+ * Hooked to 'init' (not 'plugins_loaded') because wp_insert_post requires
+ * the permalink / rewrite system to be initialised.
  */
 function lbd_maybe_create_claim_page() {
     $existing_page_id = get_option('lbd_claim_page_id');
@@ -218,4 +220,4 @@ function lbd_maybe_create_claim_page() {
         lbd_create_claim_page();
     }
 }
-add_action('plugins_loaded', 'lbd_maybe_create_claim_page');
+add_action('init', 'lbd_maybe_create_claim_page', 99);
