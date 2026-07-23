@@ -3,7 +3,7 @@
  * Plugin Name: Local Business Directory
  * Plugin URI: https://norsumedia.com/
  * Description: A directory of local businesses with custom fields, search, and import/export features.
- * Version: 1.4.0
+ * Version: 1.4.1
  * Author: Norsu Media
  * Author URI: https://norsumedia.com/
  * Text Domain: local-business-directory
@@ -321,7 +321,7 @@ if (!defined('LBD_PLUGIN_DIR')) {
     define('LBD_PLUGIN_DIR', plugin_dir_path(__FILE__));
 }
 if (!defined('LBD_VERSION')) {
-    define('LBD_VERSION', '1.4.0');
+    define('LBD_VERSION', '1.4.1');
 }
 
 /**

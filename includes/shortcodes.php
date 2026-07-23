@@ -452,70 +452,134 @@ function lbd_review_form_alias_shortcode($atts) {
 add_shortcode('submit_review_form', 'lbd_review_form_alias_shortcode');
 
 /**
- * Shortcode to display a directory homepage with links to all areas and categories
+ * Shortcode to display a directory homepage with search, premium listings,
+ * and browseable area/category grids.
+ *
  * [directory_home]
+ * [directory_home show_areas="true" show_categories="true" show_premium="true" premium_limit="6"]
  */
 function lbd_directory_home_shortcode($atts) {
-    $atts = shortcode_atts( array(
-        'show_areas' => 'true',
+    $atts = shortcode_atts(array(
+        'show_areas'      => 'true',
         'show_categories' => 'true',
-    ), $atts );
-    
-    $show_areas = filter_var($atts['show_areas'], FILTER_VALIDATE_BOOLEAN);
+        'show_premium'    => 'true',
+        'premium_limit'   => 6,
+    ), $atts);
+
+    $show_areas      = filter_var($atts['show_areas'], FILTER_VALIDATE_BOOLEAN);
     $show_categories = filter_var($atts['show_categories'], FILTER_VALIDATE_BOOLEAN);
-    
+    $show_premium    = filter_var($atts['show_premium'], FILTER_VALIDATE_BOOLEAN);
+    $premium_limit   = absint($atts['premium_limit']);
+
     ob_start();
     ?>
-    <div class="directory-home">
-        <h2>Business Directory</h2>
-        
-        <?php if ($show_areas): ?>
-        <div class="directory-areas">
-            <h3>Browse by Area</h3>
-            <?php
-            $areas = get_terms(array(
-                'taxonomy' => 'business_area',
-                'hide_empty' => true,
-            ));
-            
-            if (!empty($areas) && !is_wp_error($areas)) {
-                echo '<ul class="directory-areas-list">';
-                foreach ($areas as $area) {
-                    $area_link = get_term_link($area);
-                    if (is_wp_error($area_link)) { continue; }
-                    echo '<li><a href="' . esc_url($area_link) . '">' . esc_html($area->name) . '</a></li>';
-                }
-                echo '</ul>';
-            } else {
-                echo '<p>No business areas found.</p>';
-            }
-            ?>
+    <div class="lbd-directory-home">
+
+        <!-- Search bar -->
+        <div class="lbd-home-search">
+            <?php echo do_shortcode('[business_search_form layout="horizontal" button_style="pill" placeholder="Search local businesses..."]'); ?>
         </div>
-        <?php endif; ?>
-        
-        <?php if ($show_categories): ?>
-        <div class="directory-categories">
-            <h3>Browse by Category</h3>
-            <?php
-            $categories = get_terms(array(
-                'taxonomy' => 'business_category',
-                'hide_empty' => true,
+
+        <?php
+        // --- Premium businesses ---
+        if ($show_premium) :
+            $premium_query = new WP_Query(array(
+                'post_type'      => 'business',
+                'posts_per_page' => $premium_limit,
+                'post_status'    => 'publish',
+                'meta_query'     => array(
+                    array('key' => 'lbd_premium', 'value' => 'on', 'compare' => '='),
+                ),
+                'orderby' => 'rand',
             ));
-            
-            if (!empty($categories) && !is_wp_error($categories)) {
-                echo '<ul class="directory-categories-list">';
-                foreach ($categories as $category) {
-                    $cat_link = get_term_link($category);
-                    if (is_wp_error($cat_link)) { continue; }
-                    echo '<li><a href="' . esc_url($cat_link) . '">' . esc_html($category->name) . '</a></li>';
-                }
-                echo '</ul>';
-            } else {
-                echo '<p>No business categories found.</p>';
-            }
-            ?>
+
+            if ($premium_query->have_posts()) : ?>
+                <div class="lbd-home-section lbd-premium-section">
+                    <h2 class="lbd-home-section-title">Featured Businesses</h2>
+                    <div class="lbd-premium-grid">
+                        <?php while ($premium_query->have_posts()) : $premium_query->the_post();
+                            $phone   = get_post_meta(get_the_ID(), 'lbd_phone', true);
+                            $website = get_post_meta(get_the_ID(), 'lbd_website', true);
+                            $cats    = get_the_terms(get_the_ID(), 'business_category');
+                        ?>
+                        <div class="lbd-premium-card">
+                            <?php if (has_post_thumbnail()) : ?>
+                            <a href="<?php the_permalink(); ?>" class="lbd-premium-thumb">
+                                <?php the_post_thumbnail('medium'); ?>
+                            </a>
+                            <?php endif; ?>
+                            <div class="lbd-premium-body">
+                                <span class="lbd-premium-badge">Featured</span>
+                                <h3 class="lbd-premium-title"><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h3>
+                                <?php if (!empty($cats) && !is_wp_error($cats)) : ?>
+                                    <span class="lbd-premium-cat"><?php echo esc_html($cats[0]->name); ?></span>
+                                <?php endif; ?>
+                                <p class="lbd-premium-excerpt"><?php echo wp_trim_words(get_the_excerpt(), 15); ?></p>
+                                <div class="lbd-premium-actions">
+                                    <a href="<?php the_permalink(); ?>" class="lbd-btn lbd-btn-outline">View Details</a>
+                                    <?php if ($website) : ?>
+                                    <a href="<?php echo esc_url(add_query_arg('utm_source', 'kentlocal', $website)); ?>" class="lbd-btn lbd-btn-primary" target="_blank" rel="nofollow">Visit Website</a>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                        <?php endwhile; ?>
+                    </div>
+                </div>
+            <?php endif;
+            wp_reset_postdata();
+        endif;
+        ?>
+
+        <div class="lbd-home-browse">
+            <?php if ($show_areas) : ?>
+            <div class="lbd-home-section">
+                <h2 class="lbd-home-section-title">Browse by Area</h2>
+                <?php
+                $areas = get_terms(array('taxonomy' => 'business_area', 'hide_empty' => true));
+                if (!empty($areas) && !is_wp_error($areas)) :
+                ?>
+                <div class="lbd-tag-grid">
+                    <?php foreach ($areas as $area) :
+                        $link = get_term_link($area);
+                        if (is_wp_error($link)) { continue; }
+                    ?>
+                    <a href="<?php echo esc_url($link); ?>" class="lbd-tag-card">
+                        <span class="lbd-tag-name"><?php echo esc_html($area->name); ?></span>
+                        <span class="lbd-tag-count"><?php echo intval($area->count); ?></span>
+                    </a>
+                    <?php endforeach; ?>
+                </div>
+                <?php else : ?>
+                <p>No business areas found.</p>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($show_categories) : ?>
+            <div class="lbd-home-section">
+                <h2 class="lbd-home-section-title">Browse by Category</h2>
+                <?php
+                $categories = get_terms(array('taxonomy' => 'business_category', 'hide_empty' => true, 'parent' => 0));
+                if (!empty($categories) && !is_wp_error($categories)) :
+                ?>
+                <div class="lbd-tag-grid">
+                    <?php foreach ($categories as $category) :
+                        $link = get_term_link($category);
+                        if (is_wp_error($link)) { continue; }
+                    ?>
+                    <a href="<?php echo esc_url($link); ?>" class="lbd-tag-card">
+                        <span class="lbd-tag-name"><?php echo esc_html($category->name); ?></span>
+                        <span class="lbd-tag-count"><?php echo intval($category->count); ?></span>
+                    </a>
+                    <?php endforeach; ?>
+                </div>
+                <?php else : ?>
+                <p>No business categories found.</p>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
         </div>
-        <?php endif; ?>
     </div>
     <?php
     return ob_get_clean();
