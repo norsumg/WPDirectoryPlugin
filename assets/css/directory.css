@@ -1373,8 +1373,30 @@ body.search .business .author-link {
     margin: 0 auto;
 }
 
+.lbd-home-hero {
+    text-align: center;
+    padding: 30px 0 40px;
+    margin-bottom: 10px;
+}
+
+.lbd-home-heading {
+    font-size: 32px;
+    font-weight: 700;
+    color: #222;
+    margin: 0 0 24px;
+}
+
 .lbd-home-search {
-    margin-bottom: 40px;
+    max-width: 750px;
+    margin: 0 auto;
+}
+
+.lbd-home-search .business-search-form {
+    justify-content: center;
+}
+
+.lbd-home-search .business-search-form.horizontal .search-inputs {
+    justify-content: center;
 }
 
 /* Section titles */

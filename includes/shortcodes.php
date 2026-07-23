@@ -475,9 +475,11 @@ function lbd_directory_home_shortcode($atts) {
     ?>
     <div class="lbd-directory-home">
 
-        <!-- Search bar -->
-        <div class="lbd-home-search">
-            <?php echo do_shortcode('[business_search_form layout="horizontal" button_style="pill" placeholder="Search local businesses..."]'); ?>
+        <div class="lbd-home-hero">
+            <h1 class="lbd-home-heading">Local Businesses</h1>
+            <div class="lbd-home-search">
+                <?php echo do_shortcode('[business_search_form layout="horizontal" button_style="pill" placeholder="Search local businesses..."]'); ?>
+            </div>
         </div>
 
         <?php
