@@ -158,13 +158,12 @@ function lbd_submit_business_form_shortcode($atts) {
                                 ));
                                 
                                 if (!empty($categories) && !is_wp_error($categories)) {
-                                    // Separate into top-level and child categories
                                     $top_level_categories = array();
                                     $child_categories = array();
                                     
                                     foreach ($categories as $category) {
                                         if ($category->parent == 0) {
-                                            $top_level_categories[] = $category;
+                                            $top_level_categories[$category->term_id] = $category;
                                         } else {
                                             if (!isset($child_categories[$category->parent])) {
                                                 $child_categories[$category->parent] = array();

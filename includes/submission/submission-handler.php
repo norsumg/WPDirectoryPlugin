@@ -39,8 +39,7 @@ function lbd_process_business_submission() {
         );
     }
     
-    // Rate limiting
-    $user_ip = $_SERVER['REMOTE_ADDR'];
+    $user_ip = lbd_get_client_ip();
     $transient_key = 'lbd_submission_' . md5($user_ip);
     if (get_transient($transient_key)) {
         return array(
@@ -367,7 +366,13 @@ function lbd_process_claim_email_verification() {
         return array('success' => true, 'message' => 'Thank you!');
     }
 
+    $user_ip = lbd_get_client_ip();
     $business_id  = isset($_POST['business_id']) ? intval($_POST['business_id']) : 0;
+    $rate_key = 'lbd_claim_email_' . md5($user_ip . $business_id);
+    if (get_transient($rate_key)) {
+        return array('success' => false, 'message' => 'Please wait a few minutes before requesting another verification email.');
+    }
+
     $owner_name   = isset($_POST['owner_name']) ? sanitize_text_field($_POST['owner_name']) : '';
     $owner_email  = isset($_POST['owner_email']) ? sanitize_email($_POST['owner_email']) : '';
     $owner_phone  = isset($_POST['owner_phone']) ? sanitize_text_field($_POST['owner_phone']) : '';
@@ -397,6 +402,10 @@ function lbd_process_claim_email_verification() {
         'owner_email' => $owner_email,
         'owner_phone' => $owner_phone,
     ));
+
+    if (!empty($result['success'])) {
+        set_transient($rate_key, true, 5 * MINUTE_IN_SECONDS);
+    }
 
     return $result;
 }

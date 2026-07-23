@@ -16,7 +16,6 @@ if (!defined('ABSPATH')) {
 function lbd_init_submission_actions() {
     add_action('wp_ajax_lbd_approve_submission', 'lbd_ajax_approve_submission');
     add_action('wp_ajax_lbd_reject_submission', 'lbd_ajax_reject_submission');
-    add_action('wp_ajax_lbd_claim_business', 'lbd_ajax_claim_business');
 }
 add_action('init', 'lbd_init_submission_actions');
 
@@ -24,13 +23,11 @@ add_action('init', 'lbd_init_submission_actions');
  * AJAX handler for approving submissions
  */
 function lbd_ajax_approve_submission() {
-    // Check nonce
-    if (!wp_verify_nonce($_POST['nonce'], 'lbd_submission_action')) {
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'lbd_submission_action')) {
         wp_die('Security check failed');
     }
     
-    // Check permissions
-    if (!current_user_can('edit_posts')) {
+    if (!current_user_can('manage_options')) {
         wp_die('Insufficient permissions');
     }
     
@@ -64,13 +61,11 @@ function lbd_ajax_approve_submission() {
  * AJAX handler for rejecting submissions
  */
 function lbd_ajax_reject_submission() {
-    // Check nonce
-    if (!wp_verify_nonce($_POST['nonce'], 'lbd_submission_action')) {
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'lbd_submission_action')) {
         wp_die('Security check failed');
     }
     
-    // Check permissions
-    if (!current_user_can('edit_posts')) {
+    if (!current_user_can('manage_options')) {
         wp_die('Insufficient permissions');
     }
     

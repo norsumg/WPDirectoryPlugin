@@ -49,8 +49,7 @@ function lbd_process_review_submission($business_id, $review_data = array(), $ch
         return $result;
     }
     
-    // Check rate limiting
-    $user_ip = $_SERVER['REMOTE_ADDR'];
+    $user_ip = lbd_get_client_ip();
     $transient_key = 'lbd_review_' . md5($user_ip . $business_id);
     if (get_transient($transient_key)) {
         $result['errors'][] = 'Please wait a few minutes before submitting another review.';

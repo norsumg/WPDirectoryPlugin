@@ -3,7 +3,7 @@
  * Plugin Name: Local Business Directory
  * Plugin URI: https://norsumedia.com/
  * Description: A directory of local businesses with custom fields, search, and import/export features.
- * Version: 1.3
+ * Version: 1.4.0
  * Author: Norsu Media
  * Author URI: https://norsumedia.com/
  * Text Domain: local-business-directory
@@ -66,18 +66,41 @@ add_action('plugins_loaded', 'lbd_maybe_include_debug', 20);
  * Enqueue frontend styles and scripts
  */
 function lbd_enqueue_styles() {
-    // Main plugin CSS
-    wp_enqueue_style('lbd-styles', plugin_dir_url(__FILE__) . 'assets/css/directory.css', array(), '0.7.0');
+    $needs_styles = is_singular('business')
+        || is_post_type_archive('business')
+        || is_tax('business_category')
+        || is_tax('business_area')
+        || is_search();
+
+    global $post;
+    if (!$needs_styles && is_a($post, 'WP_Post')) {
+        $needs_styles = has_shortcode($post->post_content, 'business_search_form')
+            || has_shortcode($post->post_content, 'business_search')
+            || has_shortcode($post->post_content, 'lbd_search_results')
+            || has_shortcode($post->post_content, 'business_search_results')
+            || has_shortcode($post->post_content, 'custom_categories')
+            || has_shortcode($post->post_content, 'business_areas')
+            || has_shortcode($post->post_content, 'directory_home')
+            || has_shortcode($post->post_content, 'business_review_form')
+            || has_shortcode($post->post_content, 'submit_review_form')
+            || has_shortcode($post->post_content, 'submit_business_form')
+            || has_shortcode($post->post_content, 'claim_business_form')
+            || has_shortcode($post->post_content, 'claim_business_button')
+            || has_shortcode($post->post_content, 'lbd_owner_dashboard')
+            || has_shortcode($post->post_content, 'lbd_owner_edit_business');
+    }
+
+    if (!$needs_styles) {
+        return;
+    }
+
+    wp_enqueue_style('lbd-styles', plugin_dir_url(__FILE__) . 'assets/css/directory.css', array(), LBD_VERSION);
+    wp_enqueue_style('lbd-submission-forms', plugin_dir_url(__FILE__) . 'assets/css/submission-forms.css', array(), LBD_VERSION);
     
-    // Submission forms CSS
-    wp_enqueue_style('lbd-submission-forms', plugin_dir_url(__FILE__) . 'assets/css/submission-forms.css', array(), '1.0.0');
-    
-    // Single business page scripts - only load on business single
     if (is_singular('business')) {
-        wp_enqueue_script('lbd-single-business', plugin_dir_url(__FILE__) . 'assets/js/single-business.js', array('jquery'), '0.7.0', true);
+        wp_enqueue_script('lbd-single-business', plugin_dir_url(__FILE__) . 'assets/js/single-business.js', array('jquery'), LBD_VERSION, true);
     }
     
-    // Add inline CSS for pagination options
     $pagination_css = "
         .lbd-pagination-options {
             display: flex;
@@ -123,13 +146,13 @@ function lbd_admin_scripts($hook) {
     
     // Admin CSS for all admin pages related to businesses
     if (isset($screen->post_type) && $screen->post_type === 'business') {
-        wp_enqueue_style('lbd-admin-styles', plugin_dir_url(__FILE__) . 'assets/css/admin.css', array(), '0.7.0');
+        wp_enqueue_style('lbd-admin-styles', plugin_dir_url(__FILE__) . 'assets/css/admin.css', array(), LBD_VERSION);
     }
     
     // Admin JS for the business edit screen and CSV import page
     if ((isset($screen->post_type) && $screen->post_type === 'business') || 
         (isset($_GET['page']) && $_GET['page'] === 'lbd-csv-import')) {
-        wp_enqueue_script('lbd-admin-js', plugin_dir_url(__FILE__) . 'assets/js/admin.js', array('jquery'), '0.7.0', true);
+        wp_enqueue_script('lbd-admin-js', plugin_dir_url(__FILE__) . 'assets/js/admin.js', array('jquery'), LBD_VERSION, true);
     }
 }
 add_action('admin_enqueue_scripts', 'lbd_admin_scripts');
@@ -278,7 +301,7 @@ function lbd_plugin_loaded() {
     $current_version = get_option('lbd_version', '0');
     
     // Current plugin version
-    $plugin_version = '0.7.0'; // Update version number here
+    $plugin_version = LBD_VERSION;
     
     // Check if version has changed
     if (version_compare($current_version, $plugin_version, '!=')) {
@@ -296,6 +319,38 @@ add_action('plugins_loaded', 'lbd_plugin_loaded');
  */
 if (!defined('LBD_PLUGIN_DIR')) {
     define('LBD_PLUGIN_DIR', plugin_dir_path(__FILE__));
+}
+if (!defined('LBD_VERSION')) {
+    define('LBD_VERSION', '1.4.0');
+}
+
+/**
+ * Get the client IP address, respecting common proxy/CDN headers.
+ *
+ * The header priority can be filtered via 'lbd_ip_headers' so site operators
+ * can adjust for their specific hosting/proxy stack.
+ *
+ * @return string Sanitised IPv4/IPv6 address, or '0.0.0.0' as fallback.
+ */
+function lbd_get_client_ip() {
+    $headers = apply_filters('lbd_ip_headers', array(
+        'HTTP_CF_CONNECTING_IP',  // Cloudflare
+        'HTTP_X_FORWARDED_FOR',   // Generic proxy / load balancer
+        'HTTP_X_REAL_IP',         // Nginx
+        'REMOTE_ADDR',            // Direct connection (fallback)
+    ));
+
+    foreach ($headers as $header) {
+        if (!empty($_SERVER[$header])) {
+            $ip_list = $_SERVER[$header];
+            $ip = trim(explode(',', $ip_list)[0]);
+            if (filter_var($ip, FILTER_VALIDATE_IP)) {
+                return $ip;
+            }
+        }
+    }
+
+    return '0.0.0.0';
 }
 
 /**

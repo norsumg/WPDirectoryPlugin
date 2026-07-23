@@ -58,7 +58,11 @@ function lbd_areas_shortcode( $atts ) {
 
     $output = '<ul class="business-areas">';
     foreach ( $terms as $term ) {
-        $output .= '<li><a href="' . get_term_link( $term ) . '">' . esc_html( $term->name ) . '</a></li>';
+        $term_link = get_term_link( $term );
+        if ( is_wp_error( $term_link ) ) {
+            continue;
+        }
+        $output .= '<li><a href="' . esc_url( $term_link ) . '">' . esc_html( $term->name ) . '</a></li>';
     }
     $output .= '</ul>';
     return $output;
@@ -140,13 +144,12 @@ function lbd_search_form_shortcode($atts) {
                             ));
                             
                             if (!empty($categories) && !is_wp_error($categories)) {
-                                // Separate into top-level and child categories
                                 $top_level_categories = array();
                                 $child_categories = array();
                                 
                                 foreach ($categories as $category) {
                                     if ($category->parent == 0) {
-                                        $top_level_categories[] = $category;
+                                        $top_level_categories[$category->term_id] = $category;
                                     } else {
                                         if (!isset($child_categories[$category->parent])) {
                                             $child_categories[$category->parent] = array();
@@ -155,13 +158,10 @@ function lbd_search_form_shortcode($atts) {
                                     }
                                 }
                                 
-                                // Display categories in hierarchical format
                                 foreach ($top_level_categories as $parent) {
                                     $selected = ($current_category === $parent->slug) ? 'selected="selected"' : '';
-                                    // Make the parent category directly selectable
                                     echo '<option value="' . esc_attr($parent->slug) . '" ' . $selected . '>' . esc_html($parent->name) . '</option>';
                                     
-                                    // Add child categories with indentation
                                     if (isset($child_categories[$parent->term_id])) {
                                         foreach ($child_categories[$parent->term_id] as $child) {
                                             $selected = ($current_category === $child->slug) ? 'selected="selected"' : '';
@@ -170,7 +170,6 @@ function lbd_search_form_shortcode($atts) {
                                     }
                                 }
                                 
-                                // Check for orphaned categories (children with no existing parent)
                                 foreach ($categories as $category) {
                                     if ($category->parent > 0 && !isset($top_level_categories[$category->parent])) {
                                         $selected = ($current_category === $category->slug) ? 'selected="selected"' : '';
@@ -253,10 +252,122 @@ if (function_exists('lbd_test_search_shortcode')) {
     remove_shortcode('test_business_search');
 }
 
-if (function_exists('lbd_search_results_shortcode')) {
-    remove_shortcode('business_search_results');
-    remove_shortcode('lbd_search_results');
+/**
+ * Search results shortcode — displays business search results with pagination.
+ * Usage: [lbd_search_results per_page="10" info_layout="list"]
+ */
+function lbd_search_results_shortcode($atts) {
+    $atts = shortcode_atts(array(
+        'per_page'    => 10,
+        'info_layout' => 'list',
+    ), $atts);
+
+    $per_page    = absint($atts['per_page']);
+    $info_layout = sanitize_key($atts['info_layout']);
+    $paged       = max(1, get_query_var('paged', 1));
+
+    $search_term = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
+    $area        = isset($_GET['area']) ? sanitize_key($_GET['area']) : '';
+    $category    = isset($_GET['category']) ? sanitize_key($_GET['category']) : '';
+    $post_type   = isset($_GET['post_type']) ? sanitize_key($_GET['post_type']) : 'business';
+
+    if ($post_type !== 'business') {
+        $post_type = 'business';
+    }
+
+    $has_query = ($search_term !== '' || $area !== '' || $category !== '');
+    if (!$has_query) {
+        return '';
+    }
+
+    $args = array(
+        'post_type'      => $post_type,
+        'posts_per_page' => $per_page,
+        'paged'          => $paged,
+        'post_status'    => 'publish',
+    );
+
+    if ($search_term !== '') {
+        $args['s'] = $search_term;
+    }
+
+    $tax_query = array();
+    if ($area !== '') {
+        $term = get_term_by('slug', $area, 'business_area');
+        if ($term && !is_wp_error($term)) {
+            $tax_query[] = array(
+                'taxonomy' => 'business_area',
+                'field'    => 'slug',
+                'terms'    => $area,
+            );
+        }
+    }
+    if ($category !== '') {
+        $term = get_term_by('slug', $category, 'business_category');
+        if ($term && !is_wp_error($term)) {
+            $tax_query[] = array(
+                'taxonomy' => 'business_category',
+                'field'    => 'slug',
+                'terms'    => $category,
+            );
+        }
+    }
+    if (!empty($tax_query)) {
+        if (count($tax_query) > 1) {
+            $tax_query['relation'] = 'AND';
+        }
+        $args['tax_query'] = $tax_query;
+    }
+
+    $query = new WP_Query($args);
+
+    ob_start();
+
+    if ($query->have_posts()) {
+        $wrapper_class = ($info_layout === 'grid') ? 'business-grid' : 'business-list-results';
+        echo '<div class="lbd-search-results">';
+        echo '<p class="results-count">' . esc_html($query->found_posts) . ' result' . ($query->found_posts !== 1 ? 's' : '') . ' found</p>';
+        echo '<div class="' . esc_attr($wrapper_class) . '">';
+
+        while ($query->have_posts()) {
+            $query->the_post();
+            $template = locate_template('content-business.php');
+            if (!$template) {
+                $template = plugin_dir_path(dirname(__FILE__)) . 'templates/content-business.php';
+            }
+            if (file_exists($template)) {
+                include $template;
+            }
+        }
+
+        echo '</div>';
+
+        $total_pages = $query->max_num_pages;
+        if ($total_pages > 1) {
+            echo '<div class="lbd-pagination">';
+            echo paginate_links(array(
+                'total'   => $total_pages,
+                'current' => $paged,
+                'format'  => '?paged=%#%',
+                'prev_text' => '&laquo; Previous',
+                'next_text' => 'Next &raquo;',
+            ));
+            echo '</div>';
+        }
+
+        echo '</div>';
+    } else {
+        echo '<div class="lbd-search-results lbd-no-results">';
+        echo '<p>No businesses found matching your search. Please try different keywords or filters.</p>';
+        echo '</div>';
+    }
+
+    wp_reset_postdata();
+
+    return ob_get_clean();
 }
+add_shortcode('lbd_search_results', 'lbd_search_results_shortcode');
+add_shortcode('business_search_results', 'lbd_search_results_shortcode');
 
 // Shortcode for review submission form
 function lbd_review_form_shortcode($atts) {
@@ -370,7 +481,9 @@ function lbd_directory_home_shortcode($atts) {
             if (!empty($areas) && !is_wp_error($areas)) {
                 echo '<ul class="directory-areas-list">';
                 foreach ($areas as $area) {
-                    echo '<li><a href="' . get_term_link($area) . '">' . esc_html($area->name) . '</a></li>';
+                    $area_link = get_term_link($area);
+                    if (is_wp_error($area_link)) { continue; }
+                    echo '<li><a href="' . esc_url($area_link) . '">' . esc_html($area->name) . '</a></li>';
                 }
                 echo '</ul>';
             } else {
@@ -392,7 +505,9 @@ function lbd_directory_home_shortcode($atts) {
             if (!empty($categories) && !is_wp_error($categories)) {
                 echo '<ul class="directory-categories-list">';
                 foreach ($categories as $category) {
-                    echo '<li><a href="' . get_term_link($category) . '">' . esc_html($category->name) . '</a></li>';
+                    $cat_link = get_term_link($category);
+                    if (is_wp_error($cat_link)) { continue; }
+                    echo '<li><a href="' . esc_url($cat_link) . '">' . esc_html($category->name) . '</a></li>';
                 }
                 echo '</ul>';
             } else {
